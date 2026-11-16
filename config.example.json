@@ -24,6 +24,8 @@
   "rename": {"2256": "Spotify"},
   "weather": {"city": "London", "lat": 51.51, "lon": -0.13},
   "quotes": true,
+  "wallpaper": true,
+  "wallpaper_market": "en-US",
   "clock_24h": false,
   "home_takeover": true,
   "takeover_on_power_on": true,

@@ -26,6 +26,23 @@
               mask-image: radial-gradient(ellipse 62% 58% at 68% 34%, #000 0%, rgba(0,0,0,.55) 45%, transparent 100%); }
   .backdrop.on { opacity: .42; }
 
+  /* Wallpaper of the day (from the helper). Shades keep text readable: darker at the top, on the left behind the
+     quote and name, and at the bottom behind the tiles; darker still while a grid row has focus. */
+  #wall { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0; transition: opacity 1.2s ease; }
+  #wall.on { opacity: 1; }
+  #wallShade, #gridShade { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .6s ease; }
+  #wallShade { background: linear-gradient(180deg, rgba(0,0,0,.62) 0%, rgba(0,0,0,.2) 26%, rgba(0,0,0,.18) 50%, rgba(0,0,0,.78) 82%, rgba(0,0,0,.9) 100%),
+                           linear-gradient(90deg, rgba(0,0,0,.5) 0%, rgba(0,0,0,0) 62%),
+                           radial-gradient(ellipse 760px 380px at 100% 34%, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 100%); }
+  #gridShade { background: rgba(0,0,0,.55); }
+  body.wallpaper #wallShade { opacity: 1; }
+  body.wallpaper.ingrid #gridShade { opacity: 1; }
+  body.wallpaper .backdrop { display: none; }
+  body.wallpaper #header, body.wallpaper #quote, body.wallpaper #hero, body.wallpaper #weather, body.wallpaper #wallCredit,
+  body.wallpaper .section, body.wallpaper .name { text-shadow: 0 2px 14px rgba(0,0,0,.65); }
+  #wallCredit { position: absolute; right: 103px; top: 432px; max-width: 640px; text-align: right; font-size: 24px;
+                color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity .3s ease; }
+
   /* Header: greeting, clock and date on the left, pills on the right. */
   #header { position: absolute; left: 112px; right: 112px; top: 52px; display: flex; align-items: flex-end; z-index: 3; }
   #left { flex: 1; min-width: 0; }
@@ -67,7 +84,6 @@
   #wxIcon { width: 76px; height: 76px; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
   #wxTemp { font-size: 88px; font-weight: 300; line-height: 1; letter-spacing: -.03em; }
   #wxInfo { margin-top: 12px; font-size: 26px; letter-spacing: .04em; color: rgba(255,255,255,.55); white-space: nowrap; }
-  #quote.hidden, #weather.hidden { opacity: 0; }
 
   #hero { position: absolute; left: 108px; top: 476px; transition: opacity .3s ease; }
   #hero.hidden { opacity: 0; }
@@ -172,6 +188,9 @@
 </style>
 </head>
 <body>
+<div id="wall"></div>
+<div id="wallShade"></div>
+<div id="gridShade"></div>
 <div class="backdrop" id="backA"></div>
 <div class="backdrop" id="backB"></div>
 
@@ -193,6 +212,7 @@
   <div id="rail">
     <div id="quote" style="display:none"><img id="quotePic" alt=""><div><div id="quoteText"></div><div id="quoteMeta"><span id="quoteBy"></span><span id="quoteSrc"></span></div></div></div>
     <div id="weather" style="display:none"><div id="wxTop"><svg id="wxIcon" viewBox="0 0 48 48"></svg><div id="wxTemp"></div></div><div id="wxInfo"></div></div>
+    <div id="wallCredit" style="display:none"></div>
     <div id="hero"><div id="heroName"></div><div id="heroHint">OK to open&nbsp;&nbsp;·&nbsp;&nbsp;hold OK for options</div></div>
     <div id="sections"></div>
     <div id="band"></div>
@@ -276,6 +296,8 @@
     quoteDay = day;
     var builtIn = function () {
       if (!quotes) { quoteDay = -1; return; }   // try again on the next minute's tick
+      // The internet quote didn't come: ask again in 10 minutes rather than keep the built-in one all day.
+      if (!state.static) setTimeout(function () { if (quoteDay === day) { quoteDay = -1; showQuote(); } }, 10 * 60 * 1000);
       var q = quotes.en[day % quotes.en.length];
       paintQuote(q[0], q[1], '', '');
     };
@@ -300,6 +322,27 @@
     snow: '<g transform="translate(0 -6)">' + CLOUD + '</g><path d="M16 38h.01M24 41h.01M32 38h.01"/>',
     storm: '<g transform="translate(0 -6)">' + CLOUD + '</g><path d="M25 33l-4 6h6l-4 6"/>'
   };
+  // ---------- wallpaper of the day: Bing's photo in 4K, kept by the helper; checked hourly for a new day ----------
+  var wallTimer = 0, wallShown = '';
+  function loadWallpaper() {
+    if (state.static || !state.wallpaper) return;
+    if (!wallTimer) wallTimer = setInterval(loadWallpaper, 60 * 60 * 1000);
+    load('/api/wallpaper').then(function (w) {
+      if (!w || !w.image) { if (!wallShown) setTimeout(loadWallpaper, 20000); return; }   // first download still running
+      if (w.image === wallShown) return;
+      var img = new Image();
+      img.onload = function () {
+        wallShown = w.image;
+        $('wall').style.backgroundImage = 'url(' + w.image + ')';
+        $('wall').classList.add('on');
+        document.body.classList.add('wallpaper');
+        $('wallCredit').textContent = w.credit || w.title || '';
+        $('wallCredit').style.display = w.credit || w.title ? '' : 'none';
+      };
+      img.src = w.image;
+    }, function () {});
+  }
+
   var weatherTimer = 0;
   function loadWeather() {
     var box = $('weather');
@@ -475,8 +518,8 @@
     var app = focused();
     if (inDock && app) $('heroName').textContent = app.name;
     $('hero').classList.toggle('hidden', !inDock);
-    $('quote').classList.toggle('hidden', !inDock);
-    $('weather').classList.toggle('hidden', !inDock);
+    // The quote, weather and photo credit always show; in the grid they scroll up out of sight with the rail.
+    document.body.classList.toggle('ingrid', !inDock && !onTop());
     backdrop(inDock ? app : null);
     if (app && p) glassTo(focus.index);
     else $('glass').classList.remove('on');
@@ -979,8 +1022,8 @@
     if (rest.length) { state.sections.push({ title: state.rows ? 'More' : '', start: ordered.length, count: rest.length }); ordered = ordered.concat(rest); }
     state.apps = ordered;
     state.clock24 = !!s.clock_24h; state.greetingName = s.greeting_name || '';
-    state.quotes = s.quotes !== false; state.weather = !!s.weather;
-    quoteDay = -1; showQuote(); loadWeather();
+    state.quotes = s.quotes !== false; state.weather = !!s.weather; state.wallpaper = !!s.wallpaper;
+    quoteDay = -1; showQuote(); loadWeather(); loadWallpaper();
     state.sources = s.sources || [];
     state.browserCfg = s.browser || {};
     document.body.classList.toggle('static', state.static);

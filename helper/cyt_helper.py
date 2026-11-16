@@ -343,7 +343,7 @@ _quote = {"day": "", "data": None, "image": None, "tried": 0.0}
 
 
 def _fetch(url: str) -> bytes:
-    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=5) as r:
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=10) as r:
         return r.read()
 
 
@@ -352,6 +352,10 @@ def quote_of_day() -> dict | None:
         return None
     today = time.strftime("%Y-%m-%d")
     if _quote["day"] == today:
+        # The portrait didn't come with the quote: try it again every 10 minutes.
+        if not _quote["image"] and _quote.get("image_url") and time.time() - _quote["tried"] > 600:
+            _quote["tried"] = time.time()
+            threading.Thread(target=_quote_portrait, args=(today,), daemon=True).start()   # the TV doesn't wait
         return _quote["data"]
     if time.time() - _quote["tried"] < 600:   # failed a moment ago: don't keep the TV waiting on it
         return None
@@ -362,15 +366,61 @@ def quote_of_day() -> dict | None:
     except Exception as e:
         log(f"quote of the day: {e}")
         return None
-    image = None
-    if str(q.get("i", "")).startswith("https://zenquotes.io/"):
-        try:
-            image = _fetch(q["i"])
-            data["image"] = f"/api/quote-image?d={today}"
-        except Exception as e:
-            log(f"quote portrait: {e}")
-    _quote.update(day=today, data=data, image=image)
+    url = str(q.get("i", ""))
+    _quote.update(day=today, data=data, image=None, image_url=url if url.startswith("https://zenquotes.io/") else "")
+    _quote_portrait(today)
     return data
+
+
+def _quote_portrait(today: str):
+    try:
+        _quote["image"] = _fetch(_quote["image_url"])
+        _quote["data"]["image"] = f"/api/quote-image?d={today}"
+    except Exception as e:
+        log(f"quote portrait: {e}")
+
+
+# Wallpaper of the day: Bing's photo of the day in 4K (3840 x 2160, about 3-4 MB), downloaded in the background
+# once a day and kept in data/, so the launcher opens at once and still has yesterday's photo when offline.
+WALLPAPER_ON = CONFIG.get("wallpaper", True)
+WALLPAPER_API = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=" + quote(str(CONFIG.get("wallpaper_market", "en-US")))
+WALLPAPER_IMG = DATA / "wallpaper.jpg"
+WALLPAPER_META = DATA / "wallpaper.json"
+_wall = {"busy": False, "tried": 0.0}
+
+
+def wallpaper_meta() -> dict | None:
+    """What the launcher shows now; starts a download when the photo isn't today's."""
+    if not WALLPAPER_ON:
+        return None
+    try:
+        meta = json.loads(WALLPAPER_META.read_text(encoding="utf-8")) if WALLPAPER_IMG.exists() else None
+    except Exception:
+        meta = None
+    if (not meta or meta.get("day") != time.strftime("%Y-%m-%d")) and not _wall["busy"] and time.time() - _wall["tried"] > 600:
+        _wall.update(busy=True, tried=time.time())
+        threading.Thread(target=_refresh_wallpaper, daemon=True).start()
+    return meta
+
+
+def _refresh_wallpaper():
+    try:
+        img = json.loads(_fetch(WALLPAPER_API))["images"][0]
+        body = _fetch("https://www.bing.com" + img["urlbase"] + "_UHD.jpg")
+        if len(body) < 50_000 or body[:2] != b"\xff\xd8":   # not a JPEG: keep the old one
+            raise ValueError("no usable image")
+        DATA.mkdir(exist_ok=True)
+        tmp = WALLPAPER_IMG.with_suffix(".tmp")
+        tmp.write_bytes(body)
+        tmp.replace(WALLPAPER_IMG)
+        day = time.strftime("%Y-%m-%d")
+        WALLPAPER_META.write_text(json.dumps({"day": day, "title": img.get("title", ""), "credit": img.get("copyright", ""),
+                                              "image": f"/api/wallpaper.jpg?d={day}"}), encoding="utf-8")
+        log(f"wallpaper of the day: {img.get('title', '')}")
+    except Exception as e:
+        log(f"wallpaper: {e}")
+    finally:
+        _wall["busy"] = False
 
 
 STREMIO = CONFIG.get("stremio") or {}
@@ -595,7 +645,7 @@ class Handler(SimpleHTTPRequestHandler):
             threading.Thread(target=APPS.refresh_if_stale, daemon=True).start()
             self._json(200, {"apps": APPS.for_launcher(), "dock_size": len(CONFIG.get("dock", [])),
                              "greeting_name": CONFIG.get("greeting_name", ""), "rows": CONFIG.get("rows", []),
-                             "quotes": CONFIG.get("quotes", True), "weather": bool(WEATHER),
+                             "quotes": CONFIG.get("quotes", True), "weather": bool(WEATHER), "wallpaper": bool(WALLPAPER_ON),
                              "clock_24h": CONFIG.get("clock_24h", False), "sources": SOURCES.get(),
                              "removed_count": len(APPS.removed()), "takeover": takeover_on(), "browser": BROWSER,
                              "order_saved": bool(APPS.order())})
@@ -605,6 +655,22 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path == "/api/quote":
             self._json(200, quote_of_day())
+            return
+        if path == "/api/wallpaper":
+            self._json(200, wallpaper_meta())
+            return
+        if path == "/api/wallpaper.jpg":
+            try:
+                body = WALLPAPER_IMG.read_bytes()
+            except OSError:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "max-age=86400")   # the address changes with the day
+            self.end_headers()
+            self.wfile.write(body)
             return
         if path == "/api/quote-image":
             body = _quote["image"]
@@ -1101,6 +1167,8 @@ def main():
     ThreadingHTTPServer.allow_reuse_address = os.name != "nt"
     server = ThreadingHTTPServer(("0.0.0.0", port), partial(Handler, directory=str(WEB)))
     log(f"launcher on http://<this computer's ip>:{port}/  (serving {WEB})")
+    wallpaper_meta()   # fetch today's photo and quote now, so they're ready before the TV first asks
+    threading.Thread(target=quote_of_day, daemon=True).start()
     server.serve_forever()
 
 
