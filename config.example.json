@@ -24,6 +24,8 @@
   "rename": {"2256": "Spotify"},
   "weather": {"city": "London", "lat": 51.51, "lon": -0.13},
   "quotes": true,
+  "app_browser": {"osnplus": "https://osnplus.com/"},
+  "app_vpn": {"osnplus": "ae"},
   "vpn_countries": ["us", "gb"],
   "wallpaper": true,
   "wallpaper_market": "en-US",

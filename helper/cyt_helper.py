@@ -272,6 +272,8 @@ class Apps:
             entry = {"appId": str(a["appId"]), "name": name, "icon": f"/icon/{a['appId']}"}
             if a.get("url") == "browser":  # the launcher's Browser screen, which hands its searches to this app
                 entry.update(name="Browser", browser=True)
+            if str(a["appId"]) in APP_VPN:
+                entry["vpn"] = APP_VPN[str(a["appId"])]
             out.append(entry)
         return out
 
@@ -484,6 +486,41 @@ def region_set(key: str) -> str:
     name = next((x["name"] for x in regions() if x["id"] == key), key)
     log(f"TV VPN: {name}")
     return key
+
+
+# Per app: open in the TV Browser (a website that needs a pointer, like osnplus.com) and/or switch the TV's VPN to a
+# country first. Opening any other app afterwards switches the VPN back to what it was; choosing a region by hand
+# (Region button, phone page) ends that, so a manual choice is never undone.
+APP_BROWSER = {str(k): str(v) for k, v in (CONFIG.get("app_browser") or {}).items()}
+APP_VPN = {str(k): str(v).lower() for k, v in (CONFIG.get("app_vpn") or {}).items()}
+_auto_vpn = {"prev": None}   # the region before an app switched it, while that switch stands
+
+
+def vpn_for_app(app_id: str):
+    if not vpn_available():
+        return
+    target, now = APP_VPN.get(app_id), region_now()
+    try:
+        if target and now != target:
+            if _auto_vpn["prev"] is None:
+                _auto_vpn["prev"] = now
+            region_set(target)
+        elif not target and _auto_vpn["prev"] is not None:
+            prev, _auto_vpn["prev"] = _auto_vpn["prev"], None
+            if now != prev:
+                region_set(prev)
+    except Exception as e:
+        log(f"TV VPN for {app_id}: {e}")   # open the app anyway; it will say if the region is wrong
+
+
+def open_app(app: dict):
+    app_id = str(app.get("appId"))
+    vpn_for_app(app_id)
+    if app_id in APP_BROWSER:
+        browse(APP_BROWSER[app_id])
+    else:
+        TV.launch(launch_target(app))
+    HOME_WATCH.opened(app_id)
 
 
 STREMIO = CONFIG.get("stremio") or {}
@@ -923,8 +960,7 @@ class Handler(SimpleHTTPRequestHandler):
                     error = "That app is not on the TV."
                 else:
                     text = "Opening " + app.get("name", "the app").replace("▶", "").strip() + "…"
-                    TV.launch(launch_target(app))
-                    HOME_WATCH.opened(str(app.get("appId")))
+                    open_app(app)
                     log(f"launched {app.get('name')} via /go")
             elif "source" in query:
                 source = next((s for s in TV.sources() if s.get("sourceid") == query["source"]), None)
@@ -975,8 +1011,7 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
                     self._json(404, {"ok": False, "error": "unknown app"})
                     return
                 t = time.time()
-                TV.launch(launch_target(app))
-                HOME_WATCH.opened(str(app.get("appId")))
+                open_app(app)
                 log(f"launched {app.get('name')} in {int((time.time() - t) * 1000)} ms")
                 self._json(200, {"ok": True})
                 return
@@ -999,6 +1034,7 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
                     self._json(400, {"ok": False, "error": "unknown region"})
                     return
                 try:
+                    _auto_vpn["prev"] = None   # a choice by hand: no app switches it back
                     self._json(200, {"ok": True, "region": region_set(key)})
                 except Exception as e:
                     log(f"TV VPN: {e}")

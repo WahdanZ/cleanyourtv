@@ -772,8 +772,12 @@
       setTimeout(function () { location.href = app.url; }, 120);
       return;
     }
+    // An app with its own VPN country (config "app_vpn") waits for the switch, which takes up to ~25 s.
+    var to = app.vpn && region.now && region.now !== app.vpn && region.list.filter(function (r) { return r.id === app.vpn; })[0];
+    if (to) toast('Switching the VPN to ' + to.name + ' for ' + app.name + '…');
     post('/api/launch', { appId: app.appId }).then(function (r) {
       if (!r.ok) toast('Could not open ' + app.name + (r.error ? ': ' + r.error : ''));
+      if (state.region) loadRegion();
     }, function () { toast('Cannot reach the helper, so ' + app.name + ' did not open'); });
   }
 
