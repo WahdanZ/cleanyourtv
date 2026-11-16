@@ -126,6 +126,23 @@ class TvLink:
             del sess.messages[:-50]
             sess.publish(sess.topics["ui"] + path, payload)
 
+    def tv_state(self) -> dict | None:
+        """What the TV is doing, e.g. {"statetype": "app", ...}, or "fake_sleep_0" in standby on a TV that keeps its
+        network up there (Fast Start). The TV doesn't answer "gettvstate" here, but it sends its state to every new
+        subscriber of the broadcast state topic, so subscribing again is the question."""
+        with self.lock:
+            sess = self._connect()
+            del sess.messages[:-50]
+            topic = sess.topics["broadcast"] + "ui_service/state"
+            since = len(sess.messages)
+            sess.client.unsubscribe(topic)
+            sess.subscribe([topic])
+            raw = sess.wait_for("ui_service/state", 2, since)
+        try:
+            return json.loads(raw) if raw else None
+        except ValueError:
+            return None
+
     def request(self, path: str, payload: str, reply_suffix: str, timeout: float = 8.0):
         with self.lock:
             sess = self._connect()
@@ -995,10 +1012,10 @@ APP_DIAL_NAMES = {"1": "Netflix", "2": "AmazonInstantVideo", "3": "YouTube"}
 
 
 class HomeWatch(threading.Thread):
-    """VIDAA has no setting for another home screen, and on this firmware it does not answer a "what is on screen"
-    query. It does say when it comes on (its remote port answers again) and, over DIAL, whether Netflix, YouTube or
-    Prime Video is running; when one of them closes the TV is back on VIDAA's home. At those moments this opens the
-    launcher, served by this helper so it shows the live app list.
+    """VIDAA has no setting for another home screen. It does say when it comes on: its remote port answers again, or,
+    on a TV that keeps its network up in standby (Fast Start), its state turns from "fake_sleep_0" to something else.
+    Over DIAL it says whether Netflix, YouTube or Prime Video is running; when one of them closes the TV is back on
+    VIDAA's home. At those moments this opens the launcher, served by this helper so it shows the live app list.
 
     The TV answers DIAL one question at a time, Netflix in milliseconds but YouTube and Prime Video in one to two
     seconds. So while an app is open only that app (and Netflix) is asked about, which notices it closing quickly;
@@ -1011,6 +1028,29 @@ class HomeWatch(threading.Thread):
         self.dial = (None, None)   # (TV host, DIAL apps URL)
         self.open_apps: set = set()
         self.starting: dict = {}    # app -> until when it counts as open while it starts
+        self.sleeping = False       # in network standby ("fake_sleep"), as last asked
+        self.slept = False          # this absence was a standby, not a dropped connection
+        self.state_at = 0.0
+        self.unanswered = 0
+
+    def asleep(self) -> bool:
+        """Asked every 3 seconds; between asks, and when the TV doesn't answer, the last answer stands."""
+        if time.time() - self.state_at >= 3:
+            self.state_at = time.time()
+            try:
+                state = TV.tv_state()
+            except Exception:
+                state = None
+            if state is not None:
+                self.sleeping = str(state.get("statetype", "")).startswith("fake_sleep")
+                self.unanswered = 0
+            else:
+                self.unanswered += 1
+                if self.unanswered >= 3:   # a stale connection: start a fresh one
+                    self.unanswered = 0
+                    with TV.lock:
+                        TV.close()
+        return self.sleeping
 
     def dial_base(self, host: str) -> str:
         if self.dial[0] != host:
@@ -1084,14 +1124,19 @@ class HomeWatch(threading.Thread):
 
     def step(self, warm_now: bool):
         host = client.Session.load().host
-        if not self.tv_up(host):
+        reachable = self.tv_up(host)
+        if not reachable or self.asleep():
             if self.up is not False:
                 self.down_since = time.time()
+                self.slept = reachable
+                if reachable:
+                    log("the TV is in standby")
             self.up, self.open_apps = False, set()
             return
-        if self.up is False and time.time() - self.down_since > 20:
-            # Back after a real absence (not a Wi-Fi blip): the TV was switched on.
-            self.up = True
+        # Back from standby (which a Wi-Fi blip can't fake), or after a real absence: the TV was switched on.
+        if self.up is False and (self.slept or time.time() - self.down_since > 20):
+            self.up, self.slept = True, False
+            log("the TV was switched on")
             threading.Thread(target=self.warm, daemon=True).start()
             time.sleep(CONFIG.get("power_on_delay_seconds", 5))
             self.open_apps = self.ask(host, ["Netflix"])
