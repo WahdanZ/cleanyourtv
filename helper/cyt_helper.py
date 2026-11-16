@@ -397,10 +397,12 @@ def _quote_portrait(today: str):
         log(f"quote portrait: {e}")
 
 
-# Wallpaper of the day: Bing's photo of the day in 4K (3840 x 2160, about 3-4 MB), downloaded in the background
-# once a day and kept in data/, so the launcher opens at once and still has yesterday's photo when offline.
+# Wallpaper of the day: Bing's photo of the day, downloaded in the background once a day and kept in data/, so the
+# launcher opens at once and still has yesterday's photo when offline. 1920 x 1080 by default (about 300 KB): the TV
+# draws the page at that size, and a 4K photo ("wallpaper_size": "UHD", about 3-4 MB) made moving between tiles lag.
 WALLPAPER_ON = CONFIG.get("wallpaper", True)
 WALLPAPER_API = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=" + quote(str(CONFIG.get("wallpaper_market", "en-US")))
+WALLPAPER_SIZE = str(CONFIG.get("wallpaper_size", "1920x1080"))
 WALLPAPER_IMG = DATA / "wallpaper.jpg"
 WALLPAPER_META = DATA / "wallpaper.json"
 _wall = {"busy": False, "tried": 0.0}
@@ -414,7 +416,8 @@ def wallpaper_meta() -> dict | None:
         meta = json.loads(WALLPAPER_META.read_text(encoding="utf-8")) if WALLPAPER_IMG.exists() else None
     except Exception:
         meta = None
-    if (not meta or meta.get("day") != time.strftime("%Y-%m-%d")) and not _wall["busy"] and time.time() - _wall["tried"] > 600:
+    stale = not meta or meta.get("day") != time.strftime("%Y-%m-%d") or meta.get("size") != WALLPAPER_SIZE
+    if stale and not _wall["busy"] and time.time() - _wall["tried"] > 600:
         _wall.update(busy=True, tried=time.time())
         threading.Thread(target=_refresh_wallpaper, daemon=True).start()
     return meta
@@ -423,16 +426,16 @@ def wallpaper_meta() -> dict | None:
 def _refresh_wallpaper():
     try:
         img = json.loads(_fetch(WALLPAPER_API))["images"][0]
-        body = _fetch("https://www.bing.com" + img["urlbase"] + "_UHD.jpg")
-        if len(body) < 50_000 or body[:2] != b"\xff\xd8":   # not a JPEG: keep the old one
+        body = _fetch("https://www.bing.com" + img["urlbase"] + "_" + WALLPAPER_SIZE + ".jpg")
+        if len(body) < 20_000 or body[:2] != b"\xff\xd8":   # not a JPEG: keep the old one
             raise ValueError("no usable image")
         DATA.mkdir(exist_ok=True)
         tmp = WALLPAPER_IMG.with_suffix(".tmp")
         tmp.write_bytes(body)
         tmp.replace(WALLPAPER_IMG)
         day = time.strftime("%Y-%m-%d")
-        WALLPAPER_META.write_text(json.dumps({"day": day, "title": img.get("title", ""), "credit": img.get("copyright", ""),
-                                              "image": f"/api/wallpaper.jpg?d={day}"}), encoding="utf-8")
+        WALLPAPER_META.write_text(json.dumps({"day": day, "title": img.get("title", ""), "credit": img.get("copyright", ""), "size": WALLPAPER_SIZE,
+                                              "image": f"/api/wallpaper.jpg?d={day}-{WALLPAPER_SIZE}"}), encoding="utf-8")
         log(f"wallpaper of the day: {img.get('title', '')}")
     except Exception as e:
         log(f"wallpaper: {e}")

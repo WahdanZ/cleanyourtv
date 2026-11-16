@@ -26,6 +26,7 @@
   "quotes": true,
   "wallpaper": true,
   "wallpaper_market": "en-US",
+  "wallpaper_size": "1920x1080",
   "clock_24h": false,
   "home_takeover": true,
   "takeover_on_power_on": true,

@@ -28,9 +28,10 @@
 
   /* Wallpaper of the day (from the helper). Shades keep text readable: darker at the top, on the left behind the
      quote and name, and at the bottom behind the tiles; darker still while a grid row has focus. */
-  #wall { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0; transition: opacity 1.2s ease; }
+  #wall { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0; transition: opacity 1.2s ease;
+          transform: translateZ(0); }
   #wall.on { opacity: 1; }
-  #wallShade, #gridShade { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .6s ease; }
+  #wallShade, #gridShade { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .6s ease; transform: translateZ(0); }
   #wallShade { background: linear-gradient(180deg, rgba(0,0,0,.62) 0%, rgba(0,0,0,.2) 26%, rgba(0,0,0,.18) 50%, rgba(0,0,0,.78) 82%, rgba(0,0,0,.9) 100%),
                            linear-gradient(90deg, rgba(0,0,0,.5) 0%, rgba(0,0,0,0) 62%),
                            radial-gradient(ellipse 760px 380px at 100% 34%, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 100%); }
@@ -38,8 +39,7 @@
   body.wallpaper #wallShade { opacity: 1; }
   body.wallpaper.ingrid #gridShade { opacity: 1; }
   body.wallpaper .backdrop { display: none; }
-  body.wallpaper #header, body.wallpaper #quote, body.wallpaper #hero, body.wallpaper #weather, body.wallpaper #wallCredit,
-  body.wallpaper .section, body.wallpaper .name { text-shadow: 0 2px 14px rgba(0,0,0,.65); }
+  body.wallpaper #header, body.wallpaper #quote, body.wallpaper #weather, body.wallpaper #wallCredit { text-shadow: 0 1px 6px rgba(0,0,0,.6); }
   #wallCredit { position: absolute; right: 103px; top: 432px; max-width: 640px; text-align: right; font-size: 24px;
                 color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity .3s ease; }
 
@@ -118,8 +118,7 @@
   .name.show { opacity: 1; transform: translateY(0); }
 
   /* The single glass highlight: sheen, a bright top specular, a crisp rim and a faint glow. */
-  #glass { position: absolute; left: 0; top: 0; border-radius: 36px; pointer-events: none; opacity: 0;
-           transition: opacity .2s ease, width .25s ease, height .25s ease;
+  #glass { position: absolute; left: 0; top: 0; border-radius: 36px; pointer-events: none; opacity: 0; transition: opacity .2s ease;
            background: linear-gradient(180deg, rgba(255,255,255,.24), rgba(255,255,255,.07));
            border: 3px solid rgba(255,255,255,.8); box-sizing: border-box;
            box-shadow: 0 0 14px 2px rgba(255,255,255,.19); will-change: transform; }
