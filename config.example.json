@@ -17,6 +17,13 @@
   "browser": {"search": "https://search.brave.com/search?q=%s", "region": "za-en",
               "links": [{"name": "Brave Search", "url": "https://search.brave.com/"}, {"name": "Wikipedia", "url": "https://www.wikipedia.org/"}]},
   "greeting_name": "",
+  "rows": [
+    {"title": "Free TV", "apps": ["cyt-tv", "284"]},
+    {"title": "Streaming & music", "apps": ["351", "2256"]}
+  ],
+  "rename": {"2256": "Spotify"},
+  "weather": {"city": "London", "lat": 51.51, "lon": -0.13},
+  "quotes": true,
   "clock_24h": false,
   "home_takeover": true,
   "takeover_on_power_on": true,

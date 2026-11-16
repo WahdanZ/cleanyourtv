@@ -309,6 +309,70 @@ def suggestions(q: str, region: str = "") -> list:
     return [s for s in found if isinstance(s, str)][:8]
 
 
+# Weather for the launcher's hero, from Open-Meteo (free, no key). Fetched here and kept for 30 minutes, so the TV
+# never waits on it; if the internet is away, the last reading is served, or nothing, and the page hides the panel.
+WEATHER = CONFIG.get("weather") or {}
+WEATHER_URL = ("https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&timezone=auto&forecast_days=1"
+               "&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min")
+_weather = {"at": 0.0, "data": None}
+
+
+def weather() -> dict | None:
+    if "lat" not in WEATHER or "lon" not in WEATHER:
+        return None
+    if time.time() - _weather["at"] < 1800:
+        return _weather["data"]
+    _weather["at"] = time.time()   # one try per half hour, even when it fails
+    url = WEATHER_URL.format(lat=float(WEATHER["lat"]), lon=float(WEATHER["lon"]))
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=5) as r:
+            d = json.load(r)
+        _weather["data"] = {"city": WEATHER.get("city", ""), "temp": round(d["current"]["temperature_2m"]),
+                            "code": int(d["current"]["weather_code"]), "day": bool(d["current"].get("is_day", 1)),
+                            "high": round(d["daily"]["temperature_2m_max"][0]), "low": round(d["daily"]["temperature_2m_min"][0])}
+    except Exception as e:
+        log(f"weather: {e}")
+    return _weather["data"]
+
+
+# Quote of the day from the internet: ZenQuotes' quote of the day (it asks for a credit line, which the page shows)
+# and its author's portrait, fetched once a day and kept here, so the TV only ever talks to this helper. When it
+# can't be reached, the page falls back to its built-in list (web/quotes.json).
+QUOTE_URL = "https://zenquotes.io/api/today"
+_quote = {"day": "", "data": None, "image": None, "tried": 0.0}
+
+
+def _fetch(url: str) -> bytes:
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=5) as r:
+        return r.read()
+
+
+def quote_of_day() -> dict | None:
+    if not CONFIG.get("quotes", True):
+        return None
+    today = time.strftime("%Y-%m-%d")
+    if _quote["day"] == today:
+        return _quote["data"]
+    if time.time() - _quote["tried"] < 600:   # failed a moment ago: don't keep the TV waiting on it
+        return None
+    _quote["tried"] = time.time()
+    try:
+        q = json.loads(_fetch(QUOTE_URL))[0]
+        data = {"text": html.unescape(q["q"]).strip(), "by": html.unescape(q["a"]).strip(), "source": "ZenQuotes.io"}
+    except Exception as e:
+        log(f"quote of the day: {e}")
+        return None
+    image = None
+    if str(q.get("i", "")).startswith("https://zenquotes.io/"):
+        try:
+            image = _fetch(q["i"])
+            data["image"] = f"/api/quote-image?d={today}"
+        except Exception as e:
+            log(f"quote portrait: {e}")
+    _quote.update(day=today, data=data, image=image)
+    return data
+
+
 STREMIO = CONFIG.get("stremio") or {}
 STREMIO_PORT = 11470
 STREMIO_SERVER_JS = "https://dl.strem.io/server/v4.22.3/desktop/server.js"
@@ -530,10 +594,28 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/state":
             threading.Thread(target=APPS.refresh_if_stale, daemon=True).start()
             self._json(200, {"apps": APPS.for_launcher(), "dock_size": len(CONFIG.get("dock", [])),
-                             "greeting_name": CONFIG.get("greeting_name", ""),
+                             "greeting_name": CONFIG.get("greeting_name", ""), "rows": CONFIG.get("rows", []),
+                             "quotes": CONFIG.get("quotes", True), "weather": bool(WEATHER),
                              "clock_24h": CONFIG.get("clock_24h", False), "sources": SOURCES.get(),
                              "removed_count": len(APPS.removed()), "takeover": takeover_on(), "browser": BROWSER,
                              "order_saved": bool(APPS.order())})
+            return
+        if path == "/api/weather":
+            self._json(200, weather())
+            return
+        if path == "/api/quote":
+            self._json(200, quote_of_day())
+            return
+        if path == "/api/quote-image":
+            body = _quote["image"]
+            if not body:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
             return
         if path == "/api/suggest":
             query = parse_qs(urlsplit(self.path).query)

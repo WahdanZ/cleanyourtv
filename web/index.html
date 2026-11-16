@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=1920, initial-scale=1">
 <title>Home</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200..600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200..600&family=Playfair+Display:ital,wght@1,400;1,500&display=swap">
 <style>
   /* Sizes are the Android launcher's dp values doubled: this TV's page is 1920 x 1080 at 1:1. */
   /* The helper serves the font itself; the hosted page gets it from Google Fonts (the link below). */
@@ -17,9 +17,14 @@
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
   body { font-family: Outfit, OutfitLocal, sans-serif; color: #fff; -webkit-font-smoothing: antialiased; }
 
-  /* Ambient glow in the focused app's colour: two layers so one colour can fade into the next. */
-  .ambient { position: absolute; inset: 0; opacity: 0; transition: opacity .6s ease; pointer-events: none; }
-  .ambient.on { opacity: 1; }
+  /* A calm, steady background. Behind the hero only, the focused dock app's icon, blown up from a few pixels
+     (a blur at no cost), glows faintly: two layers so one can fade into the next. */
+  body { background: radial-gradient(circle 1500px at 18% 0%, #17171b 0%, #050506 60%, #000 100%); }
+  .backdrop { position: absolute; left: 560px; top: 0; width: 1360px; height: 1080px; opacity: 0; pointer-events: none;
+              background-size: 100% 100%; transition: opacity .8s ease;
+              -webkit-mask-image: radial-gradient(ellipse 62% 58% at 68% 34%, #000 0%, rgba(0,0,0,.55) 45%, transparent 100%);
+              mask-image: radial-gradient(ellipse 62% 58% at 68% 34%, #000 0%, rgba(0,0,0,.55) 45%, transparent 100%); }
+  .backdrop.on { opacity: .42; }
 
   /* Header: greeting, clock and date on the left, pills on the right. */
   #header { position: absolute; left: 112px; right: 112px; top: 52px; display: flex; align-items: flex-end; z-index: 3; }
@@ -46,12 +51,35 @@
               -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 70px); mask-image: linear-gradient(180deg, transparent 0, #000 70px); }
   #rail { position: absolute; left: 0; top: -230px; width: 1920px; transition: transform .5s cubic-bezier(.2,.8,.2,1); will-change: transform; }
 
-  #hero { position: absolute; left: 138px; top: 498px; font-size: 96px; font-weight: 300; letter-spacing: -.02em; line-height: 1;
-          white-space: nowrap; transition: opacity .3s ease; }
-  #hero.hidden { opacity: 0; }
+  /* Above the hero: the quote of the day with its author's portrait on the left, the weather on the right. */
+  #quote { position: absolute; left: 108px; top: 300px; max-width: 1120px; display: flex; align-items: center; gap: 34px;
+           transition: opacity .3s ease; }
+  #quotePic { width: 116px; height: 116px; flex: none; border-radius: 50%; object-fit: cover; display: none;
+              border: 3px solid rgba(255,255,255,.22); box-shadow: 0 10px 30px rgba(0,0,0,.55); }
+  #quote.pic #quotePic { display: block; }
+  #quoteText { font-family: "Playfair Display", Georgia, serif; font-style: italic; font-size: 38px; line-height: 1.3;
+               color: rgba(255,255,255,.93); }
+  #quoteMeta { margin-top: 12px; display: flex; align-items: baseline; gap: 18px; white-space: nowrap; }
+  #quoteBy { font-size: 24px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.55); }
+  #quoteSrc { font-size: 24px; color: rgba(255,255,255,.3); }
+  #weather { position: absolute; right: 103px; top: 296px; text-align: right; transition: opacity .3s ease; }
+  #wxTop { display: flex; align-items: center; justify-content: flex-end; gap: 18px; }
+  #wxIcon { width: 76px; height: 76px; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  #wxTemp { font-size: 88px; font-weight: 300; line-height: 1; letter-spacing: -.03em; }
+  #wxInfo { margin-top: 12px; font-size: 26px; letter-spacing: .04em; color: rgba(255,255,255,.55); white-space: nowrap; }
+  #quote.hidden, #weather.hidden { opacity: 0; }
 
-  #band { position: absolute; left: 117px; width: 1686px; top: var(--dock-top); height: calc(var(--tile-h) + 2 * var(--band-pad));
-          border-radius: calc(var(--tile-r) + var(--band-pad)); background: #141416; border: 2px solid rgba(255,255,255,.12); box-sizing: border-box; }
+  #hero { position: absolute; left: 108px; top: 476px; transition: opacity .3s ease; }
+  #hero.hidden { opacity: 0; }
+  #heroName { font-size: 104px; font-weight: 300; letter-spacing: -.02em; line-height: 1; white-space: nowrap; }
+  #heroHint { margin: 22px 0 0 6px; font-size: 26px; font-weight: 400; letter-spacing: .04em; color: rgba(255,255,255,.5); white-space: nowrap; }
+
+  #band { position: absolute; border-radius: calc(var(--tile-r) + var(--band-pad)); background: rgba(20,20,22,.85);
+          border: 2px solid rgba(255,255,255,.12); box-sizing: border-box; }
+
+  /* Row titles in the grid ("Free TV", "Streaming & music"…). */
+  .section { position: absolute; font-size: 26px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase;
+             color: rgba(255,255,255,.5); white-space: nowrap; }
 
   .tile { position: absolute; width: var(--tile-w); height: var(--tile-h); border-radius: var(--tile-r); overflow: hidden;
           background: #1c1c1e; display: flex; align-items: center; justify-content: center;
@@ -74,7 +102,8 @@
   .name.show { opacity: 1; transform: translateY(0); }
 
   /* The single glass highlight: sheen, a bright top specular, a crisp rim and a faint glow. */
-  #glass { position: absolute; left: 0; top: 0; border-radius: 36px; pointer-events: none; opacity: 0; transition: opacity .2s ease;
+  #glass { position: absolute; left: 0; top: 0; border-radius: 36px; pointer-events: none; opacity: 0;
+           transition: opacity .2s ease, width .25s ease, height .25s ease;
            background: linear-gradient(180deg, rgba(255,255,255,.24), rgba(255,255,255,.07));
            border: 3px solid rgba(255,255,255,.8); box-sizing: border-box;
            box-shadow: 0 0 14px 2px rgba(255,255,255,.19); will-change: transform; }
@@ -143,8 +172,8 @@
 </style>
 </head>
 <body>
-<div class="ambient" id="ambientA"></div>
-<div class="ambient" id="ambientB"></div>
+<div class="backdrop" id="backA"></div>
+<div class="backdrop" id="backB"></div>
 
 <div id="header">
   <div id="left">
@@ -162,7 +191,10 @@
 
 <div id="viewport">
   <div id="rail">
-    <div id="hero"></div>
+    <div id="quote" style="display:none"><img id="quotePic" alt=""><div><div id="quoteText"></div><div id="quoteMeta"><span id="quoteBy"></span><span id="quoteSrc"></span></div></div></div>
+    <div id="weather" style="display:none"><div id="wxTop"><svg id="wxIcon" viewBox="0 0 48 48"></svg><div id="wxTemp"></div></div><div id="wxInfo"></div></div>
+    <div id="hero"><div id="heroName"></div><div id="heroHint">OK to open&nbsp;&nbsp;·&nbsp;&nbsp;hold OK for options</div></div>
+    <div id="sections"></div>
     <div id="band"></div>
     <div id="tiles"></div>
     <div id="glass"></div>
@@ -186,16 +218,20 @@
 <script>
 (function () {
   'use strict';
-  var COLS = 4, PITCH = 423, TILE_W = 360, TILE_H = 202, LEFT = 145;
-  var DOCK_TOP = 698, BAND_PAD = 28, GRID_TOP = DOCK_TOP + 342, ROW_PITCH = 270;
-  var GRID_SHIFT = -305;   // how far the rail slides up when focus leaves the dock
+  var COLS = 4;
+  // The dock's tiles are bigger than the grid's; each grid column is centred under a dock tile.
+  var DOCK_W = 400, DOCK_H = 225, DOCK_PITCH = 438, DOCK_LEFT = 103, DOCK_TOP = 690, BAND_PAD = 28;
+  var TILE_W = 360, TILE_H = 202, PITCH = DOCK_PITCH, LEFT = DOCK_LEFT + (DOCK_W - TILE_W) / 2;
+  var GRID_TOP = DOCK_TOP + DOCK_H + 2 * BAND_PAD + 40, ROW_PITCH = 270, TITLE_H = 60;
+  var FOCUS_Y = 640;   // where the focused grid row's tiles sit on screen; the rail slides to put them there
 
   // Two modes. With the helper (/api/state answers), it launches any app over the TV's remote-control channel.
   // Static (apps.json, ?static=1 to force): it opens web apps by loading their address, which needs nothing but
   // the page; colours are precomputed, since the browser may not read VIDAA's icons.
-  var state = { apps: [], dockSize: 4, clock24: false, greetingName: '', static: false, removedCount: 0, loaded: null, takeover: true };
+  var state = { apps: [], dockSize: 4, sections: [], rows: false, clock24: false, greetingName: '', static: false, removedCount: 0,
+                loaded: null, takeover: true };
   var focus = { area: 'dock', index: 0, pill: 0, input: 0 };
-  var tiles = [], names = [], colours = {};
+  var tiles = [], names = [], colours = {}, art = {};
   var $ = function (id) { return document.getElementById(id); };
 
   // ---------- clock, date, greeting ----------
@@ -217,6 +253,69 @@
     }
     var g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
     $('greeting').textContent = state.greetingName ? g + ', ' + state.greetingName : g;
+    showQuote();   // a new one at midnight
+  }
+
+  // ---------- quote of the day: from the internet through the helper (/api/quote, with the author's portrait);
+  // the built-in quotes.json only when that fails (no internet, or the hosted page without a helper) ----------
+  var quotes = null, quoteDay = -1;
+  function paintQuote(text, by, source, image) {
+    var box = $('quote'), pic = $('quotePic');
+    box.classList.remove('pic');
+    if (image) { pic.onload = function () { box.classList.add('pic'); }; pic.src = image; }
+    $('quoteText').textContent = '“' + text + '”';
+    $('quoteBy').textContent = '— ' + by;
+    $('quoteSrc').textContent = source ? 'Quote via ' + source : '';
+    box.style.display = '';
+  }
+  function showQuote() {
+    var box = $('quote');
+    if (!state.quotes) { box.style.display = 'none'; return; }
+    var d = new Date(), day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
+    if (day === quoteDay) return;
+    quoteDay = day;
+    var builtIn = function () {
+      if (!quotes) { quoteDay = -1; return; }   // try again on the next minute's tick
+      var q = quotes.en[day % quotes.en.length];
+      paintQuote(q[0], q[1], '', '');
+    };
+    if (state.static) { builtIn(); return; }
+    load('/api/quote').then(function (q) {
+      if (q && q.text) paintQuote(q.text, q.by, q.source, q.image); else builtIn();
+    }, builtIn);
+  }
+
+  // ---------- weather: the helper fetches it from Open-Meteo, for the place in config "weather" ----------
+  var WX = [[[0], 'Clear', 'sun'], [[1, 2], 'Partly cloudy', 'part'], [[3], 'Cloudy', 'cloud'], [[45, 48], 'Fog', 'fog'],
+            [[51, 53, 55, 56, 57], 'Drizzle', 'rain'], [[61, 63, 65, 66, 67, 80, 81, 82], 'Rain', 'rain'],
+            [[71, 73, 75, 77, 85, 86], 'Snow', 'snow'], [[95, 96, 99], 'Thunderstorm', 'storm']];
+  var CLOUD = '<path d="M15 37h19a8 8 0 0 0 1.4-15.9A11 11 0 0 0 14.5 19.5 8.7 8.7 0 0 0 15 37z"/>';
+  var ICONS = {
+    sun: '<circle cx="24" cy="24" r="8"/><path d="M24 6v4M24 38v4M6 24h4M38 24h4M11.3 11.3l2.8 2.8M33.9 33.9l2.8 2.8M11.3 36.7l2.8-2.8M33.9 14.1l2.8-2.8"/>',
+    moon: '<path d="M31 8a16 16 0 1 0 9 27A13 13 0 0 1 31 8z"/>',
+    part: '<circle cx="17" cy="16" r="6"/><path d="M17 4v3M5 16h3M8.5 7.5l2 2M25.5 7.5l-2 2"/><g transform="translate(4 4)">' + CLOUD + '</g>',
+    cloud: '<g transform="translate(0 2)">' + CLOUD + '</g>',
+    fog: '<path d="M8 18h32M6 25h36M10 32h28"/>',
+    rain: '<g transform="translate(0 -6)">' + CLOUD + '</g><path d="M17 36l-2 5M25 36l-2 5M33 36l-2 5"/>',
+    snow: '<g transform="translate(0 -6)">' + CLOUD + '</g><path d="M16 38h.01M24 41h.01M32 38h.01"/>',
+    storm: '<g transform="translate(0 -6)">' + CLOUD + '</g><path d="M25 33l-4 6h6l-4 6"/>'
+  };
+  var weatherTimer = 0;
+  function loadWeather() {
+    var box = $('weather');
+    if (state.static || !state.weather) { box.style.display = 'none'; return; }
+    load('/api/weather').then(function (w) {
+      if (!w) { box.style.display = 'none'; return; }
+      var label = 'Cloudy', icon = 'cloud';
+      for (var k = 0; k < WX.length; k++) if (WX[k][0].indexOf(w.code) >= 0) { label = WX[k][1]; icon = WX[k][2]; }
+      if (!w.day && icon === 'sun') icon = 'moon';
+      else if (!w.day && icon === 'part') icon = 'cloud';
+      $('wxIcon').innerHTML = ICONS[icon];
+      $('wxTemp').textContent = w.temp + '°';
+      $('wxInfo').textContent = (w.city ? w.city + '  ·  ' : '') + label + '  ·  ' + w.high + '° / ' + w.low + '°';
+      box.style.display = '';
+    }, function () { box.style.display = 'none'; });
+    if (!weatherTimer) weatherTimer = setInterval(loadWeather, 15 * 60 * 1000);
   }
 
   function network() {
@@ -227,21 +326,47 @@
   }
 
   // ---------- layout ----------
-  function tilePos(i) {
-    if (i < state.dockSize) return { x: LEFT + i * PITCH, y: DOCK_TOP + BAND_PAD };
-    var g = i - state.dockSize;
-    return { x: LEFT + (g % COLS) * PITCH, y: GRID_TOP + Math.floor(g / COLS) * ROW_PITCH };
+  // Every tile gets a place and a line: line 0 is the dock, then each section's tiles wrap in lines of four.
+  // Arrows move along a line, or to the nearest column of the line above or below.
+  var pos = [], lines = [];
+  function layout() {
+    pos = []; lines = [[]];
+    for (var i = 0; i < state.dockSize; i++) {
+      pos.push({ x: DOCK_LEFT + i * DOCK_PITCH, y: DOCK_TOP + BAND_PAD, w: DOCK_W, h: DOCK_H, line: 0, col: i });
+      lines[0].push(i);
+    }
+    var y = GRID_TOP;
+    state.sections.forEach(function (s) {
+      if (s.title) { s.y = y; y += TITLE_H; }
+      for (var k = 0; k < s.count; k++) {
+        if (k % COLS === 0) { if (k) y += ROW_PITCH; lines.push([]); }
+        var j = s.start + k, l = lines.length - 1;
+        pos[j] = { x: LEFT + (k % COLS) * PITCH, y: y, w: TILE_W, h: TILE_H, line: l, col: k % COLS };
+        lines[l].push(j);
+      }
+      y += ROW_PITCH;
+    });
   }
 
   function build() {
+    layout();
     var box = $('tiles');
     box.innerHTML = '';
     tiles = []; names = [];
+    var heads = $('sections');
+    heads.innerHTML = '';
+    state.sections.forEach(function (s) {
+      if (!s.title) return;
+      var h = document.createElement('div');
+      h.className = 'section'; h.textContent = s.title;
+      h.style.left = (LEFT + 6) + 'px'; h.style.top = s.y + 'px';
+      heads.appendChild(h);
+    });
     state.apps.forEach(function (app, i) {
-      var p = tilePos(i);
+      var p = pos[i];
       var t = document.createElement('div');
       t.className = 'tile';
-      t.style.left = p.x + 'px'; t.style.top = p.y + 'px';
+      t.style.left = p.x + 'px'; t.style.top = p.y + 'px'; t.style.width = p.w + 'px'; t.style.height = p.h + 'px';
       var img = new Image();
       if (app.glow) {
         colours[app.appId] = app.glow;
@@ -254,12 +379,14 @@
       box.appendChild(t);
       var n = document.createElement('div');
       n.className = 'name'; n.textContent = app.name;
-      n.style.left = p.x + 'px'; n.style.top = (p.y + TILE_H + 22) + 'px';
+      n.style.left = p.x + 'px'; n.style.top = (p.y + p.h + 22) + 'px'; n.style.width = p.w + 'px';
       box.appendChild(n);
       tiles.push(t); names.push(n);
     });
-    var dock = Math.min(state.dockSize, state.apps.length);
-    $('band').style.width = (dock ? (dock - 1) * PITCH + TILE_W + 2 * BAND_PAD + 4 : 0) + 'px';
+    var dock = Math.min(state.dockSize, state.apps.length), band = $('band');
+    band.style.left = (DOCK_LEFT - BAND_PAD - 2) + 'px'; band.style.top = DOCK_TOP + 'px';
+    band.style.height = (DOCK_H + 2 * BAND_PAD) + 'px';
+    band.style.width = (dock ? (dock - 1) * DOCK_PITCH + DOCK_W + 2 * BAND_PAD + 4 : 0) + 'px';
   }
 
   // The icon's edge colour fills the 16:9 tile around the square icon; its most vivid colour tints the glow.
@@ -284,39 +411,36 @@
       sx.drawImage(img, 0, 0, 2, ih, 0, 0, 1, 5); sx.drawImage(img, iw - 2, 0, 2, ih, 1, 0, 1, 5);
       tile.style.backgroundImage = 'url(' + s.toDataURL() + ')';
       colours[app.appId] = vw > 2 ? [Math.round(vr / vw), Math.round(vg / vw), Math.round(vb / vw)] : [150, 150, 160];
+      // The hero's backdrop: the whole icon in 6 x 4 pixels, which the browser stretches into a soft blur.
+      var b = document.createElement('canvas'); b.width = 6; b.height = 4;
+      b.getContext('2d').drawImage(img, 0, 0, 6, 4);
+      art[app.appId] = b.toDataURL();
     } catch (e) { colours[app.appId] = [150, 150, 160]; }
-    if (focused() === app) ambient(app);
+    if (focused() === app && focus.index < state.dockSize) backdrop(app);
   }
 
-  // ---------- ambient glow ----------
-  var ambientFront = 'A', ambientKey = '';
-  function ambient(app) {
-    var c = app && colours[app.appId];
-    var key = c ? c.join(',') : '';
-    if (key === ambientKey) return;
-    ambientKey = key;
-    var next = ambientFront === 'A' ? 'B' : 'A';
-    var el = $('ambient' + next), old = $('ambient' + ambientFront);
-    if (c) {
-      var rgb = c.join(',');
-      // The launcher's radial glow: centred at 32% / 42%, radius 62% of the width, 36% → 15% → 0 alpha.
-      el.style.background = 'radial-gradient(circle 1190px at 32% 42%, rgba(' + rgb + ',.36) 0%, rgba(' + rgb + ',.15) 45%, rgba(' + rgb + ',0) 100%)';
-      el.classList.add('on');
-    }
+  // ---------- hero backdrop: only while the dock has focus, so the rest of the screen stays calm ----------
+  var backFront = 'A', backKey = '';
+  function backdrop(app) {
+    var url = (app && art[app.appId]) || '';
+    if (url === backKey) return;
+    backKey = url;
+    var next = backFront === 'A' ? 'B' : 'A';
+    var el = $('back' + next), old = $('back' + backFront);
+    if (url) { el.style.backgroundImage = 'url(' + url + ')'; el.classList.add('on'); }
     old.classList.remove('on');
-    ambientFront = next;
+    backFront = next;
   }
 
   // ---------- glass highlight on a spring (stiffness 260, damping ratio 0.58, as the launcher) ----------
   var spring = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, running: false, placed: false, last: 0 };
   var K = 260, C = 2 * 0.58 * Math.sqrt(K);
-  var GW = TILE_W * 1.1 + 24, GH = TILE_H * 1.1 + 24;
   function glassTo(i) {
-    var p = tilePos(i);
-    spring.tx = p.x + TILE_W / 2 - GW / 2;
-    spring.ty = p.y + TILE_H / 2 - GH / 2;
+    var p = pos[i], gw = p.w * 1.1 + 24, gh = p.h * 1.1 + 24;
+    spring.tx = p.x + p.w / 2 - gw / 2;
+    spring.ty = p.y + p.h / 2 - gh / 2;
     var g = $('glass');
-    g.style.width = GW + 'px'; g.style.height = GH + 'px';
+    g.style.width = gw + 'px'; g.style.height = gh + 'px';
     if (!spring.placed) { spring.x = spring.tx; spring.y = spring.ty; spring.placed = true; paintGlass(); }
     g.classList.add('on');
     if (!spring.running) { spring.running = true; spring.last = 0; requestAnimationFrame(step); }
@@ -344,15 +468,17 @@
     tiles.forEach(function (t, i) { t.classList.toggle('focus', !onTop() && i === focus.index); });
     names.forEach(function (n, i) { n.classList.toggle('show', !onTop() && i === focus.index && i >= state.dockSize); });
 
-    var inDock = !onTop() && focus.index < state.dockSize;
-    var row = focus.index < state.dockSize ? -1 : Math.floor((focus.index - state.dockSize) / COLS);
-    var shift = onTop() || inDock ? 0 : GRID_SHIFT - row * ROW_PITCH;
+    var inDock = !onTop() && focus.index < state.dockSize, p = pos[focus.index];
+    var shift = onTop() || inDock || !p ? 0 : FOCUS_Y - p.y;
     $('rail').style.transform = 'translateY(' + shift + 'px)';
 
     var app = focused();
-    $('hero').textContent = inDock && app ? app.name : $('hero').textContent;
+    if (inDock && app) $('heroName').textContent = app.name;
     $('hero').classList.toggle('hidden', !inDock);
-    if (app) { glassTo(focus.index); ambient(app); }
+    $('quote').classList.toggle('hidden', !inDock);
+    $('weather').classList.toggle('hidden', !inDock);
+    backdrop(inDock ? app : null);
+    if (app && p) glassTo(focus.index);
     else $('glass').classList.remove('on');
   }
 
@@ -361,24 +487,24 @@
     if (focus.area === 'pills') {
       var count = document.querySelectorAll('.pill').length;
       if (dx) focus.pill = Math.max(0, Math.min(count - 1, focus.pill + dx));
-      if (dy > 0 && n) { focus.area = 'dock'; focus.index = Math.min(focus.lastDock || 0, dock - 1); }
+      if (dy > 0 && n) {
+        focus.area = 'dock';
+        focus.index = dock ? Math.min(focus.lastDock || 0, dock - 1) : (lines[1] || [0])[0];
+      }
       return render();
     }
-    var i = focus.index;
-    if (i < dock) {
-      if (dx) focus.index = Math.max(0, Math.min(dock - 1, i + dx));
-      if (dy < 0 && (!state.static || state.helper)) { focus.lastDock = i; focus.area = 'pills'; }
-      if (dy > 0 && n > dock) { focus.lastDock = i; focus.index = dock + Math.min(i, Math.min(COLS, n - dock) - 1); }
-      return render();
+    var i = focus.index, p = pos[i];
+    if (!p) return render();
+    if (dx && pos[i + dx] && pos[i + dx].line === p.line) focus.index = i + dx;
+    if (dy < 0 && p.line === 0) {
+      if (!state.static || state.helper) { focus.lastDock = i; focus.area = 'pills'; }
+    } else if (dy) {
+      var target = lines[p.line + dy];
+      if (target && target.length) {
+        if (p.line === 0) focus.lastDock = i;
+        focus.index = target[Math.min(p.col, target.length - 1)];
+      }
     }
-    var g = i - dock, col = g % COLS;
-    if (dx) {
-      var ng = g + dx;
-      if (ng >= 0 && ng < n - dock && Math.floor(ng / COLS) === Math.floor(g / COLS)) focus.index = dock + ng;
-    }
-    if (dy < 0) focus.index = g < COLS ? Math.min(focus.lastDock || col, dock - 1) : i - COLS;
-    if (dy > 0 && g + COLS < n - dock) focus.index = i + COLS;
-    else if (dy > 0 && Math.floor(g / COLS) < Math.floor((n - dock - 1) / COLS)) focus.index = n - 1;
     render();
   }
 
@@ -438,7 +564,9 @@
     var app = focused();
     if (!app) return;
     menu.app = app; menu.kind = 'tile';
-    var items = [{ label: 'Move', act: 'move' }, { label: 'Remove from Home', act: 'remove' }];
+    // With titled rows (config "rows"), only the dock is arranged here; a row's order comes from the config.
+    var items = !state.rows || focus.index < state.dockSize ? [{ label: 'Move', act: 'move' }] : [];
+    items.push({ label: 'Remove from Home', act: 'remove' });
     if (orderSaved()) items.push({ label: 'Reset the order', act: 'reset-order' });
     if (state.removedCount) items.push({ label: 'Restore removed apps (' + state.removedCount + ')', act: 'restore' });
     items.push({ label: 'Cancel', act: 'cancel' });
@@ -506,6 +634,7 @@
   function moveKey(dx, dy) {
     var i = focus.index, dock = Math.min(state.dockSize, state.apps.length);
     if (i < dock && dy < 0) return;                       // nothing above the dock but the header
+    if (state.rows && dy) return;                         // with titled rows, the config decides which row an app is in
     focus.area = i < dock ? 'dock' : 'grid';
     move(dx, dy);                                          // where focus would go is where the tile goes
     var j = focus.index;
@@ -834,9 +963,24 @@
         .sort(function (x, y) { return rank(x.a) - rank(y.a) || x.i - y.i; }).map(function (x) { return x.a; });
       dockSize = localOrder() ? COLS : apps.filter(function (a) { return dock.indexOf(a.appId) >= 0; }).length;
     }
-    state.apps = apps;
-    state.dockSize = Math.min(dockSize || 4, COLS, state.apps.length);
+    state.dockSize = Math.min(dockSize || 4, COLS, apps.length);
+    // The grid: one untitled block, or titled rows from the config ("rows": [{"title", "apps": [ids]}]),
+    // in that order. Apps no row names (one installed later, say) go in a last row, "More".
+    var ordered = apps.slice(0, state.dockSize), rest = apps.slice(state.dockSize), rows = s.rows || [];
+    state.rows = rows.length > 0;
+    state.sections = [];
+    rows.forEach(function (r) {
+      var picked = [];
+      (r.apps || []).forEach(function (id) {
+        for (var k = 0; k < rest.length; k++) if (String(rest[k].appId) === String(id)) { picked.push(rest.splice(k, 1)[0]); break; }
+      });
+      if (picked.length) { state.sections.push({ title: r.title || '', start: ordered.length, count: picked.length }); ordered = ordered.concat(picked); }
+    });
+    if (rest.length) { state.sections.push({ title: state.rows ? 'More' : '', start: ordered.length, count: rest.length }); ordered = ordered.concat(rest); }
+    state.apps = ordered;
     state.clock24 = !!s.clock_24h; state.greetingName = s.greeting_name || '';
+    state.quotes = s.quotes !== false; state.weather = !!s.weather;
+    quoteDay = -1; showQuote(); loadWeather();
     state.sources = s.sources || [];
     state.browserCfg = s.browser || {};
     document.body.classList.toggle('static', state.static);
@@ -855,6 +999,7 @@
     state.static = true;
     load('apps.json').then(start, function () { toast('Could not load the app list'); });
   }
+  load('quotes.json').then(function (q) { quotes = q; quoteDay = -1; showQuote(); }, function () {});
   if (/[?&]static=1/.test(location.search)) startStatic();
   else load('/api/state').then(start, startStatic);
 })();
