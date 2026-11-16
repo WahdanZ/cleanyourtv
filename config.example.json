@@ -24,6 +24,7 @@
   "rename": {"2256": "Spotify"},
   "weather": {"city": "London", "lat": 51.51, "lon": -0.13},
   "quotes": true,
+  "vpn_countries": ["us", "gb"],
   "wallpaper": true,
   "wallpaper_market": "en-US",
   "wallpaper_size": "1920x1080",

@@ -443,6 +443,49 @@ def _refresh_wallpaper():
         _wall["busy"] = False
 
 
+# Region for the TV: all its internet traffic goes out through NordVPN in a chosen country, or straight out ("off").
+# The VPN is tv-vpn/tv-vpn.sh, installed root-owned in /usr/local/libexec; a sudoers rule lets this user run only its
+# "up <country>" and "down" without a password. Without the script installed, the Region button is hidden.
+VPN_SCRIPT = "/usr/local/libexec/tv-vpn.sh"
+COUNTRY_NAMES = {"us": "USA", "gb": "UK", "ca": "Canada", "eg": "Egypt", "ae": "UAE", "fr": "France", "jp": "Japan",
+                 "de": "Germany", "nl": "Netherlands", "it": "Italy", "es": "Spain", "au": "Australia", "se": "Sweden",
+                 "ch": "Switzerland", "sa": "Saudi Arabia", "tr": "Turkey", "in": "India", "br": "Brazil"}
+VPN_COUNTRIES = [str(c).lower() for c in CONFIG.get("vpn_countries", ["us", "gb"]) if len(str(c)) == 2 and str(c).isalpha()]
+VPN_HOME_NAME = CONFIG.get("vpn_home_name", "Germany")
+
+
+def vpn_available() -> bool:
+    return os.access(VPN_SCRIPT, os.X_OK)
+
+
+def regions() -> list:
+    return [{"id": "off", "name": f"{VPN_HOME_NAME} (no VPN)"}] + \
+           [{"id": c, "name": COUNTRY_NAMES.get(c, c.upper())} for c in VPN_COUNTRIES]
+
+
+def region_now() -> str | None:
+    """The country the VPN was started with, while its tunnel (NordLynx's 10.5.0.2) is up; both readable without root."""
+    if not vpn_available():
+        return None
+    try:
+        code = Path("/Library/Application Support/tv-vpn/country").read_text().strip().lower()
+    except OSError:
+        return "off"
+    up = " 10.5.0.2 " in subprocess.run(["/sbin/ifconfig"], capture_output=True, text=True, timeout=10).stdout
+    return code if code and up else "off"
+
+
+def region_set(key: str) -> str:
+    cmd = ["sudo", "-n", VPN_SCRIPT] + (["down"] if key == "off" else ["up", key])
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+    if r.returncode != 0:
+        lines = (r.stdout + r.stderr).strip().splitlines()
+        raise RuntimeError(lines[-1].replace("tv-vpn: ", "") if lines else "the VPN did not start")
+    name = next((x["name"] for x in regions() if x["id"] == key), key)
+    log(f"TV VPN: {name}")
+    return key
+
+
 STREMIO = CONFIG.get("stremio") or {}
 STREMIO_PORT = 11470
 STREMIO_SERVER_JS = "https://dl.strem.io/server/v4.22.3/desktop/server.js"
@@ -638,6 +681,9 @@ class Handler(SimpleHTTPRequestHandler):
         ip = self.client_address[0]
         if ip in CONFIG.get("allowed_clients", []) or ip == client.Session.load().host:
             return True
+        # A phone or computer at home may use the VPN page and its switch, and nothing else.
+        if urlsplit(self.path).path in ("/vpn", "/api/region") and ip.rsplit(".", 1)[0] == own_ip().rsplit(".", 1)[0]:
+            return True
         self.send_error(403)
         return False
 
@@ -666,9 +712,26 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(200, {"apps": APPS.for_launcher(), "dock_size": len(CONFIG.get("dock", [])),
                              "greeting_name": CONFIG.get("greeting_name", ""), "rows": CONFIG.get("rows", []),
                              "quotes": CONFIG.get("quotes", True), "weather": bool(WEATHER), "wallpaper": bool(WALLPAPER_ON),
+                             "region": vpn_available(),
                              "clock_24h": CONFIG.get("clock_24h", False), "sources": SOURCES.get(),
                              "removed_count": len(APPS.removed()), "takeover": takeover_on(), "browser": BROWSER,
                              "order_saved": bool(APPS.order())})
+            return
+        if path == "/vpn":
+            body = (WEB / "vpn.html").read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if path == "/api/region":
+            try:
+                now = region_now()
+            except Exception as e:
+                log(f"region: {e}")
+                now = None
+            self._json(200, {"region": now, "regions": regions()})
             return
         if path == "/api/weather":
             self._json(200, weather())
@@ -929,6 +992,17 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
                     return
                 TV.send_key(key)
                 self._json(200, {"ok": True})
+                return
+            if path == "/api/region":
+                key = str(data.get("region", ""))
+                if key not in [r["id"] for r in regions()] or not vpn_available():
+                    self._json(400, {"ok": False, "error": "unknown region"})
+                    return
+                try:
+                    self._json(200, {"ok": True, "region": region_set(key)})
+                except Exception as e:
+                    log(f"TV VPN: {e}")
+                    self._json(502, {"ok": False, "error": str(e)})
                 return
             if path == "/api/remove":
                 if data.get("restore_all"):

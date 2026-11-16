@@ -53,14 +53,14 @@
   #divider { width: 2px; height: 52px; margin: 0 32px 0 32px; background: rgba(255,255,255,.2); }
   #date { margin-bottom: 8px; font-size: 28px; font-weight: 400; letter-spacing: .14em; color: rgba(255,255,255,.65); text-transform: uppercase; white-space: nowrap; }
 
-  #pills { display: flex; gap: 20px; margin-bottom: 4px; }
-  .pill { height: 84px; padding: 0 34px 0 28px; border-radius: 42px; display: flex; align-items: center; gap: 16px;
-          font-size: 30px; font-weight: 500; color: #fff; box-sizing: border-box;
+  #pills { display: flex; gap: 16px; margin-bottom: 8px; }
+  .pill { height: 72px; padding: 0 28px 0 24px; border-radius: 36px; display: flex; align-items: center; gap: 12px;
+          font-size: 27px; font-weight: 500; color: #fff; box-sizing: border-box;
           background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.08));
           border: 2px solid rgba(255,255,255,.22);
           transition: transform .2s ease, background-color .2s ease; }
-  .pill svg { width: 40px; height: 40px; fill: currentColor; }
-  .pill.round { width: 84px; padding: 0; justify-content: center; }
+  .pill svg { width: 34px; height: 34px; fill: currentColor; }
+  .pill.round { width: 72px; padding: 0; justify-content: center; }
   .pill.focus { background: rgba(255,255,255,.96); color: #111; border-color: transparent; transform: scale(1.06); }
 
   /* Everything below the header scrolls in one rail; the viewport clips it under the header with a soft fade. */
@@ -201,7 +201,6 @@
   <div id="pills">
     <div class="pill round" data-action="search"><svg viewBox="0 0 24 24"><path d="M10 3a7 7 0 0 1 5.6 11.2l5.6 5.6-1.4 1.4-5.6-5.6A7 7 0 1 1 10 3zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg></div>
     <div class="pill" data-action="inputs"><svg viewBox="0 0 24 24"><path d="M8 2h8v6h2v6a6 6 0 0 1-5 5.9V22h-2v-2.1A6 6 0 0 1 6 14V8h2V2zm2 2v4h4V4h-4z"/></svg>Inputs</div>
-    <div class="pill" data-action="network" id="netPill"><svg viewBox="0 0 24 24"><path d="M12 18.5a1.75 1.75 0 1 1 0 3.5 1.75 1.75 0 0 1 0-3.5zM12 13c2.3 0 4.4.9 6 2.4l-1.7 1.7A6.2 6.2 0 0 0 12 15.4c-1.7 0-3.2.6-4.3 1.7L6 15.4A8.6 8.6 0 0 1 12 13zm0-5c3.7 0 7.1 1.5 9.6 3.9l-1.7 1.7A11.2 11.2 0 0 0 12 10.4c-3 0-5.8 1.2-7.9 3.2l-1.7-1.7C4.9 9.5 8.3 8 12 8zm0-5c5.1 0 9.8 2 13.2 5.4l-1.7 1.7A16.3 16.3 0 0 0 12 5.4C7.5 5.4 3.4 7.2.5 10.1L-1.2 8.4C2.2 5 6.9 3 12 3z" transform="scale(.92) translate(1 0)"/></svg><span id="netLabel">Wi-Fi</span></div>
     <div class="pill" data-action="settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5L19.4 13zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>Settings</div>
     <div class="pill" data-action="vidaa"><svg viewBox="0 0 24 24"><path d="M12 3 2 11.5h3V21h5.5v-6h3v6H19v-9.5h3L12 3z"/></svg>VIDAA</div>
   </div>
@@ -360,12 +359,6 @@
     if (!weatherTimer) weatherTimer = setInterval(loadWeather, 15 * 60 * 1000);
   }
 
-  function network() {
-    try {
-      var t = window.Hisense_GetNetType && Hisense_GetNetType();
-      if (t !== undefined && t !== null) $('netLabel').textContent = /eth|wire|^1$/i.test(String(t)) && !/wireless/i.test(String(t)) ? 'Ethernet' : 'Wi-Fi';
-    } catch (e) {}
-  }
 
   // ---------- layout ----------
   // Every tile gets a place and a line: line 0 is the dock, then each section's tiles wrap in lines of four.
@@ -501,7 +494,7 @@
   function paintGlass() { $('glass').style.transform = 'translate(' + spring.x + 'px,' + spring.y + 'px)'; }
 
   // ---------- focus ----------
-  function onTop() { return focus.area === 'pills' || focus.area === 'inputs' || (focus.area === 'menu' && menu.kind === 'vidaa'); }
+  function onTop() { return focus.area === 'pills' || focus.area === 'inputs' || (focus.area === 'menu' && menu.kind !== 'tile'); }
   function focused() { return onTop() ? null : state.apps[focus.index]; }
 
   function render() {
@@ -582,6 +575,8 @@
       box.appendChild(row);
     });
     if (!box.children.length) { toast('No inputs found'); return; }
+    var pill = document.querySelector('.pill[data-action="inputs"]');
+    if (pill) box.style.left = Math.min(1920 - 520 - 48, pill.getBoundingClientRect().left) + 'px';
     focus.area = 'inputs'; focus.input = 0;
     renderInputs();
   }
@@ -629,6 +624,42 @@
       : [{ label: 'Turn automatic Home back on', act: 'takeover-on' }, { label: 'Go to VIDAA Home', act: 'vidaa-home' },
          { label: 'Cancel', act: 'cancel' }]);
   }
+  // ---------- Region: which country's catalogue the streaming apps see (helper + AdGuard + a Smart DNS) ----------
+  var GLOBE = '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-2.8a15.7 15.7 0 0 0-1.4-3.6A8 8 0 0 1 18.9 8zM12 4c.8 1.1 1.5 2.5 1.9 4h-3.8c.4-1.5 1.1-2.9 1.9-4zM4.3 14a8 8 0 0 1 0-4h3.2a16.5 16.5 0 0 0 0 4H4.3zm.8 2h2.8c.3 1.3.8 2.5 1.4 3.6A8 8 0 0 1 5.1 16zM7.9 8H5.1a8 8 0 0 1 4.2-3.6C8.7 5.5 8.2 6.7 7.9 8zM12 20c-.8-1.1-1.5-2.5-1.9-4h3.8c-.4 1.5-1.1 2.9-1.9 4zm2.3-6H9.7a14.7 14.7 0 0 1 0-4h4.6a14.7 14.7 0 0 1 0 4zm.4 5.6c.6-1.1 1.1-2.3 1.4-3.6h2.8a8 8 0 0 1-4.2 3.6zm1.8-5.6a16.5 16.5 0 0 0 0-4h3.2a8 8 0 0 1 0 4h-3.2z"/></svg>';
+  var region = { now: null, list: [] };
+  function showRegion() {
+    var pill = $('regionPill');
+    if (!state.region || state.static || !region.now) { if (pill) pill.parentNode.removeChild(pill); return; }
+    if (!pill) {
+      pill = document.createElement('div');
+      pill.className = 'pill'; pill.id = 'regionPill'; pill.setAttribute('data-action', 'region');
+      pill.innerHTML = GLOBE + '<span id="regionLabel"></span>';
+      $('pills').insertBefore(pill, document.querySelector('.pill[data-action="vidaa"]'));
+      lastMinute = -1; tick();   // the date may need to shorten for the extra pill
+    }
+    var cur = region.list.filter(function (r) { return r.id === region.now; })[0];
+    $('regionLabel').textContent = (cur ? cur.name : region.now).replace(/\s*\(.*\)$/, '');   // "Germany (no VPN)" -> "Germany"
+  }
+  function loadRegion() {
+    if (!state.region || state.static) { showRegion(); return; }
+    load('/api/region').then(function (r) { region.now = r && r.region; region.list = (r && r.regions) || []; showRegion(); },
+                             function () { region.now = null; showRegion(); });
+  }
+  function openRegionMenu() {
+    menu.kind = 'region';
+    showMenu('Streaming region', region.list.map(function (r) {
+      return { label: r.name + (r.id === region.now ? '  ✓' : ''), act: 'region', id: r.id };
+    }).concat([{ label: 'Cancel', act: 'cancel' }]));
+  }
+  function setRegion(id, label) {
+    toast('Switching the TV\'s VPN… (up to 20 seconds)');
+    post('/api/region', { region: id }).then(function (r) {
+      if (!r.ok) { toast('Could not switch: ' + (r.error || 'no answer')); return; }
+      region.now = r.region; showRegion();
+      toast(label.replace(/\s*\u2713$/, '') + ': done. Close and reopen Netflix or Disney+ to see it.');
+    }, function () { toast('Cannot reach the helper'); });
+  }
+
   function renderMenu() {
     var box = $('menu'), rows = box.querySelectorAll('.row');
     box.classList.toggle('open', focus.area === 'menu');
@@ -636,7 +667,7 @@
     for (var i = 0; i < rows.length; i++) rows[i].classList.toggle('focus', i === menu.index);
   }
   function closeMenu() {
-    focus.area = menu.kind === 'vidaa' ? 'pills' : focus.index < state.dockSize ? 'dock' : 'grid';
+    focus.area = menu.kind !== 'tile' ? 'pills' : focus.index < state.dockSize ? 'dock' : 'grid';
     menu.kind = 'tile';
     renderMenu(); render();
   }
@@ -646,6 +677,7 @@
     if (!it || it.act === 'cancel') return;
     if (it.act === 'move') { startMove(); return; }
     if (it.act === 'reset-order') { saveOrder(null); return; }
+    if (it.act === 'region') { setRegion(it.id, it.label); return; }
     if (it.act === 'vidaa-off' || it.act === 'takeover-on' || it.act === 'vidaa-home') {
       var on = it.act === 'takeover-on';
       if (it.act !== 'vidaa-home') { try { localStorage.setItem('cyt-takeover', on ? 'on' : 'off'); } catch (e) {} state.takeover = on; }
@@ -715,6 +747,7 @@
       if (action === 'search') openBrowser();
       else if (action === 'inputs') openInputs();
       else if (action === 'vidaa') openVidaaMenu();
+      else if (action === 'region') openRegionMenu();
       else viaHelper('key=KEY_MENU');
       return;
     }
@@ -971,7 +1004,7 @@
   }
 
   // ---------- start ----------
-  tick(); setInterval(tick, 1000); network();
+  tick(); setInterval(tick, 1000);
   if (document.fonts) document.fonts.ready.then(function () { lastMinute = -1; tick(); });   // the date's fit, in the real font
   function load(url) { return fetch(url, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw r.status; return r.json(); }); }
   // ?helper=http://<lan ip>:8765 in the tile's address: native apps are shown and opened through that helper.
@@ -1022,7 +1055,8 @@
     state.apps = ordered;
     state.clock24 = !!s.clock_24h; state.greetingName = s.greeting_name || '';
     state.quotes = s.quotes !== false; state.weather = !!s.weather; state.wallpaper = !!s.wallpaper;
-    quoteDay = -1; showQuote(); loadWeather(); loadWallpaper();
+    state.region = !!s.region;
+    quoteDay = -1; showQuote(); loadWeather(); loadWallpaper(); loadRegion();
     state.sources = s.sources || [];
     state.browserCfg = s.browser || {};
     document.body.classList.toggle('static', state.static);
