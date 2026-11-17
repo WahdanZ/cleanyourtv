@@ -577,14 +577,60 @@ def _wall_wikimedia(skip: int) -> tuple[bytes, str, str]:
     raise ValueError("no wide picture in the last days")
 
 
-def _wall_nasa(skip: int) -> tuple[bytes, str, str]:
-    day = time.time() - skip * 86400
-    for back in range(10):   # some days are a video or a tall picture
-        d = time.strftime("%Y-%m-%d", time.localtime(day - back * 86400))
-        apod = json.loads(_get(f"https://api.nasa.gov/planetary/apod?api_key={quote(NASA_KEY)}&date={d}"))
-        if apod.get("media_type") != "image":
+APOD_FEED = "https://science.nasa.gov/feed/?post_type=image-article"   # APOD's home since 2026: the last week or so
+
+
+def _apod_feed() -> list:
+    """The latest Astronomy Pictures of the Day from NASA Science's feed: (title, original image address), newest first.
+    The pictures are NASA's own copies (about 1000 pixels wide); the "_annotated" versions are left out."""
+    feed = ""
+    for page in (1, 2):   # about two weeks
+        try:
+            feed += _get(APOD_FEED + (f"&paged={page}" if page > 1 else "")).decode("utf-8", "replace")
+        except Exception:
+            if page == 1:
+                raise
+    out = []   # read as text: NASA's feed isn't always well-formed XML
+    for blob in re.findall(r"<item>(.*?)</item>", feed, re.S):
+        m = re.search(r"<title>(.*?)</title>", blob, re.S)
+        title = html.unescape(re.sub(r"<!\[CDATA\[|\]\]>", "", m.group(1)).strip()) if m else ""
+        if not title.startswith("APOD"):
             continue
-        body = _get(apod.get("hdurl") or apod["url"], timeout=90)
+        for m in re.finditer(r"https://assets\.science\.nasa\.gov/content/dam/science/cds/apod/[^\"\s<>&]+?\.(?:jpe?g|png)", blob, re.I):
+            if "_annotated" not in m.group(0):
+                out.append((re.sub(r"^APOD:\s*\d{4} \w+ \d{1,2}\s*[-\u2013]\s*", "", title), m.group(0)))
+                break
+    return out
+
+
+def _wall_nasa(skip: int) -> tuple[bytes, str, str]:
+    """NASA's Astronomy Picture of the Day: the newest wide one (some days are tall or a video), from APOD's new home on
+    science.nasa.gov. NASA's old APOD API (api.nasa.gov, with the key) is the fallback; since the move it often
+    answers with NASA's logo instead of the picture, which is skipped."""
+    wide = []
+    try:
+        for title, url in _apod_feed():
+            body = _get(url, timeout=90)
+            tmp = DATA / "wallpaper-nasa.tmp"
+            tmp.write_bytes(body)
+            w, h = _sips_size(tmp)
+            tmp.unlink(missing_ok=True)
+            if _wide(w, h):
+                wide.append((body, title, f"{title}, NASA APOD"))
+                if len(wide) > skip:   # "Show another photo" asks for the next wide one back
+                    return wide[-1]
+        if wide:
+            return wide[skip % len(wide)]
+    except Exception as e:
+        log(f"wallpaper (nasa): APOD feed: {e}")
+    day = time.time() - skip * 86400
+    for back in range(6):
+        d = time.strftime("%Y-%m-%d", time.localtime(day - back * 86400))
+        apod = json.loads(_get(f"https://api.nasa.gov/planetary/apod?api_key={quote(NASA_KEY)}&date={d}", timeout=20))
+        url = apod.get("hdurl") or apod.get("url") or ""
+        if apod.get("media_type") != "image" or "nasa-logo" in url or apod.get("title") == "NASA Science":
+            continue
+        body = _get(url, timeout=90)
         tmp = DATA / "wallpaper-nasa.tmp"
         tmp.write_bytes(body)
         w, h = _sips_size(tmp)

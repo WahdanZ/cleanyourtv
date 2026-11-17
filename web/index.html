@@ -76,7 +76,25 @@
   .np-time { margin-top: 6px; font-size: 24px; color: rgba(255,255,255,.74); font-variant-numeric: tabular-nums; }
 
   /* Widget cards (add-ons): one per block, or two stacked in a four-row block. */
-  .wslot { position: absolute; display: none; flex-direction: column; gap: 16px; transition: opacity .3s ease; }
+  .wslot { position: absolute; display: none; flex-direction: column; gap: 12px; transition: opacity .3s ease; }
+  /* A card fills its share of the block and shows what fits: one line when short, no pictures when narrow,
+     bigger pictures and more items when tall (what still doesn't fit is dropped whole, never cut). */
+  .wslot .wcard { flex: 1 1 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .wcard .whead { flex: none; }
+  .wcard.compact { flex-direction: row; align-items: center; gap: 16px; padding: 0 24px; }
+  .wcard.compact .cline { flex: 1; min-width: 0; font-size: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wcard.compact .cline .sub { color: rgba(255,255,255,.74); }
+  .wcard.compact .cline .sub.live { color: #ff6b6b; }
+  .wslot .wcard { padding-top: 14px; padding-bottom: 14px; }
+  .wslot .wmatch { margin-top: 6px; }
+  .wslot .wmatch .mid { line-height: 1.15; }
+  .wcard.narrow .wmatch img, .wcard.narrow .wnews img, .wcard.narrow:not(.tall) .wstrip { display: none; }
+  .wcard.narrow.tall .wstrip { flex-direction: column; gap: 2px; }
+  .wcard.narrow.tall .wstrip { gap: 0; }
+  .wcard.narrow.tall .wstrip > div { display: flex; justify-content: space-between; align-items: baseline; padding: 1px 14px; text-align: left; }
+  .wcard.narrow .wmatch .mid { width: 118px; }
+  .wcard.narrow .wnext .n, .wcard.narrow .wnext .t { font-size: 34px; }
+  .wcard.tall .wnews img { width: 264px; height: 180px; }
   .wcard { background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.12); border-radius: 28px; padding: 16px 28px 18px;
            box-sizing: border-box; text-shadow: none; }
   .whead { display: flex; align-items: center; gap: 14px; }
@@ -626,7 +644,8 @@
       s.on = !!b && b.on !== false;
       s.cards = b ? Math.max(1, Math.floor(b.h / 2)) : 1;
       s.pick = b && b.addons ? b.addons.slice() : [];
-      if (b) placeBlock(s.el, b);
+      s.b = b;
+      if (b) placeBlock(s.el, b, true);
     });
     lastMinute = -1; tick();
     showQuote(); loadWeather();
@@ -662,7 +681,15 @@
   function fillSlot(s, now, page, pages) {
     s.shown = now; s.shownPage = page; s.shownPages = pages;
     s.el.innerHTML = '';
-    now.forEach(function (w, i) { s.el.appendChild(widgetCard(w, page, i === 0 ? pages : 0)); });
+    var b = s.b || { w: 4, h: 2 }, gap = 12;
+    var size = { w: b.w * CW, h: (b.h * RH - gap * (now.length - 1)) / now.length };
+    now.forEach(function (w, i) { s.el.appendChild(widgetCard(w, page, i === 0 ? pages : 0, size)); });
+    Array.prototype.forEach.call(s.el.children, trimCard);
+  }
+  // Drop whole items from the end until the card's content fits its height (at least one stays).
+  function trimCard(card) {
+    var items = card.querySelectorAll('[data-trim]'), i = items.length - 1;   // the first item of a list isn't marked
+    while (i >= 0 && card.scrollHeight > card.clientHeight + 2) { items[i].parentNode.removeChild(items[i]); i--; }
   }
   function refreshWidgetTimes() {   // the minute changed: countdowns, without moving on to the next card
     SLOT_IDS.forEach(function (id) { var s = slots[id]; if (s && s.shown.length && s.el.style.display === 'flex') fillSlot(s, s.shown, s.shownPage, s.shownPages); });
@@ -678,8 +705,10 @@
   }
   function isToday(ms) { var a = new Date(), b = new Date(ms); return a.toDateString() === b.toDateString(); }
   function hhmm(d) { return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
-  function widgetCard(w, at, count) {
-    var card = mk('div', 'wcard'), head = mk('div', 'whead');
+  function widgetCard(w, at, count, size) {
+    size = size || { w: 576, h: 208 };
+    if (size.h < 150) return compactCard(w, at, count);
+    var card = mk('div', 'wcard' + (size.w < 520 ? ' narrow' : '') + (size.h >= 300 ? ' tall' : '')), head = mk('div', 'whead');
     var emo = mk('span', 'wemo', w.emoji || ''); emo.style.background = w.color || '#3a3a44'; head.appendChild(emo);
     head.appendChild(mk('span', 'wtitle', w.title || ''));
     for (var i = 0; count > 1 && i < count; i++) head.appendChild(mk('span', 'wdot' + (i === at ? ' on' : '')));
@@ -687,16 +716,17 @@
     if (w.kind === 'matches' && w.matches && w.matches.length) fillMatches(card, w);
     else if (w.kind === 'prayer' && w.times && w.names) fillPrayer(card, w);
     else if (w.kind === 'headlines' && w.items) fillHeadlines(card, w);
-    else (w.lines || []).slice(0, 3).forEach(function (l) {
-      var line = mk('div', 'wline', l.text || '');
+    else (w.lines || []).slice(0, 8).forEach(function (l, k) {
+      var line = mk('div', 'wline', l.text || ''); if (k) line.setAttribute('data-trim', '');
       if (l.sub) { line.appendChild(document.createTextNode('   ')); line.appendChild(mk('span', 'sub' + (l.live ? ' live' : ''), l.sub)); }
       card.appendChild(line);
     });
     return card;
   }
   function fillMatches(card, w) {   // home logo and name, the score or kick-off in the middle, the away side; live games marked
-    w.matches.slice(0, 2).forEach(function (m) {
+    w.matches.slice(0, 8).forEach(function (m, k) {
       var h = m.home || {}, a = m.away || {}, row = mk('div', 'wmatch'), mid = mk('div', 'mid');
+      if (k) row.setAttribute('data-trim', '');
       var logo = function (url) { var i = mk('img'); i.alt = ''; if (url) i.src = url; else i.style.visibility = 'hidden'; return i; };
       row.appendChild(logo(h.logo)); row.appendChild(mk('div', 'team home', h.name || ''));
       if (m.state === 'pre') {
@@ -712,6 +742,40 @@
       card.appendChild(row);
     });
   }
+  function prayerNext(w) {   // { times (today's or tomorrow's), next (name), at ("13:51"), when (ms) }
+    var times = w.times, tomorrow = w.tomorrow, names = w.names, d = new Date();
+    var today = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+    if (today !== w.date && tomorrow) times = tomorrow;
+    var now = hhmm(d), next = null, day = times;
+    for (var i = 0; i < names.length; i++) if (String(times[names[i]]) > now) { next = names[i]; break; }
+    var afterLast = !next;
+    if (afterLast) { next = names[0]; if (tomorrow) day = tomorrow; }
+    var at = String(day[next] || ''), hm = at.split(':'), when = new Date();
+    when.setHours(+hm[0], +hm[1], 0, 0); if (afterLast) when.setDate(when.getDate() + 1);
+    return { times: times, next: next, at: at, when: when.getTime() };
+  }
+  // A one-row card: the badge and one line, e.g. "Man City 2 – 1 Fulham  Live 67'" or "Asr 13:51  in 1 h 35 min".
+  function compactCard(w, at, count) {
+    var card = mk('div', 'wcard compact'), emo = mk('span', 'wemo', w.emoji || '');
+    emo.style.background = w.color || '#3a3a44'; card.appendChild(emo);
+    var line = mk('div', 'cline'), text = '', sub = '', live = false;
+    if (w.kind === 'matches' && w.matches && w.matches.length) {
+      var m = w.matches[0], h = m.home || {}, a = m.away || {};
+      if (m.state === 'pre') { var d = new Date(m.start); text = (h.name || '') + ' – ' + (a.name || ''); sub = (isToday(m.start) ? '' : DAYS[d.getDay()].slice(0, 3) + ' ') + hhmm(d); }
+      else { text = (h.name || '') + ' ' + (h.score || '0') + ' – ' + (a.score || '0') + ' ' + (a.name || ''); live = m.state === 'in'; sub = live ? 'Live ' + String(m.detail || '').replace(/[^0-9'+:]/g, '') : 'Full time'; }
+    } else if (w.kind === 'prayer' && w.times && w.names) {
+      var p = prayerNext(w); text = p.next + '  ' + p.at; sub = until(p.when);
+    } else if (w.kind === 'headlines' && w.items && w.items.length) {
+      text = (w.items[0] && w.items[0].title) || '';
+    } else {
+      var l = (w.lines || [])[0] || {}; text = l.text || w.title || ''; sub = l.sub || ''; live = !!l.live;
+    }
+    line.textContent = text;
+    if (sub) { line.appendChild(document.createTextNode('   ')); line.appendChild(mk('span', 'sub' + (live ? ' live' : ''), sub)); }
+    card.appendChild(line);
+    for (var i = 0; count > 1 && i < count; i++) card.appendChild(mk('span', 'wdot' + (i === at ? ' on' : '')));
+    return card;
+  }
   function fillPrayer(card, w) {   // the next prayer large with its countdown; all five below, the next one lit
     var times = w.times, tomorrow = w.tomorrow, names = w.names, d = new Date();
     var today = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
@@ -725,7 +789,7 @@
     var row = mk('div', 'wnext');
     row.appendChild(mk('span', 'n', next)); row.appendChild(mk('span', 't', at)); row.appendChild(mk('span', 'c', until(when.getTime())));
     card.appendChild(row);
-    var strip = mk('div', 'wstrip');
+    var strip = mk('div', 'wstrip'); strip.setAttribute('data-trim', '');
     names.forEach(function (n) {
       var col = mk('div', n === next ? 'lit' : '');
       col.appendChild(mk('div', 'a', n)); col.appendChild(mk('div', 'b', times[n] || ''));
@@ -736,7 +800,9 @@
   function fillHeadlines(card, w) {   // the top story's picture beside the headlines
     var row = mk('div', 'wnews'), col = mk('div', 'col');
     if (w.image) { var img = mk('img'); img.alt = ''; img.src = w.image; row.appendChild(img); }
-    w.items.slice(0, 3).forEach(function (it, i) { col.appendChild(mk('div', i ? 'h2' : 'h1', (it && it.title) || '')); });
+    w.items.slice(0, 8).forEach(function (it, i) {
+      var h = mk('div', i ? 'h2' : 'h1', (it && it.title) || ''); if (i) h.setAttribute('data-trim', ''); col.appendChild(h);
+    });
     row.appendChild(col); card.appendChild(row);
   }
 
@@ -776,7 +842,7 @@
   }
   function editSizeName(id) {
     var b = edit.lay.blocks[id], s = edit.spec.blocks[id].sizes.filter(function (z) { return z[0] === b.w && z[1] === b.h; })[0];
-    return s ? s[2] : '';
+    return s ? s[2] : b.w + ' × ' + b.h;
   }
   function editWidgetNames(id) {   // what a widget block shows: the ones picked, or every widget on Home no other block picked
     var b = edit.lay.blocks[id], others = [];
@@ -789,8 +855,8 @@
       var cell = mk('div', 'ecell'); placeBlock(cell, { x: c, y: r, w: 1, h: 1 }, true); L.appendChild(cell);
     }
     editShown().forEach(function (id) {
-      var b = edit.lay.blocks[id], d = mk('div', 'eb' + (id === edit.sel ? ' sel' : '') + (id === edit.sel && edit.mode === 'move' ? ' move' : '') + (b.y > 0 ? ' above' : ''));
-      if (id === edit.sel && edit.mode === 'move' && !editFits(id, b)) d.className += ' bad';
+      var b = edit.lay.blocks[id], d = mk('div', 'eb' + (id === edit.sel ? ' sel' : '') + (id === edit.sel && edit.mode !== 'nav' ? ' move' : '') + (b.y > 0 ? ' above' : ''));
+      if (id === edit.sel && edit.mode !== 'nav' && !editFits(id, b)) d.className += ' bad';
       placeBlock(d, b, true);
       var label = sp.blocks[id].name + ' · ' + editSizeName(id);
       if (editIsWidgets(id)) { var names = editWidgetNames(id).map(function (w) { return w.name; }); label += names.length ? ' · ' + names.join(', ') : ' · empty'; }
@@ -799,6 +865,7 @@
     });
     $('editAdd').classList.toggle('focus', edit.sel === 'add');
     $('editHint').textContent = edit.mode === 'move' ? 'Arrows move it  ·  OK places it  ·  Back puts it back'
+      : edit.mode === 'resize' ? '◀ ▶ width  ·  ▲ ▼ height  ·  OK keeps it  ·  Back puts it back'
       : 'Arrows choose  ·  OK changes it  ·  Back saves and finishes';
   }
   function editCentre(id) { var b = edit.lay.blocks[id]; return { x: b.x + b.w / 2, y: b.y + b.h / 2 }; }
@@ -825,6 +892,7 @@
   function editMenu() {
     if (edit.sel === 'add') { editAddMenu(); return; }
     var id = edit.sel, b = edit.lay.blocks[id], info = edit.spec.blocks[id], items = [{ label: 'Move', act: 'e-move' }];
+    if (info.resize) items.push({ label: 'Resize  (' + b.w + ' × ' + b.h + ')', act: 'e-resize' });
     info.sizes.forEach(function (z) {
       var cur = z[0] === b.w && z[1] === b.h;
       items.push({ label: 'Size: ' + z[2] + (cur ? '  ✓' : ''), act: 'e-size', w: z[0], h: z[1] });
@@ -887,6 +955,7 @@
   function editChoose(it) {
     var id = edit.sel, b = edit.lay.blocks[id];
     if (it.act === 'e-move') { edit.mode = 'move'; edit.from = { x: b.x, y: b.y }; drawEdit(); return; }
+    if (it.act === 'e-resize') { edit.mode = 'resize'; edit.from = { w: b.w, h: b.h }; drawEdit(); return; }
     if (it.act === 'e-size') {
       if (!editFits(id, { x: b.x, y: b.y, w: it.w, h: it.h })) { toast('No room for that size here: move it first.'); return; }
       b.w = it.w; b.h = it.h; editChanged(); return;
@@ -906,8 +975,21 @@
       editSetWidget(target, it.id, true); edit.sel = target; editChanged();
     }
   }
+  function editResize(dw, dh) {   // the top left corner stays; at least the block's smallest size, inside the grid
+    var b = edit.lay.blocks[edit.sel], sp = edit.spec, min = (sp.blocks[edit.sel].resize || {}).min || [1, 1];
+    b.w = Math.max(min[0], Math.min(sp.cols - b.x, b.w + dw)); b.h = Math.max(min[1], Math.min(sp.rows - b.y, b.h + dh));
+    applyLayout(edit.lay); drawEdit();
+  }
   function editKey(k, e) {
     var back = k === 8 || k === 461 || k === 27;
+    if (edit.mode === 'resize') {
+      if (k === 37) editResize(-1, 0); else if (k === 39) editResize(1, 0); else if (k === 38) editResize(0, -1); else if (k === 40) editResize(0, 1);
+      else if (k === 13 && !e.repeat) {
+        if (!editFits(edit.sel, edit.lay.blocks[edit.sel])) { toast("That size covers another block or the buttons."); return; }
+        edit.mode = 'nav'; editChanged();
+      } else if (back) { var rb = edit.lay.blocks[edit.sel]; rb.w = edit.from.w; rb.h = edit.from.h; edit.mode = 'nav'; applyLayout(edit.lay); drawEdit(); }
+      return;
+    }
     if (edit.mode === 'move') {
       if (k === 37) editMove(-1, 0); else if (k === 39) editMove(1, 0); else if (k === 38) editMove(0, -1); else if (k === 40) editMove(0, 1);
       else if (k === 13 && !e.repeat) {

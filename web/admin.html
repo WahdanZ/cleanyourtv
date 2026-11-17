@@ -206,6 +206,17 @@
   .canvas .pv-card { background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.12); border-radius: 1.45cqw; padding: .8cqw 1.4cqw;
                      display: flex; flex-direction: column; gap: .35cqw; text-shadow: none; min-height: 0; flex: 1; }
   .canvas .pv-card .hd { color: rgba(255,255,255,.7); text-transform: uppercase; letter-spacing: .1em; }
+  .canvas .pv-card { overflow: hidden; }
+  .canvas .pv-card.one { flex-direction: row; align-items: center; gap: .8cqw; }
+  /* Widget blocks are any size: drag the corner (snaps to the grid). */
+  .canvas .blk .rz { position: absolute; right: -8px; bottom: -8px; width: 20px; height: 20px; border-radius: 6px; background: var(--accent);
+                     border: 2px solid #fff; box-sizing: border-box; cursor: nwse-resize; touch-action: none; z-index: 4; opacity: 0; transition: opacity .15s; }
+  .canvas .blk.sel .rz, .canvas .blk.drag .rz { opacity: 1; }
+  @media (hover: hover) { .canvas .blk:hover .rz { opacity: 1; } }
+  @media (hover: none) { .canvas .blk .rz { width: 28px; height: 28px; right: -12px; bottom: -12px; } }
+  .stepper { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .stepper span { min-width: 64px; }
+  .stepper b { min-width: 22px; text-align: center; }
   .picks { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 14px; }
   .picks label { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); cursor: pointer; }
   .picks label.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
@@ -616,7 +627,7 @@
         <h2>NASA key</h2>
         <div class="card"><div class="row"><div class="grow">Your own NASA API key<small id="nasaNote"></small></div></div>
           <div class="row"><input type="password" id="nasaKey" placeholder="Paste the key from api.nasa.gov" autocomplete="off"></div></div>
-        <p class="hint">Without one, NASA's shared demo key often runs out (10 requests an hour for everyone). A key is free at api.nasa.gov; it is kept only on the helper's computer.</p>
+        <p class="hint">Not needed: NASA's pictures come from APOD's own feed on science.nasa.gov. The key (free at api.nasa.gov) is only used if that feed is down; it is kept only on the helper's computer.</p>
       </div>
       <div id="ownBox">
         <h2>My photos</h2>
@@ -1169,6 +1180,7 @@
       d.appendChild(el('span', 'chip', info.emoji + ' ' + info.name + ' · ' + sizeName(id, b)));
       d.appendChild(blockPreview(id, b));
       d.setAttribute('data-id', id);
+      if (info.resize) { var rz = el('span', 'rz'); rz.title = 'Drag to resize'; d.appendChild(rz); }
       place(d, b.x, b.y, b.w, b.h);
       cv.appendChild(d);
     });
@@ -1247,7 +1259,15 @@
       var ws = widgetsFor(id), k = Math.max(1, Math.floor(b.h / 2));
       c.style.textShadow = 'none'; c.style.gap = tv(16); c.style.padding = '0';
       if (!ws.length) { c.appendChild(pvLine('Drop a widget here', 22, 500, '#4ade80')); c.style.padding = '.8cqw'; c.style.justifyContent = 'center'; c.style.alignItems = 'center'; }
+      var one = b.h / Math.min(k, Math.max(1, ws.length)) < 1.5;   // one row per card: a single line, like the screens
       ws.slice(0, k).forEach(function (w, i) {
+        if (one) {
+          var oc = el('div', 'pv-card one');
+          oc.appendChild(pvLine((w.emoji || '') + '  ' + (widgetLines(w)[0] || w.title || ''), 24, 400));
+          var ox = el('button', 'pv-x', '✕'); ox.title = 'Take ' + (w.title || 'it') + ' off the screen'; ox.setAttribute('data-remove', w.id);
+          oc.appendChild(ox); c.appendChild(oc);
+          return;
+        }
         var card = el('div', 'pv-card'), hd = pvLine((w.emoji || '') + '  ' + (w.title || '') + (i === 0 && ws.length > k ? '   ' + '●○○○○○'.slice(0, Math.ceil(ws.length / k)) : ''), 21, 500);
         hd.className = 'hd'; card.appendChild(hd);
         widgetLines(w).forEach(function (t, j) { card.appendChild(pvLine(t, j === 0 ? 26 : 22, j === 0 ? 500 : 400, j === 0 ? '#fff' : 'rgba(255,255,255,.75)')); });
@@ -1368,6 +1388,29 @@
       };
       box.appendChild(btn);
     });
+    var rzs = S.layout_spec.blocks[id].resize;
+    if (rzs) {   // any size: a step at a time, or drag the corner on the screen
+      var wrap = el('div');
+      wrap.appendChild(box);
+      var step = function (dw, dh) {
+        var nb = { x: b.x, y: b.y, w: b.w + dw, h: b.h + dh };
+        if (nb.w < rzs.min[0] || nb.h < rzs.min[1]) return;
+        if (!fits(id, nb)) { toast('No room to grow that way: move it or shrink something next to it.'); return; }
+        b.w = nb.w; b.h = nb.h; lay.preset = ''; renderLayout(); renderInspector(); dirty();
+      };
+      [['Width', 'w'], ['Height', 'h']].forEach(function (p) {
+        var st = el('div', 'stepper');
+        st.appendChild(el('span', 'hint', p[0]));
+        var minus = el('button', 'btn small', '−'), plus = el('button', 'btn small', '+');
+        minus.onclick = function () { step(p[1] === 'w' ? -1 : 0, p[1] === 'h' ? -1 : 0); };
+        plus.onclick = function () { step(p[1] === 'w' ? 1 : 0, p[1] === 'h' ? 1 : 0); };
+        st.appendChild(minus); st.appendChild(el('b', '', String(b[p[1]]))); st.appendChild(plus);
+        st.appendChild(el('span', 'hint', p[1] === 'w' ? 'columns' : (b.h === 1 ? 'row' : 'rows')));
+        wrap.appendChild(st);
+      });
+      wrap.appendChild(el('p', 'hint', 'Or drag its corner on the screen. The card shows as much as fits: one line when it is one row tall.'));
+      return wrap;
+    }
     return box;
   }
   function addonSettings(a, into) {   // an add-on's own settings (league, city, feed…)
@@ -1724,7 +1767,8 @@
     if (d) {
       var id = d.getAttribute('data-id'), b = L().blocks[id], r = $('canvas').getBoundingClientRect();
       sel = { kind: 'block', id: id };
-      lay_drag = { id: id, el: d, sx: e.clientX, sy: e.clientY, ox: b.x, oy: b.y, cw: r.width * CW / SW, rh: r.height * RH / SH, nx: b.x, ny: b.y, moved: false };
+      lay_drag = { id: id, el: d, sx: e.clientX, sy: e.clientY, ox: b.x, oy: b.y, cw: r.width * CW / SW, rh: r.height * RH / SH, nx: b.x, ny: b.y, moved: false,
+                   rz: !!e.target.closest('.rz'), ow: b.w, oh: b.h, nw: b.w, nh: b.h };
       Array.prototype.forEach.call($('canvas').querySelectorAll('.blk'), function (x) { x.classList.toggle('sel', x === d); });
       $('canvas').classList.remove('wallsel'); var band = $('canvas').querySelector('.pv-dock'); if (band) band.classList.remove('sel');
       d.setPointerCapture(e.pointerId);
@@ -1753,6 +1797,18 @@
     }
     if (!lay_drag) return;
     var g = lay_drag, b = L().blocks[g.id];
+    if (g.rz) {   // the corner: a new width and height, at least the block's smallest, inside the grid
+      var sp = S.layout_spec, min = sp.blocks[g.id].resize.min;
+      var nw = Math.max(min[0], Math.min(sp.cols - b.x, g.ow + Math.round((e.clientX - g.sx) / g.cw)));
+      var nh = Math.max(min[1], Math.min(sp.rows - b.y, g.oh + Math.round((e.clientY - g.sy) / g.rh)));
+      if (nw === g.nw && nh === g.nh) return;
+      g.nw = nw; g.nh = nh; g.moved = true;
+      g.el.classList.add('drag');
+      place(g.el, b.x, b.y, nw, nh);
+      var chip = g.el.querySelector('.chip'); if (chip) chip.textContent = S.layout_spec.blocks[g.id].emoji + ' ' + S.layout_spec.blocks[g.id].name + ' · ' + nw + '×' + nh;
+      g.el.classList.toggle('bad', !fits(g.id, { x: b.x, y: b.y, w: nw, h: nh }));
+      return;
+    }
     var nx = g.ox + Math.round((e.clientX - g.sx) / g.cw), ny = g.oy + Math.round((e.clientY - g.sy) / g.rh);
     if (nx === g.nx && ny === g.ny) return;
     g.nx = nx; g.ny = ny; g.moved = true;
@@ -1773,6 +1829,12 @@
     if (!lay_drag) return;
     var d = lay_drag, b = L().blocks[d.id]; lay_drag = null;
     if (!d.moved) return;
+    if (d.rz) {
+      if (fits(d.id, { x: b.x, y: b.y, w: d.nw, h: d.nh })) { b.w = d.nw; b.h = d.nh; L().preset = ''; dirty(); }
+      else toast("That size would cover another block, the buttons or the dock.");
+      renderLayout(); renderInspector();
+      return;
+    }
     if (fits(d.id, { x: d.nx, y: d.ny, w: b.w, h: b.h })) { b.x = d.nx; b.y = d.ny; L().preset = ''; dirty(); }
     else toast("Can't go there: it would cover another block, the buttons or the dock.");
     renderLayout();

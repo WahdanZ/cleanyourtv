@@ -7,7 +7,8 @@ the buttons and the photo credit. Saved in config.json as "home_layout"; the Chr
 own dock), the admin panel's Chromecast tab edits it. The same presets and sizes are used by both, from here.
 
 There are three widget blocks. Each shows the widget add-ons picked for it ("addons"; none picked: every widget no
-other block has picked); a four-row one shows two cards stacked.
+other block has picked). They can be any size from MIN_WIDGET up to the whole grid ("resize"), not only their listed
+sizes; a card fills its block and shows as much as fits, and a block of four rows or more stacks cards (one per two rows).
 """
 import re
 COLS, ROWS = 12, 6
@@ -17,7 +18,8 @@ RESERVED = {"x": 7, "y": 0, "w": 5, "h": 2}   # the buttons and the photo credit
 # temperature on the clock's date line.
 CLOCK_STYLES = [["classic", "Classic"], ["bold", "Bold"], ["stacked", "Stacked"], ["tiles", "Tiles"], ["analog", "Analog"],
                 ["words", "Words"]]
-WIDGET_SIZES = [[4, 2, "Normal"], [5, 2, "Wide"], [4, 4, "Two stacked"], [5, 4, "Two stacked, wide"]]
+WIDGET_SIZES = [[4, 2, "Normal"], [5, 2, "Wide"], [4, 4, "Two stacked"], [5, 4, "Two stacked, wide"], [4, 1, "One line"]]
+MIN_WIDGET = [3, 1]   # widget blocks: any width and height from this up (the sizes above are quick picks)
 WIDGET_BLOCKS = ("widgets", "widgets2", "widgets3")
 TILE_SIZES = {"big": ["Big", 4], "normal": ["Normal", 5], "small": ["Small", 6]}   # tiles across the screen
 
@@ -25,9 +27,9 @@ BLOCKS = {
     "clock":   {"name": "Clock", "emoji": "🕒", "sizes": [[6, 2, "Normal"], [3, 1, "Small"], [7, 3, "Big"]]},
     "quote":   {"name": "Quote", "emoji": "❝", "sizes": [[8, 2, "Wide"], [6, 2, "Normal"], [5, 2, "Narrow"]]},
     "weather": {"name": "Weather", "emoji": "⛅", "sizes": [[3, 2, "Normal"], [2, 1, "Small"]]},
-    "widgets": {"name": "Widgets", "emoji": "🧩", "sizes": WIDGET_SIZES},
-    "widgets2": {"name": "Widgets 2", "emoji": "🧩", "sizes": WIDGET_SIZES},
-    "widgets3": {"name": "Widgets 3", "emoji": "🧩", "sizes": WIDGET_SIZES},
+    "widgets": {"name": "Widgets", "emoji": "🧩", "sizes": WIDGET_SIZES, "resize": {"min": MIN_WIDGET}},
+    "widgets2": {"name": "Widgets 2", "emoji": "🧩", "sizes": WIDGET_SIZES, "resize": {"min": MIN_WIDGET}},
+    "widgets3": {"name": "Widgets 3", "emoji": "🧩", "sizes": WIDGET_SIZES, "resize": {"min": MIN_WIDGET}},
     "hero":    {"name": "App name", "emoji": "🔤", "sizes": [[7, 2, "Normal"], [5, 2, "Narrow"]]},
     "nowplaying": {"name": "Now playing", "emoji": "🎵", "sizes": [[5, 2, "Normal"], [4, 1, "Small"], [6, 2, "Wide"]]},
 }
@@ -92,7 +94,11 @@ def validate(v) -> dict:
         if bid not in BLOCKS:
             raise ValueError(f"unknown block {bid}")
         x, y, w, h, on = int(b["x"]), int(b["y"]), int(b["w"]), int(b["h"]), bool(b.get("on", True))
-        if [w, h] not in [s[:2] for s in BLOCKS[bid]["sizes"]]:
+        rz = BLOCKS[bid].get("resize")
+        if rz:
+            if w < rz["min"][0] or h < rz["min"][1]:
+                raise ValueError(f"{BLOCKS[bid]['name']}: at least {rz['min'][0]} columns by {rz['min'][1]} row")
+        elif [w, h] not in [s[:2] for s in BLOCKS[bid]["sizes"]]:
             raise ValueError(f"{BLOCKS[bid]['name']}: that size isn't one of its sizes")
         if not (0 <= x and x + w <= COLS and 0 <= y and y + h <= ROWS):
             raise ValueError(f"{BLOCKS[bid]['name']} is outside the grid")

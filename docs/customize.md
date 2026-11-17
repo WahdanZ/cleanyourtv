@@ -43,8 +43,11 @@ Tap the clock on the picture:
 
 ## Widgets and add-ons
 
-Widgets are cards on Home; three widget blocks can each show one card, or two stacked (the tall sizes). A block
-shows the widgets you drop on it, in turn; one with none picked shows every widget no other block has.
+Widgets are cards on Home, in three widget blocks. A widget block can be any size from 3 columns by 1 row up: drag
+its corner on the picture, use its Width and Height buttons, or **Resize** in Edit Home on the TV. The card fills its
+block and shows what fits: one line when it is one row tall, no pictures when it is narrow, more games or headlines
+and a bigger picture when it is tall. A block of four rows or more stacks cards (one per two rows). A block shows the
+widgets you drop on it, in turn; one with none picked shows every widget no other block has.
 
 - Drag a widget from **Add to the screen** onto a block, or tap a block and tick the widgets it shows.
 - **✕** on a card takes it off Home; its settings (city, league, feed…) stay for next time.
@@ -76,7 +79,8 @@ in the panel; one a day, or always the same). *Show another photo* changes today
 
 On the TV or the Chromecast, open the **✎** pill at the top right:
 
-1. Arrows choose a block; **OK** opens its menu: Move, its sizes, the widgets it shows, Hide.
+1. Arrows choose a block; **OK** opens its menu: Move, Resize (widget blocks: ◀ ▶ width, ▲ ▼ height), its sizes,
+   the widgets it shows, Hide.
 2. **+ Add to Home** brings back a hidden block or a widget.
 3. **Back** saves (the admin panel shows it at once).
 

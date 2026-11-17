@@ -547,10 +547,11 @@ public class MainActivity extends Activity {
             if (w == null) { s.on = false; s.box.setVisibility(View.GONE); continue; }
             s.on = w.optBoolean("on", true);
             s.cards = Math.max(1, w.optInt("h", 2) / 2);
+            s.bw = w.optInt("w", 4); s.bh = w.optInt("h", 2);
             s.pick = new java.util.HashSet<>();
             JSONArray pk = w.optJSONArray("addons");
             if (pk != null) for (int i = 0; i < pk.length(); i++) s.pick.add(pk.optString(i));
-            place(s.box, w, false);
+            place(s.box, w, true);
         }
         renderWidgets();
     }
@@ -1181,7 +1182,7 @@ public class MainActivity extends Activity {
         final String id;
         final LinearLayout box = new LinearLayout(MainActivity.this);   // the cards, one under the other
         boolean on;
-        int cards = 1, page = 0, shownPage, shownPages;
+        int cards = 1, page = 0, shownPage, shownPages, bw = 4, bh = 2;
         java.util.Set<String> pick = new java.util.HashSet<>();
         java.util.List<JSONObject> shown = new ArrayList<>();
         final Runnable next = () -> { page++; renderSlot(this); };
@@ -1264,11 +1265,123 @@ public class MainActivity extends Activity {
     void fillSlot(Slot s, java.util.List<JSONObject> now, int page, int pages) {
         s.shown = now; s.shownPage = page; s.shownPages = pages;
         s.box.removeAllViews();
+        int n = Math.max(1, now.size()), gap = 12, cw = s.bw * CW, ch = (s.bh * RH - gap * (n - 1)) / n;
         for (int i = 0; i < now.size(); i++) {
-            LinearLayout card = newCard();
-            fillWidget(card, now.get(i), page, i == 0 ? pages : 0);
-            s.box.addView(card, below(i == 0 ? 0 : 16));
+            View card = widgetView(now.get(i), page, i == 0 ? pages : 0, cw, ch);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ch);
+            lp.topMargin = i == 0 ? 0 : gap;
+            s.box.addView(card, lp);
         }
+    }
+
+    // A card fills its share of the block and shows what fits: one line when short, no pictures when narrow, bigger
+    // pictures and more items when tall. What still doesn't fit is dropped whole (from the end), never cut.
+    final List<View> trims = new ArrayList<>();
+    boolean cardNarrow, cardTall;
+
+    View widgetView(JSONObject w, int at, int count, int cw, int ch) {
+        if (ch < 150) return compactCard(w, at, count);
+        LinearLayout card = newCard();
+        card.setPadding(28, 14, 28, 14);
+        trims.clear();
+        cardNarrow = cw < 520; cardTall = ch >= 300;
+        fillWidget(card, w, at, count);
+        for (int i = trims.size() - 1; i >= 0; i--) {
+            card.measure(View.MeasureSpec.makeMeasureSpec(cw, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            if (card.getMeasuredHeight() <= ch + 2) break;
+            View v = trims.get(i);
+            if (v.getParent() instanceof ViewGroup) ((ViewGroup) v.getParent()).removeView(v);
+        }
+        trims.clear();
+        return card;
+    }
+
+    /** A one-row card: the badge and one line, e.g. "Man City 2 – 1 Fulham  Live 67'" or "Asr 13:51  in 1 h 35 min". */
+    View compactCard(JSONObject w, int at, int count) {
+        LinearLayout card = newCard();
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setPadding(24, 0, 24, 0);
+        TextView emo = new TextView(this);
+        emo.setTextSize(TypedValue.COMPLEX_UNIT_PX, 22);
+        emo.setGravity(Gravity.CENTER);
+        emo.setText(w.optString("emoji"));
+        GradientDrawable eb = new GradientDrawable();
+        eb.setCornerRadius(10);
+        eb.setColor(parseColor(w.optString("color"), 0xFF3A3A44));
+        emo.setBackground(eb);
+        card.addView(emo, new LinearLayout.LayoutParams(38, 38));
+        String kind = w.optString("kind"), text = "", sub = "";
+        boolean live = false;
+        JSONArray ms = w.optJSONArray("matches"), items = w.optJSONArray("items"), lines = w.optJSONArray("lines");
+        if (kind.equals("matches") && ms != null && ms.length() > 0) {
+            JSONObject m = ms.optJSONObject(0), h = m.optJSONObject("home"), a = m.optJSONObject("away");
+            if (h == null) h = new JSONObject(); if (a == null) a = new JSONObject();
+            if (m.optString("state").equals("pre")) {
+                text = h.optString("name") + " – " + a.optString("name");
+                sub = new java.text.SimpleDateFormat(isToday(m.optLong("start")) ? "HH:mm" : "EEE HH:mm", Locale.ENGLISH).format(new java.util.Date(m.optLong("start")));
+            } else {
+                text = h.optString("name") + " " + h.optString("score", "0") + " – " + a.optString("score", "0") + " " + a.optString("name");
+                live = m.optString("state").equals("in");
+                sub = live ? "Live " + m.optString("detail").replaceAll("[^0-9'+:]", "").trim() : "Full time";
+            }
+        } else if (kind.equals("prayer") && w.optJSONObject("times") != null) {
+            String[] nx = prayerNext(w);
+            if (nx != null) { text = nx[0] + "  " + nx[1]; sub = nx[2]; }
+        } else if (kind.equals("headlines") && items != null && items.length() > 0) {
+            JSONObject it = items.optJSONObject(0);
+            text = it == null ? "" : it.optString("title");
+        } else if (lines != null && lines.length() > 0) {
+            JSONObject l = lines.optJSONObject(0);
+            text = l.optString("text"); sub = l.optString("sub"); live = l.optBoolean("live");
+        } else text = w.optString("title");
+        TextView t = text(26, 400, white(.92), 0, false);
+        android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder(text);
+        if (!sub.isEmpty()) {
+            int from = sb.length();
+            sb.append("   ").append(sub);
+            sb.setSpan(new android.text.style.ForegroundColorSpan(live ? 0xFFFF6B6B : white(.74)), from, sb.length(), 0);
+        }
+        t.setText(sb);
+        LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        tl.leftMargin = 16;
+        card.addView(t, tl);
+        if (count > 1) for (int i = 0; i < count; i++) {
+            View dot = new View(this);
+            GradientDrawable d = new GradientDrawable();
+            d.setShape(GradientDrawable.OVAL);
+            d.setColor(i == at ? white(.9) : white(.28));
+            dot.setBackground(d);
+            LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(i == at ? 10 : 8, i == at ? 10 : 8);
+            dl.leftMargin = 7;
+            card.addView(dot, dl);
+        }
+        if (hasWallpaper) shadowAll(card);
+        return card;
+    }
+
+    /** The next prayer: {name, "13:51", "in 1 h 35 min"}, or null. */
+    String[] prayerNext(JSONObject w) {
+        JSONObject times = w.optJSONObject("times"), tomorrow = w.optJSONObject("tomorrow");
+        JSONArray names = w.optJSONArray("names");
+        if (names == null || times == null) return null;
+        String today = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(new java.util.Date());
+        if (!today.equals(w.optString("date")) && tomorrow != null) times = tomorrow;
+        String now = new java.text.SimpleDateFormat("HH:mm", Locale.ROOT).format(new java.util.Date());
+        String next = null;
+        for (int i = 0; i < names.length(); i++) if (times.optString(names.optString(i)).compareTo(now) > 0) { next = names.optString(i); break; }
+        JSONObject day = times;
+        boolean after = next == null;
+        if (after) { next = names.optString(0); if (tomorrow != null) day = tomorrow; }
+        String at = day.optString(next), left = "";
+        try {
+            String[] hm = at.split(":");
+            Calendar c = Calendar.getInstance();
+            c.set(Calendar.HOUR_OF_DAY, Integer.parseInt(hm[0])); c.set(Calendar.MINUTE, Integer.parseInt(hm[1])); c.set(Calendar.SECOND, 0);
+            if (after) c.add(Calendar.DAY_OF_YEAR, 1);
+            left = until(c.getTimeInMillis());
+        } catch (Exception ignored) { }
+        return new String[]{next, at, left};
     }
 
     /** The minute changed: redraw the cards on screen (countdowns), without moving on to the next ones. */
@@ -1332,7 +1445,7 @@ public class MainActivity extends Activity {
     void fillLines(LinearLayout card, JSONObject w) {
         JSONArray lines = w.optJSONArray("lines");
         if (lines == null) return;
-        for (int i = 0; i < Math.min(3, lines.length()); i++) {
+        for (int i = 0; i < Math.min(8, lines.length()); i++) {
             JSONObject l = lines.optJSONObject(i);
             if (l == null) continue;
             TextView t = text(26, 400, white(.92), 0, false);
@@ -1345,13 +1458,14 @@ public class MainActivity extends Activity {
             }
             t.setText(sb);
             card.addView(t, below(i == 0 ? 12 : 6));
+            if (i > 0) trims.add(t);
         }
     }
 
     /** Football: home logo and name, the score or kick-off in the middle, the away side; live games marked. */
     void fillMatches(LinearLayout card, JSONObject w) {
         JSONArray ms = w.optJSONArray("matches");
-        for (int i = 0; i < Math.min(2, ms.length()); i++) {   // two fit above the dock
+        for (int i = 0; i < Math.min(8, ms.length()); i++) {   // as many as fit (see widgetView)
             JSONObject m = ms.optJSONObject(i);
             JSONObject h = m.optJSONObject("home"), a = m.optJSONObject("away");
             if (h == null || a == null) continue;
@@ -1359,7 +1473,7 @@ public class MainActivity extends Activity {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.addView(teamLogo(h.optString("logo")), new LinearLayout.LayoutParams(34, 34));
+            if (!cardNarrow) row.addView(teamLogo(h.optString("logo")), new LinearLayout.LayoutParams(34, 34));
             TextView hn = text(24, 500, white(.92), 0, false);
             hn.setText(h.optString("name"));
             hn.setGravity(Gravity.END);
@@ -1389,7 +1503,7 @@ public class MainActivity extends Activity {
             }
             mid.addView(big);
             mid.addView(small);
-            LinearLayout.LayoutParams ml = new LinearLayout.LayoutParams(150, ViewGroup.LayoutParams.WRAP_CONTENT);
+            LinearLayout.LayoutParams ml = new LinearLayout.LayoutParams(cardNarrow ? 118 : 150, ViewGroup.LayoutParams.WRAP_CONTENT);
             ml.leftMargin = 8; ml.rightMargin = 8;
             row.addView(mid, ml);
             TextView an = text(24, 500, white(.92), 0, false);
@@ -1397,8 +1511,9 @@ public class MainActivity extends Activity {
             LinearLayout.LayoutParams al = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             al.rightMargin = 10;
             row.addView(an, al);
-            row.addView(teamLogo(a.optString("logo")), new LinearLayout.LayoutParams(34, 34));
-            card.addView(row, below(i == 0 ? 12 : 8));
+            if (!cardNarrow) row.addView(teamLogo(a.optString("logo")), new LinearLayout.LayoutParams(34, 34));
+            card.addView(row, below(i == 0 ? 10 : 6));
+            if (i > 0) trims.add(row);
         }
     }
 
@@ -1463,27 +1578,30 @@ public class MainActivity extends Activity {
         cl.bottomMargin = 6;
         row.addView(cd, cl);
         card.addView(row, below(10));
+        if (cardNarrow && !cardTall) return;   // no room for all five: the next one says enough
         LinearLayout strip = new LinearLayout(this);
-        strip.setOrientation(LinearLayout.HORIZONTAL);
+        boolean list = cardNarrow;   // narrow and tall: one prayer per line
+        strip.setOrientation(list ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
         for (int i = 0; i < names.length(); i++) {
             String n = names.optString(i);
             LinearLayout col = new LinearLayout(this);
-            col.setOrientation(LinearLayout.VERTICAL);
-            col.setGravity(Gravity.CENTER_HORIZONTAL);
-            col.setPadding(0, 6, 0, 8);
+            col.setOrientation(list ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+            col.setGravity(list ? Gravity.CENTER_VERTICAL : Gravity.CENTER_HORIZONTAL);
+            col.setPadding(list ? 14 : 0, list ? 2 : 6, list ? 14 : 0, list ? 2 : 8);
             boolean lit = n.equals(next);
             if (lit) { GradientDrawable g = new GradientDrawable(); g.setCornerRadius(14); g.setColor(white(.16)); col.setBackground(g); }
             TextView a = text(17, 600, lit ? Color.WHITE : white(.5), .08f, true);
             a.setText(n);
-            a.setGravity(Gravity.CENTER_HORIZONTAL);
-            col.addView(a);
+            a.setGravity(list ? Gravity.START : Gravity.CENTER_HORIZONTAL);
+            col.addView(a, list ? new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f) : new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             TextView b = text(23, lit ? 500 : 400, lit ? Color.WHITE : white(.8), 0, false);
             b.setText(times.optString(n));
             b.setGravity(Gravity.CENTER_HORIZONTAL);
             col.addView(b);
-            strip.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            strip.addView(col, list ? below(0) : new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         }
         card.addView(strip, below(10));
+        trims.add(strip);
     }
 
     /** News: the top story's picture beside the headlines. */
@@ -1492,24 +1610,25 @@ public class MainActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         String image = w.optString("image");
-        if (!image.isEmpty()) {
+        if (!image.isEmpty() && !cardNarrow) {
             ImageView iv = new ImageView(this);
             iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
             iv.setBackgroundColor(white(.08));
             round(iv, 12);
-            LinearLayout.LayoutParams il = new LinearLayout.LayoutParams(176, 120);
+            LinearLayout.LayoutParams il = cardTall ? new LinearLayout.LayoutParams(264, 180) : new LinearLayout.LayoutParams(176, 120);
             il.rightMargin = 18; il.topMargin = 4;
             row.addView(iv, il);
             loadImage(image, iv, 240);
         }
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        for (int i = 0; i < Math.min(3, items.length()); i++) {
+        for (int i = 0; i < Math.min(8, items.length()); i++) {
             JSONObject it = items.optJSONObject(i);
             TextView t = text(i == 0 ? 25 : 22, i == 0 ? 500 : 400, i == 0 ? Color.WHITE : white(.75), 0, false);
             if (i == 0) { t.setSingleLine(false); t.setMaxLines(2); }
             t.setText(it == null ? "" : it.optString("title"));
             col.addView(t, below(i == 0 ? 0 : 6));
+            if (i > 0) trims.add(t);
         }
         row.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         card.addView(row, below(12));
@@ -1911,8 +2030,14 @@ public class MainActivity extends Activity {
     JSONObject editLay, editSpec, editSavedLayout;
     JSONArray editWidgets = new JSONArray();
     String editSel = "", editLast = "";
-    boolean editMoving = false, editChanged = false;
-    int editFromX, editFromY;
+    boolean editMoving = false, editResizing = false, editChanged = false;
+    int editFromX, editFromY, editFromW, editFromH;
+    /** The smallest size of a block that can be any size (widget blocks), or null for one with fixed sizes. */
+    int[] editMin(String id) {
+        JSONObject bs = editSpec.optJSONObject("blocks"), r = bs == null ? null : bs.optJSONObject(id).optJSONObject("resize");
+        JSONArray m = r == null ? null : r.optJSONArray("min");
+        return m == null ? null : new int[]{m.optInt(0, 1), m.optInt(1, 1)};
+    }
     final Set<String> editOn = new java.util.HashSet<>(), editOff = new java.util.HashSet<>();
 
     void buildEdit() {
@@ -1950,7 +2075,7 @@ public class MainActivity extends Activity {
                         editWidgets = r.optJSONArray("widgets") == null ? new JSONArray() : r.optJSONArray("widgets");
                     } catch (Exception e) { toast("Cannot read the layout"); return; }
                     editSavedLayout = cfg.optJSONObject("layout");
-                    editMoving = false; editChanged = false; editOn.clear(); editOff.clear();
+                    editMoving = false; editResizing = false; editChanged = false; editOn.clear(); editOff.clear();
                     List<String> shown = editShown();
                     editSel = shown.isEmpty() ? "add" : shown.get(0);
                     area = "edit";
@@ -2042,7 +2167,7 @@ public class MainActivity extends Activity {
     String editSizeName(String id) {
         JSONObject b = eb(id); JSONArray s = editSizes(id);
         for (int i = 0; i < s.length(); i++) { JSONArray z = s.optJSONArray(i); if (z.optInt(0) == b.optInt("w") && z.optInt(1) == b.optInt("h")) return z.optString(2); }
-        return "";
+        return b.optInt("w") + " × " + b.optInt("h");
     }
     /** What a widget block shows: the ones picked, or every widget on Home that no other block picked. */
     List<JSONObject> editWidgetsIn(String id) {
@@ -2076,7 +2201,7 @@ public class MainActivity extends Activity {
         }
         for (String id : editShown()) {
             JSONObject b = eb(id);
-            boolean sel = id.equals(editSel), moving = sel && editMoving;
+            boolean sel = id.equals(editSel), moving = sel && (editMoving || editResizing);
             boolean bad = moving && !editFits(id, b.optInt("x"), b.optInt("y"), b.optInt("w"), b.optInt("h"));
             View o = new View(this);
             GradientDrawable g = new GradientDrawable(); g.setCornerRadius(18);
@@ -2107,10 +2232,23 @@ public class MainActivity extends Activity {
         if (addOn) ag.setColor(white(.96)); else ag.setStroke(2, white(.3));
         editAdd.setBackground(ag);
         editAdd.setTextColor(addOn ? 0xFF111111 : Color.WHITE);
-        editHint.setText(editMoving ? "Arrows move it  ·  OK places it  ·  Back puts it back" : "Arrows choose  ·  OK changes it  ·  Back saves and finishes");
+        editHint.setText(editMoving ? "Arrows move it  ·  OK places it  ·  Back puts it back"
+                : editResizing ? "◀ ▶ width  ·  ▲ ▼ height  ·  OK keeps it  ·  Back puts it back"
+                : "Arrows choose  ·  OK changes it  ·  Back saves and finishes");
     }
 
     void editArrow(int dx, int dy) {
+        if (editResizing) {   // the top left corner stays; at least the smallest size, inside the grid
+            JSONObject b = eb(editSel);
+            int[] min = editMin(editSel);
+            int cols = editSpec.optInt("cols", 12), rows = editSpec.optInt("rows", 6);
+            try {
+                b.put("w", Math.max(min == null ? 1 : min[0], Math.min(cols - b.optInt("x"), b.optInt("w") + dx)));
+                b.put("h", Math.max(min == null ? 1 : min[1], Math.min(rows - b.optInt("y"), b.optInt("h") + dy)));
+            } catch (Exception ignored) { }
+            editPreview(); drawEdit();
+            return;
+        }
         if (editMoving) {
             JSONObject b = eb(editSel);
             int cols = editSpec.optInt("cols", 12), rows = editSpec.optInt("rows", 6);
@@ -2143,6 +2281,12 @@ public class MainActivity extends Activity {
     }
 
     void editOk() {
+        if (editResizing) {
+            JSONObject b = eb(editSel);
+            if (!editFits(editSel, b.optInt("x"), b.optInt("y"), b.optInt("w"), b.optInt("h"))) { toast("That size covers another block or the buttons."); return; }
+            editResizing = false; editChange();
+            return;
+        }
         if (editMoving) {
             JSONObject b = eb(editSel);
             if (!editFits(editSel, b.optInt("x"), b.optInt("y"), b.optInt("w"), b.optInt("h"))) { toast("Can't go there: it covers another block or the buttons."); return; }
@@ -2154,6 +2298,12 @@ public class MainActivity extends Activity {
     }
 
     void editBack() {
+        if (editResizing) {
+            JSONObject b = eb(editSel);
+            try { b.put("w", editFromW); b.put("h", editFromH); } catch (Exception ignored) { }
+            editResizing = false; editPreview(); drawEdit();
+            return;
+        }
         if (editMoving) {
             JSONObject b = eb(editSel);
             try { b.put("x", editFromX); b.put("y", editFromY); } catch (Exception ignored) { }
@@ -2173,6 +2323,7 @@ public class MainActivity extends Activity {
         String id = editSel; JSONObject b = eb(id);
         List<Item> items = new ArrayList<>();
         items.add(new Item("Move", "e-move", null));
+        if (editMin(id) != null) items.add(new Item("Resize  (" + b.optInt("w") + " × " + b.optInt("h") + ")", "e-resize", null));
         JSONArray sizes = editSizes(id);
         for (int i = 0; i < sizes.length(); i++) {
             JSONArray z = sizes.optJSONArray(i);
@@ -2280,6 +2431,7 @@ public class MainActivity extends Activity {
         try {
             switch (it.act) {
                 case "e-move": editMoving = true; editFromX = b.optInt("x"); editFromY = b.optInt("y"); drawEdit(); break;
+                case "e-resize": editResizing = true; editFromW = b.optInt("w"); editFromH = b.optInt("h"); drawEdit(); break;
                 case "e-size": {
                     String[] wh = it.arg.split(",");
                     int w = Integer.parseInt(wh[0]), h = Integer.parseInt(wh[1]);

@@ -33,5 +33,5 @@ def fetch(settings, ctx):
             lines.append({"text": f"{h['name']} {h['score']} – {a['score']} {a['name']}",
                           "sub": "LIVE · " + m["detail"] if m["state"] == "in" else "Full time", "live": m["state"] == "in"})
     return {"kind": "matches", "title": league.get("name", "Football"),
-            "logo": ((league.get("logos") or [{}])[0]).get("href", ""), "matches": matches[:3],
+            "logo": ((league.get("logos") or [{}])[0]).get("href", ""), "matches": matches[:8],   # a tall card shows more
             "lines": lines or [{"text": "No matches this week", "sub": ""}]}
