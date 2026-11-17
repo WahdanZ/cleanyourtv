@@ -13,6 +13,10 @@ import re
 COLS, ROWS = 12, 6
 RESERVED = {"x": 7, "y": 0, "w": 5, "h": 2}   # the buttons and the photo credit
 
+# The clock's look: one of these, or a different one each day from a chosen few ("rotate"); "weather" puts the
+# temperature on the clock's date line.
+CLOCK_STYLES = [["classic", "Classic"], ["bold", "Bold"], ["stacked", "Stacked"], ["tiles", "Tiles"], ["analog", "Analog"],
+                ["words", "Words"]]
 WIDGET_SIZES = [[4, 2, "Normal"], [5, 2, "Wide"], [4, 4, "Two stacked"], [5, 4, "Two stacked, wide"]]
 WIDGET_BLOCKS = ("widgets", "widgets2", "widgets3")
 TILE_SIZES = {"big": ["Big", 4], "normal": ["Normal", 5], "small": ["Small", 6]}   # tiles across the screen
@@ -61,7 +65,7 @@ for _p in PRESETS.values():
 def spec() -> dict:
     """Everything the admin panel's Layout tab needs to draw and check a layout."""
     return {"cols": COLS, "rows": ROWS, "reserved": RESERVED, "blocks": BLOCKS, "presets": PRESETS,
-            "widget_blocks": list(WIDGET_BLOCKS), "tile_sizes": TILE_SIZES}
+            "widget_blocks": list(WIDGET_BLOCKS), "tile_sizes": TILE_SIZES, "clock_styles": CLOCK_STYLES}
 
 
 def dock_max(lay) -> int:
@@ -88,6 +92,15 @@ def validate(v) -> dict:
         if not (0 <= x and x + w <= COLS and 0 <= y and y + h <= ROWS):
             raise ValueError(f"{BLOCKS[bid]['name']} is outside the grid")
         out[bid] = {"x": x, "y": y, "w": w, "h": h, "on": on}
+        if bid == "clock":
+            names = [c[0] for c in CLOCK_STYLES]
+            style = str(b.get("style") or "classic")
+            out[bid]["style"] = style if style in names else "classic"
+            rot = b.get("rotate") or []
+            if not isinstance(rot, list):
+                raise ValueError("bad clock rotation")
+            out[bid]["rotate"] = [r for r in names if r in rot]
+            out[bid]["weather"] = bool(b.get("weather"))
         if bid in WIDGET_BLOCKS:
             picks = b.get("addons") or []
             if not isinstance(picks, list):

@@ -117,6 +117,29 @@
   #left.big #clockRow { flex-direction: column; align-items: flex-start; }
   #left.big #divider { display: none; }
   #left.big #date { margin-top: 18px; }
+  /* Clock styles */
+  #clockStyle { white-space: nowrap; }
+  .cs-row { display: flex; align-items: center; gap: 28px; }
+  .cs-bold { font-weight: 600; letter-spacing: -.035em; line-height: .95; }
+  .cs-ap { font-weight: 500; letter-spacing: .08em; text-transform: uppercase; margin-left: 12px; opacity: .7; }
+  .cs-bdate { margin-top: 10px; font-weight: 500; color: #f5b971; }
+  .cs-stack { font-weight: 500; line-height: .9; letter-spacing: -.02em; }
+  .cs-stack span { opacity: .55; }
+  .cs-sdate { font-weight: 400; letter-spacing: .14em; text-transform: uppercase; line-height: 1.5; color: rgba(255,255,255,.75); }
+  .cs-tiles { display: flex; align-items: center; gap: .1em; font-weight: 500; }
+  .cs-tile { background: rgba(255,255,255,.13); border: 2px solid rgba(255,255,255,.12); border-radius: .16em; padding: .04em .14em; line-height: 1.1;
+             box-shadow: inset 0 -.5em 0 rgba(0,0,0,.12); text-shadow: none; }
+  .cs-colon { opacity: .6; padding: 0 .04em; }
+  .cs-tdate { margin-top: 12px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.7); }
+  .cs-face circle { fill: rgba(0,0,0,.18); stroke: rgba(255,255,255,.45); stroke-width: 2; }
+  .cs-face .tk line { stroke: rgba(255,255,255,.7); stroke-width: 2; stroke-linecap: round; }
+  .cs-face .hh { stroke: #fff; stroke-width: 5; stroke-linecap: round; }
+  .cs-face .mh { stroke: #fff; stroke-width: 3; stroke-linecap: round; }
+  .cs-face .pin { fill: #fff; stroke: none; }
+  .cs-words { font-family: "Playfair Display", Georgia, serif; line-height: 1.12; white-space: normal; }
+  .cs-words i { color: #f5b971; }
+  .cs-wx { display: inline-flex; align-items: center; gap: .3em; margin-left: .8em; text-transform: none; letter-spacing: 0; }
+  .cs-wx svg { width: 1.3em; height: 1.3em; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
   #greeting { margin-left: 8px; font-size: 24px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: rgba(255,255,255,.55); white-space: nowrap; }
   #clockRow { display: flex; align-items: flex-end; margin-top: 6px; }
   #clock { font-size: 104px; font-weight: 300; letter-spacing: -.04em; line-height: .86; }
@@ -295,6 +318,7 @@
   <div id="left">
     <div id="greeting"></div>
     <div id="clockRow"><div id="clock"></div><div id="ampm"></div><div id="divider"></div><div id="date"></div></div>
+    <div id="clockStyle" style="display:none"></div>
   </div>
   <div id="quote" style="display:none"><img id="quotePic" alt=""><div><div id="quoteText"></div><div id="quoteMeta"><span id="quoteBy"></span><span id="quoteSrc"></span></div></div></div>
   <div id="weather" style="display:none"><div id="wxTop"><svg id="wxIcon" viewBox="0 0 48 48"></svg><div id="wxTemp"></div></div><div id="wxInfo"></div></div>
@@ -372,9 +396,78 @@
     }
     var g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
     $('greeting').textContent = state.greetingName ? g + ', ' + state.greetingName : g;
+    drawClockStyle(d);
     showQuote();   // a new one at midnight
     refreshWidgetTimes();   // countdowns
   }
+  // ---------- clock styles: Classic (above), Bold, Stacked, Tiles, Analog and Words; one, or a different one each day ----------
+  var NUM = ['twelve', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'];
+  var MINW = { 5: 'five', 10: 'ten', 20: 'twenty', 25: 'twenty-five' };
+  function timeInWords(h, m) {   // "quarter to twelve", to the nearest five minutes
+    var r = Math.round(m / 5) * 5, hh = h;
+    if (r === 60) { r = 0; hh++; }
+    var now = NUM[hh % 12], next = NUM[(hh + 1) % 12];
+    if (r === 0) return [now, "o'clock"];
+    if (r === 15) return ['quarter past', now];
+    if (r === 30) return ['half past', now];
+    if (r === 45) return ['quarter to', next];
+    return r < 30 ? [MINW[r] + ' past', now] : [MINW[60 - r] + ' to', next];
+  }
+  function clockStyleToday() {
+    var c = state.clockBlock || {}, rot = c.rotate || [], d = new Date();
+    if (rot.length > 1) return rot[Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5) % rot.length];
+    return c.style || 'classic';
+  }
+  function wxSnippet() {   // the weather on the clock's date line, when switched on
+    var c = state.clockBlock || {}, w = state.wxNow;
+    if (!c.weather || !w) return '';
+    return '<span class="cs-wx"><svg viewBox="0 0 48 48">' + ICONS[w.icon] + '</svg>' + w.temp + '°</span>';
+  }
+  function drawClockStyle(d) {
+    var style = clockStyleToday(), rows = state.clockRows || 2, box = $('clockStyle');
+    var k = rows >= 3 ? 1.9 : rows === 1 ? 0.6 : 1;   // the block's size
+    var classic = style === 'classic';
+    $('left').setAttribute('data-style', style);
+    $('greeting').style.display = classic && rows >= 2 ? '' : 'none';
+    $('clockRow').style.display = classic ? '' : 'none';
+    box.style.display = classic ? 'none' : '';
+    if (classic) {
+      var old = $('date').querySelector('.cs-wx'); if (old) old.parentNode.removeChild(old);
+      if (wxSnippet()) $('date').insertAdjacentHTML('beforeend', '&nbsp;&nbsp;' + wxSnippet());
+      return;
+    }
+    var h = d.getHours(), m = d.getMinutes(), mm = ('0' + m).slice(-2);
+    var hh = state.clock24 ? ('0' + h).slice(-2) : String((h % 12) || 12), ap = state.clock24 ? '' : (h < 12 ? 'am' : 'pm');
+    var day = DAYS[d.getDay()], month = MONTHS[d.getMonth()];
+    var px = function (n) { return Math.round(n * k) + 'px'; };
+    var html = '';
+    if (style === 'bold') {
+      html = '<div class="cs-bold" style="font-size:' + px(124) + '">' + hh + ':' + mm + (ap ? '<span class="cs-ap" style="font-size:' + px(30) + '">' + ap + '</span>' : '') + '</div>' +
+             '<div class="cs-bdate" style="font-size:' + px(30) + '">' + (rows === 1 ? day.slice(0, 3) + ', ' + d.getDate() + ' ' + month.slice(0, 3) : day + ', ' + d.getDate() + ' ' + month) + wxSnippet() + '</div>';
+    } else if (style === 'stacked') {
+      html = '<div class="cs-row"><div class="cs-stack" style="font-size:' + px(rows === 1 ? 60 : 92) + '">' + hh + '<br><span>' + mm + '</span></div>' +
+             '<div class="cs-sdate" style="font-size:' + px(26) + '">' + day + '<br>' + d.getDate() + ' ' + month + (wxSnippet() ? '<br>' + wxSnippet() : '') + '</div></div>';
+    } else if (style === 'tiles') {
+      var tile = function (ch) { return '<span class="cs-tile">' + ch + '</span>'; };
+      var digits = (hh.length < 2 && !state.clock24 ? '' : '') + hh;
+      html = '<div class="cs-tiles" style="font-size:' + px(78) + '">' + digits.split('').map(tile).join('') + '<span class="cs-colon">:</span>' + mm.split('').map(tile).join('') +
+             (ap ? '<span class="cs-ap" style="font-size:' + px(26) + '">' + ap + '</span>' : '') + '</div>' +
+             '<div class="cs-tdate" style="font-size:' + px(24) + '">' + day.slice(0, 3) + ' ' + d.getDate() + ' ' + month.slice(0, 3) + wxSnippet() + '</div>';
+    } else if (style === 'analog') {
+      var size = rows >= 3 ? 290 : rows === 1 ? 92 : 196, ha = ((h % 12) + m / 60) * 30, ma = m * 6, ticks = '';
+      for (var t = 0; t < 12; t++) ticks += '<line x1="50" y1="5" x2="50" y2="' + (t % 3 ? 9 : 12) + '" transform="rotate(' + t * 30 + ' 50 50)"/>';
+      html = '<div class="cs-row"><svg class="cs-face" width="' + size + '" height="' + size + '" viewBox="0 0 100 100"><circle cx="50" cy="50" r="47"/>' +
+             '<g class="tk">' + ticks + '</g><line class="hh" x1="50" y1="50" x2="50" y2="25" transform="rotate(' + ha + ' 50 50)"/>' +
+             '<line class="mh" x1="50" y1="50" x2="50" y2="12" transform="rotate(' + ma + ' 50 50)"/><circle class="pin" cx="50" cy="50" r="3"/></svg>' +
+             '<div class="cs-sdate" style="font-size:' + px(rows === 1 ? 40 : 28) + '">' + (rows === 1 ? day.slice(0, 3) + ' ' + d.getDate() : day + '<br>' + d.getDate() + ' ' + month) + (wxSnippet() ? '<br>' + wxSnippet() : '') + '</div></div>';
+    } else if (style === 'words') {
+      var wd = timeInWords(h, m);
+      html = '<div class="cs-words" style="font-size:' + px(rows === 1 ? 74 : 60) + '">It’s <i>' + wd[0] + '</i>' + (rows === 1 ? ' ' : '<br>') + wd[1] + '</div>' +
+             '<div class="cs-tdate" style="font-size:' + px(24) + '">' + hh + ':' + mm + (ap ? ' ' + ap : '') + '&nbsp;&nbsp;·&nbsp;&nbsp;' + day + ' ' + d.getDate() + ' ' + month + wxSnippet() + '</div>';
+    }
+    box.innerHTML = html;
+  }
+
 
   // ---------- quote of the day: from the internet through the helper (/api/quote, with the author's portrait);
   // the built-in quotes.json only when that fails (no internet, or the hosted page without a helper) ----------
@@ -445,10 +538,10 @@
 
   var weatherTimer = 0;
   function loadWeather() {
-    var box = $('weather');
-    if (state.static || !state.weather || !blockOn.weather) { box.style.display = 'none'; return; }
+    var box = $('weather'), forClock = !!(state.clockBlock && state.clockBlock.weather);
+    if (state.static || !state.weather || (!blockOn.weather && !forClock)) { box.style.display = 'none'; return; }
     load('/api/weather').then(function (w) {
-      if (!w) { box.style.display = 'none'; return; }
+      if (!w) { box.style.display = 'none'; state.wxNow = null; return; }
       var label = 'Cloudy', icon = 'cloud';
       for (var k = 0; k < WX.length; k++) if (WX[k][0].indexOf(w.code) >= 0) { label = WX[k][1]; icon = WX[k][2]; }
       if (!w.day && icon === 'sun') icon = 'moon';
@@ -456,7 +549,9 @@
       $('wxIcon').innerHTML = ICONS[icon];
       $('wxTemp').textContent = w.temp + '°';
       $('wxInfo').textContent = (w.city ? w.city + '  ·  ' : '') + label + '  ·  ' + w.high + '° / ' + w.low + '°';
-      box.style.display = '';
+      box.style.display = blockOn.weather ? '' : 'none';
+      state.wxNow = { temp: w.temp, icon: icon };
+      lastMinute = -1; tick();   // the clock may show it
     }, function () { box.style.display = 'none'; });
     if (!weatherTimer) weatherTimer = setInterval(loadWeather, 15 * 60 * 1000);
   }
@@ -483,6 +578,7 @@
     placeBlock(left, c);
     left.className = c.h >= 3 ? 'big' : c.h === 1 ? 'small' : '';
     state.clockRows = c.h;
+    state.clockBlock = c;
     $('greeting').style.display = c.h >= 2 ? '' : 'none';
     $('greeting').style.fontSize = (c.h >= 3 ? 30 : 24) + 'px';
     $('clock').style.fontSize = (c.h >= 3 ? 210 : c.h === 2 ? 104 : 64) + 'px';
@@ -712,6 +808,12 @@
       var cur = z[0] === b.w && z[1] === b.h;
       items.push({ label: 'Size: ' + z[2] + (cur ? '  ✓' : ''), act: 'e-size', w: z[0], h: z[1] });
     });
+    if (id === 'clock') {   // its look: a style (picking one ends a daily rotation), and the weather on its date line
+      (edit.spec.clock_styles || []).forEach(function (st) {
+        items.push({ label: 'Style: ' + st[1] + (st[0] === (b.style || 'classic') && !(b.rotate || []).length ? '  ✓' : ''), act: 'e-style', id: st[0] });
+      });
+      items.push({ label: 'Weather in the clock: ' + (b.weather ? 'on' : 'off'), act: 'e-cweather' });
+    }
     if (editIsWidgets(id)) {
       var shown = editWidgetNames(id).map(function (w) { return w.id; });
       edit.widgets.forEach(function (w) { items.push({ label: (shown.indexOf(w.id) >= 0 ? '✓  ' : '+  ') + w.emoji + '  ' + w.name, act: 'e-widget', id: w.id }); });
@@ -768,6 +870,8 @@
       if (!editFits(id, { x: b.x, y: b.y, w: it.w, h: it.h })) { toast('No room for that size here: move it first.'); return; }
       b.w = it.w; b.h = it.h; editChanged(); return;
     }
+    if (it.act === 'e-style') { b.style = it.id; b.rotate = []; var k1 = menu.index; editChanged(); editMenu(); menu.index = k1; renderMenu(); return; }
+    if (it.act === 'e-cweather') { b.weather = !b.weather; var k2 = menu.index; editChanged(); loadWeather(); editMenu(); menu.index = k2; renderMenu(); return; }
     if (it.act === 'e-hide') { b.on = false; edit.sel = editShown()[0] || 'add'; editChanged(); return; }
     if (it.act === 'e-widget') {
       var isIn = editWidgetNames(id).some(function (w) { return w.id === it.id; });
@@ -1470,6 +1574,7 @@
                { appId: 'cyt-tv', name: 'Live TV', page: '/livetv/', icon: 'pages/livetv.png' }];
   function start(s) {
     state.loaded = s;
+    if (s.started) { rev.started = s.started; rev.saved = s.saved; }   // the version these settings are: a save made while loading isn't missed
     var apps = s.apps || [], dockSize = s.dock_size;
     state.removedCount = s.removed_count || 0;
     if (typeof s.takeover === 'boolean') state.takeover = s.takeover;

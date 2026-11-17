@@ -901,13 +901,14 @@
   }
   function blockPreview(id, b) {
     var c = el('div', 'pvc'), pv = S.preview || {};
+    if (id === 'clock' && clockStyleOf(b) !== 'classic') return clockStylePreview(b, c);
     if (id === 'clock') {
       var now = new Date(), h = now.getHours(), m = ('0' + now.getMinutes()).slice(-2);
       var t = draft.clock_24h ? ('0' + h).slice(-2) + ':' + m : ((h % 12) || 12) + ':' + m + (h < 12 ? ' am' : ' pm');
       var dateTxt = now.toLocaleDateString('en-GB', b.h === 1 ? { weekday: 'short', day: 'numeric', month: 'short' } : { weekday: 'long', day: 'numeric', month: 'long' });
       if (b.h >= 2) c.appendChild(pvLine((h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + (draft.greeting_name ? ', ' + draft.greeting_name : ''), b.h >= 3 ? 30 : 24, 400, 'rgba(255,255,255,.75)'));
       c.appendChild(pvLine(t, b.h >= 3 ? 210 : b.h === 2 ? 104 : 64, 300));
-      c.appendChild(pvLine(dateTxt, b.h >= 3 ? 34 : b.h === 2 ? 28 : 22, 400, 'rgba(255,255,255,.8)'));
+      c.appendChild(pvLine(dateTxt + clockWx(b), b.h >= 3 ? 34 : b.h === 2 ? 28 : 22, 400, 'rgba(255,255,255,.8)'));
       if (b.h === 1) { c.style.flexDirection = 'row'; c.style.alignItems = 'baseline'; c.style.gap = '1.2cqw'; c.firstChild.style.flexShrink = '0'; c.firstChild.style.overflow = 'visible'; }
     } else if (id === 'quote') {
 
@@ -939,6 +940,62 @@
     }
     return c;
   }
+  // ---------- clock styles: the same six as the TV and the Chromecast ----------
+  function clockStyleOf(b) {
+    var rot = b.rotate || [], d = new Date();
+    if (rot.length > 1) return rot[Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5) % rot.length];
+    return b.style || 'classic';
+  }
+  function clockWx(b) { var w = (S.preview || {}).weather; return b.weather && w ? '   ☁ ' + w.temp + '°' : ''; }
+  var NUMW = ['twelve', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'];
+  function wordsOf(h, m) {
+    var r = Math.round(m / 5) * 5, hh = h; if (r === 60) { r = 0; hh++; }
+    var now = NUMW[hh % 12], next = NUMW[(hh + 1) % 12], mw = { 5: 'five', 10: 'ten', 20: 'twenty', 25: 'twenty-five' };
+    if (r === 0) return [now, "o'clock"]; if (r === 15) return ['quarter past', now]; if (r === 30) return ['half past', now]; if (r === 45) return ['quarter to', next];
+    return r < 30 ? [mw[r] + ' past', now] : [mw[60 - r] + ' to', next];
+  }
+  function clockStylePreview(b, c) {
+    var style = clockStyleOf(b), k = b.h >= 3 ? 1.9 : b.h === 1 ? 0.6 : 1, d = new Date(), h = d.getHours(), m = d.getMinutes(), mm = ('0' + m).slice(-2);
+    var hh = draft.clock_24h ? ('0' + h).slice(-2) : String((h % 12) || 12), ap = draft.clock_24h ? '' : (h < 12 ? ' am' : ' pm');
+    var day = d.toLocaleDateString('en-GB', { weekday: 'long' }), dm = d.getDate() + ' ' + d.toLocaleDateString('en-GB', { month: 'long' });
+    var row = function () { var r = el('div'); r.style.display = 'flex'; r.style.alignItems = 'center'; r.style.gap = tv(28 * k); return r; };
+    if (style === 'bold') {
+      c.appendChild(pvLine(hh + ':' + mm, 124 * k, 600));
+      c.appendChild(pvLine(day + ', ' + dm + clockWx(b), 30 * k, 500, '#f5b971'));
+    } else if (style === 'stacked') {
+      var r1 = row(), col = el('div');
+      col.appendChild(pvLine(hh, (b.h === 1 ? 60 : 92) * k, 500)); col.appendChild(pvLine(mm, (b.h === 1 ? 60 : 92) * k, 500, 'rgba(255,255,255,.55)'));
+      var dt = el('div'); dt.appendChild(pvLine(day.toUpperCase(), 26 * k, 400, 'rgba(255,255,255,.75)')); dt.appendChild(pvLine(dm.toUpperCase() + clockWx(b), 26 * k, 400, 'rgba(255,255,255,.75)'));
+      r1.appendChild(col); r1.appendChild(dt); c.appendChild(r1);
+    } else if (style === 'tiles') {
+      var r2 = row(); r2.style.gap = tv(8 * k);
+      (hh + ':' + mm).split('').forEach(function (ch) {
+        var t = pvLine(ch, 78 * k, 500, ch === ':' ? 'rgba(255,255,255,.6)' : '#fff');
+        if (ch !== ':') { t.style.background = 'rgba(255,255,255,.13)'; t.style.borderRadius = tv(14 * k); t.style.padding = tv(8 * k) + ' ' + tv(14 * k); t.style.overflow = 'visible'; }
+        r2.appendChild(t);
+      });
+      c.appendChild(r2);
+      c.appendChild(pvLine(day.slice(0, 3).toUpperCase() + ' ' + dm.toUpperCase() + clockWx(b), 24 * k, 400, 'rgba(255,255,255,.7)'));
+    } else if (style === 'analog') {
+      var r3 = row(), size = b.h >= 3 ? 290 : b.h === 1 ? 92 : 196, ha = ((h % 12) + m / 60) * 30, ticks = '';
+      for (var t = 0; t < 12; t++) ticks += '<line x1="50" y1="5" x2="50" y2="' + (t % 3 ? 9 : 12) + '" transform="rotate(' + t * 30 + ' 50 50)"/>';
+      var face = el('div'); face.style.width = face.style.height = tv(size); face.style.flex = 'none';
+      face.innerHTML = '<svg viewBox="0 0 100 100" width="100%" height="100%"><circle cx="50" cy="50" r="47" fill="rgba(0,0,0,.18)" stroke="rgba(255,255,255,.45)" stroke-width="2"/>' +
+        '<g stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-linecap="round">' + ticks + '</g>' +
+        '<line x1="50" y1="50" x2="50" y2="25" stroke="#fff" stroke-width="5" stroke-linecap="round" transform="rotate(' + ha + ' 50 50)"/>' +
+        '<line x1="50" y1="50" x2="50" y2="12" stroke="#fff" stroke-width="3" stroke-linecap="round" transform="rotate(' + m * 6 + ' 50 50)"/><circle cx="50" cy="50" r="3" fill="#fff"/></svg>';
+      var dt2 = el('div'); dt2.appendChild(pvLine(day.toUpperCase(), 28 * k, 400, 'rgba(255,255,255,.75)')); dt2.appendChild(pvLine(dm.toUpperCase() + clockWx(b), 28 * k, 400, 'rgba(255,255,255,.75)'));
+      r3.appendChild(face); r3.appendChild(dt2); c.appendChild(r3);
+    } else if (style === 'words') {
+      var w = wordsOf(h, m), p = pvLine('', (b.h === 1 ? 74 : 60) * k, 400);
+      p.style.fontFamily = 'Georgia, serif'; p.style.whiteSpace = 'normal';
+      p.innerHTML = 'It’s <i style="color:#f5b971">' + w[0] + '</i>' + (b.h === 1 ? ' ' : '<br>') + w[1];
+      c.appendChild(p);
+      c.appendChild(pvLine(hh + ':' + mm + ap + '  ·  ' + day.toUpperCase() + ' ' + dm.toUpperCase() + clockWx(b), 24 * k, 400, 'rgba(255,255,255,.7)'));
+    }
+    return c;
+  }
+
   // The dock and the first row, at their chosen sizes, with the Chromecast's own apps. Dock apps can be dragged.
   var dockGeo = null;
   function drawDock(cv) {
@@ -1029,6 +1086,30 @@
       box.appendChild(swRow('Show on Home', '', b.on, function (on) { setShown(id, on); }));
       if (b.on) { var s1 = sec('Size'); s1.appendChild(sizeButtons(id)); box.appendChild(s1); }
       if (id === 'clock') {
+        var sst = sec('Style'), sz = el('div', 'sizes'), rot = b.rotate || [];
+        (spec.clock_styles || []).forEach(function (st) {
+          var on = rot.length < 2 && (b.style || 'classic') === st[0];
+          var btn = el('button', 'btn small' + (on ? ' on' : ''), st[1]);
+          btn.onclick = function () { b.style = st[0]; b.rotate = []; lay.preset = ''; renderLayout(); dirty(); };
+          sz.appendChild(btn);
+        });
+        sst.appendChild(sz); box.appendChild(sst);
+        box.appendChild(swRow('Weather in the clock', 'The temperature on the date line', b.weather, function (on) { b.weather = on; renderLayout(); dirty(); }));
+        box.appendChild(swRow('Change style every day', rot.length > 1 ? 'Today: ' + (spec.clock_styles.filter(function (x) { return x[0] === clockStyleOf(b); })[0] || ['', ''])[1] : 'Through the styles you tick',
+          rot.length > 1, function (on) { b.rotate = on ? spec.clock_styles.map(function (x) { return x[0]; }) : []; renderLayout(); dirty(); }));
+        if (rot.length > 1) {
+          var favs = el('div', 'picks');
+          spec.clock_styles.forEach(function (st) {
+            var lab = el('label', rot.indexOf(st[0]) >= 0 ? 'on' : ''), cbx = el('input'); cbx.type = 'checkbox'; cbx.checked = rot.indexOf(st[0]) >= 0;
+            cbx.onchange = function () {
+              var next = spec.clock_styles.map(function (x) { return x[0]; }).filter(function (x) { return x === st[0] ? cbx.checked : rot.indexOf(x) >= 0; });
+              if (next.length < 2) { toast('Tick at least two styles to change between.'); cbx.checked = !cbx.checked; return; }
+              b.rotate = next; renderLayout(); dirty();
+            };
+            lab.appendChild(cbx); lab.appendChild(document.createTextNode(st[1])); favs.appendChild(lab);
+          });
+          box.appendChild(favs);
+        }
         box.appendChild(swRow('24-hour clock', '', draft.clock_24h, function (on) { draft.clock_24h = on; renderHome(); renderLayout(); dirty(); }));
         var nm = el('div', 'row'), g = el('div', 'grow', 'Your name'); g.appendChild(el('small', '', '"Good morning, …"'));
         var inp = el('input'); inp.type = 'text'; inp.maxLength = 40; inp.value = draft.greeting_name || ''; inp.style.width = '150px';

@@ -720,7 +720,8 @@ def chromecast_settings() -> dict:
             "greeting_name": CONFIG.get("greeting_name", ""), "quotes": QUOTES_ON, "weather": bool(WEATHER),
             "wallpaper": bool(WALLPAPER_ON), "region": vpn_available(), "clock_24h": CONFIG.get("clock_24h", False),
             "rev": CHROMECAST.get("rev", 0), "layout": CONFIG.get("home_layout") or layout.PRESETS["classic"],
-            "live_refresh": CONFIG.get("live_refresh", True) is not False}
+            "live_refresh": CONFIG.get("live_refresh", True) is not False,
+            "started": STARTED, "saved": SAVED["at"]}
 
 
 # ---------- add-ons (helper/addons.py, addons/, data/addons/) ----------
@@ -1195,7 +1196,8 @@ class Handler(SimpleHTTPRequestHandler):
                              "clock_24h": CONFIG.get("clock_24h", False), "sources": SOURCES.get(),
                              "removed_count": len(APPS.removed()), "takeover": takeover_on(), "browser": BROWSER,
                              "order_saved": bool(APPS.order()),
-                             "layout": CONFIG.get("home_layout") or layout.PRESETS["classic"]})
+                             "layout": CONFIG.get("home_layout") or layout.PRESETS["classic"],
+                             "started": STARTED, "saved": SAVED["at"]})
             return
         if path == "/api/cc":
             self._json(200, chromecast_settings())

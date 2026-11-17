@@ -448,6 +448,10 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         rl.topMargin = 6;
         clockBlock.addView(clockRow, rl);
+        clockAlt = new LinearLayout(this);
+        clockAlt.setOrientation(LinearLayout.VERTICAL);
+        clockAlt.setVisibility(View.GONE);
+        clockBlock.addView(clockAlt, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         blocksLayer.addView(clockBlock, at(GX, GY, 6 * CW, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         // While you browse the rows, the blocks scroll away: a shade keeps the buttons readable, and a small clock stays.
@@ -493,6 +497,8 @@ public class MainActivity extends Activity {
         place(clockBlock, c, false);
         int ch = c.optInt("h", 2);
         clockRows = ch;
+        clockConf = c;
+        lastMinute = -1;   // the next tick draws the clock's style
         greeting.setVisibility(ch >= 2 ? View.VISIBLE : View.GONE);
         clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, ch >= 3 ? 210 : ch == 2 ? 104 : 64);
         ampm.setTextSize(TypedValue.COMPLEX_UNIT_PX, ch >= 3 ? 44 : ch == 2 ? 30 : 22);
@@ -2134,6 +2140,16 @@ public class MainActivity extends Activity {
             boolean cur = z.optInt(0) == b.optInt("w") && z.optInt(1) == b.optInt("h");
             items.add(new Item("Size: " + z.optString(2) + (cur ? "  ✓" : ""), "e-size", z.optInt(0) + "," + z.optInt(1)));
         }
+        if (id.equals("clock")) {   // its look: a style (picking one ends a daily rotation), and the weather on its date line
+            JSONArray styles = editSpec.optJSONArray("clock_styles");
+            JSONArray rot = b.optJSONArray("rotate");
+            for (int i = 0; styles != null && i < styles.length(); i++) {
+                JSONArray st = styles.optJSONArray(i);
+                boolean cur = st.optString(0).equals(b.optString("style", "classic")) && (rot == null || rot.length() == 0);
+                items.add(new Item("Style: " + st.optString(1) + (cur ? "  ✓" : ""), "e-style", st.optString(0)));
+            }
+            items.add(new Item("Weather in the clock: " + (b.optBoolean("weather") ? "on" : "off"), "e-cweather", null));
+        }
         if (editIsWidgets(id)) {
             List<JSONObject> in = editWidgetsIn(id);
             for (int i = 0; i < editWidgets.length(); i++) {
@@ -2232,6 +2248,8 @@ public class MainActivity extends Activity {
                     b.put("w", w); b.put("h", h); editChange();
                     break;
                 }
+                case "e-style": b.put("style", it.arg); b.put("rotate", new JSONArray()); editChange(); editMenu(index); break;
+                case "e-cweather": b.put("weather", !b.optBoolean("weather")); editChange(); editMenu(index); break;
                 case "e-hide": {
                     b.put("on", false);
                     List<String> shown = editShown();
@@ -2417,6 +2435,172 @@ public class MainActivity extends Activity {
         ui.postDelayed(hideToast, 3500);
     }
 
+    // ---------- clock styles: Classic, Bold, Stacked, Tiles, Analog and Words; one, or a different one each day ----------
+    JSONObject clockConf = new JSONObject();
+    LinearLayout clockAlt;
+    int wxNowTemp = Integer.MIN_VALUE, wxNowIcon = 0;
+    static final String[] NUM = {"twelve", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven"};
+
+    /** "quarter to" + "twelve": the time in words, to the nearest five minutes. */
+    static String[] timeInWords(int h, int m) {
+        int r = Math.round(m / 5f) * 5, hh = h;
+        if (r == 60) { r = 0; hh++; }
+        String now = NUM[hh % 12], next = NUM[(hh + 1) % 12];
+        if (r == 0) return new String[]{now, "o'clock"};
+        if (r == 15) return new String[]{"quarter past", now};
+        if (r == 30) return new String[]{"half past", now};
+        if (r == 45) return new String[]{"quarter to", next};
+        String[] w = {"", "five", "ten", "", "twenty", "twenty-five"};
+        return r < 30 ? new String[]{w[r / 5] + " past", now} : new String[]{w[(60 - r) / 5] + " to", next};
+    }
+
+    String clockStyleToday() {
+        JSONArray rot = clockConf.optJSONArray("rotate");
+        if (rot != null && rot.length() > 1) return rot.optString((int) (LocalDate.now().toEpochDay() % rot.length()));
+        return clockConf.optString("style", "classic");
+    }
+
+    /** The weather on the clock's date line, when switched on: its icon and the temperature. */
+    CharSequence withWeather(CharSequence s, float px) {
+        if (!clockConf.optBoolean("weather") || wxNowTemp == Integer.MIN_VALUE || wxNowIcon == 0) return s;
+        boolean ownLine = s.toString().endsWith("\n");   // on a line of its own (Stacked, Analog): no gap before it
+        android.text.SpannableStringBuilder b = new android.text.SpannableStringBuilder(s).append(ownLine ? " " : "     ");
+        Drawable d = getDrawable(wxNowIcon);
+        if (d != null) {
+            d = d.mutate();
+            int sz = Math.round(px * 1.25f);
+            d.setBounds(0, 0, sz, sz);
+            d.setTint(Color.WHITE);
+            int at = b.length() - 1;
+            b.setSpan(new android.text.style.ImageSpan(d, android.text.style.ImageSpan.ALIGN_BOTTOM), at, at + 1, 0);
+        }
+        b.append(" ").append(String.valueOf(wxNowTemp)).append("°");
+        return b;
+    }
+
+    static class AnalogFace extends View {
+        int hour, minute;
+        final android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        AnalogFace(android.content.Context c) { super(c); }
+        @Override protected void onDraw(Canvas cv) {
+            float s = Math.min(getWidth(), getHeight()), cx = getWidth() / 2f, cy = getHeight() / 2f, u = s / 100f;
+            p.setStyle(android.graphics.Paint.Style.FILL); p.setColor(0x2E000000); cv.drawCircle(cx, cy, 47 * u, p);
+            p.setStyle(android.graphics.Paint.Style.STROKE); p.setStrokeWidth(2 * u); p.setColor(0x73FFFFFF); cv.drawCircle(cx, cy, 47 * u, p);
+            p.setStrokeCap(android.graphics.Paint.Cap.ROUND); p.setColor(0xB3FFFFFF);
+            for (int t = 0; t < 12; t++) { cv.save(); cv.rotate(t * 30, cx, cy); cv.drawLine(cx, cy - 45 * u, cx, cy - (t % 3 == 0 ? 38 : 41) * u, p); cv.restore(); }
+            p.setColor(Color.WHITE);
+            p.setStrokeWidth(5 * u); cv.save(); cv.rotate(((hour % 12) + minute / 60f) * 30, cx, cy); cv.drawLine(cx, cy, cx, cy - 25 * u, p); cv.restore();
+            p.setStrokeWidth(3 * u); cv.save(); cv.rotate(minute * 6, cx, cy); cv.drawLine(cx, cy, cx, cy - 38 * u, p); cv.restore();
+            p.setStyle(android.graphics.Paint.Style.FILL); cv.drawCircle(cx, cy, 3 * u, p);
+        }
+    }
+
+    void drawClockStyle(Calendar c) {
+        String style = clockStyleToday();
+        boolean classic = style.equals("classic");
+        int rows = clockRows;
+        greeting.setVisibility(classic && rows >= 2 ? View.VISIBLE : View.GONE);
+        clockRow.setVisibility(classic ? View.VISIBLE : View.GONE);
+        clockAlt.setVisibility(classic ? View.GONE : View.VISIBLE);
+        if (classic) { date.setText(withWeather(date.getText().toString(), date.getTextSize())); return; }
+        clockAlt.removeAllViews();
+        float k = rows >= 3 ? 1.9f : rows == 1 ? .6f : 1f;
+        int h = c.get(Calendar.HOUR_OF_DAY), m = c.get(Calendar.MINUTE);
+        boolean h24 = cfg.optBoolean("clock_24h");
+        String hh = h24 ? String.format(Locale.ROOT, "%02d", h) : String.valueOf((h % 12) == 0 ? 12 : h % 12);
+        String mm = String.format(Locale.ROOT, "%02d", m), ap = h24 ? "" : (h < 12 ? "am" : "pm");
+        String day = DAYS[c.get(Calendar.DAY_OF_WEEK) - 1], mon = MONTHS[c.get(Calendar.MONTH)];
+        int dom = c.get(Calendar.DAY_OF_MONTH);
+        switch (style) {
+            case "bold": {
+                LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.BOTTOM);
+                TextView t = text(124 * k, 650, Color.WHITE, -.035f, false); t.setText(hh + ":" + mm); t.setIncludeFontPadding(false);
+                row.addView(t);
+                if (!ap.isEmpty()) { TextView a = text(30 * k, 500, white(.7), .08f, true); a.setText(ap); LinearLayout.LayoutParams al = new LinearLayout.LayoutParams(-2, -2); al.leftMargin = 12; al.bottomMargin = Math.round(14 * k); row.addView(a, al); }
+                clockAlt.addView(row);
+                TextView d = text(30 * k, 500, 0xFFF5B971, 0, false);
+                d.setText(withWeather(rows == 1 ? day.substring(0, 3) + ", " + dom + " " + mon.substring(0, 3) : day + ", " + dom + " " + mon, 30 * k));
+                clockAlt.addView(d, below(Math.round(10 * k)));
+                break;
+            }
+            case "stacked": {
+                LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER_VERTICAL);
+                LinearLayout col = new LinearLayout(this); col.setOrientation(LinearLayout.VERTICAL);
+                float fs = (rows == 1 ? 60 : 92) * k;
+                TextView a = text(fs, 500, Color.WHITE, -.02f, false); a.setText(hh); a.setIncludeFontPadding(false);
+                TextView b = text(fs, 500, white(.55), -.02f, false); b.setText(mm); b.setIncludeFontPadding(false);
+                col.addView(a);
+                LinearLayout.LayoutParams ml = new LinearLayout.LayoutParams(-2, -2); ml.topMargin = -Math.round(fs * .12f);   // hours and minutes close together
+                col.addView(b, ml);
+                row.addView(col);
+                TextView d = text(26 * k, 400, white(.75), .14f, true);
+                d.setLineSpacing(0, 1.3f); d.setSingleLine(false); d.setMaxLines(4); d.setEllipsize(null); d.setAllCaps(true);   // (setSingleLine drops the capitals)
+                d.setText(withWeather(day + "\n" + dom + " " + mon + (clockConf.optBoolean("weather") ? "\n" : ""), 26 * k));
+                LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(-2, -2); dl.leftMargin = Math.round(28 * k) + 8;
+                row.addView(d, dl);
+                clockAlt.addView(row);
+                break;
+            }
+            case "tiles": {
+                LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER_VERTICAL);
+                String digits = hh + ":" + mm;
+                for (int i = 0; i < digits.length(); i++) {
+                    char ch = digits.charAt(i);
+                    TextView t = text(78 * k, 500, Color.WHITE, 0, false);
+                    t.setText(String.valueOf(ch)); t.setIncludeFontPadding(false);
+                    LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(-2, -2); tl.rightMargin = Math.round(8 * k);
+                    if (ch == ':') { t.setTextColor(white(.6)); row.addView(t, tl); continue; }
+                    int pv = Math.round(8 * k), ph = Math.round(14 * k);
+                    t.setPadding(ph, pv, ph, pv);
+                    GradientDrawable g = new GradientDrawable(); g.setColor(white(.13)); g.setStroke(2, white(.12)); g.setCornerRadius(14 * k);
+                    t.setBackground(g);
+                    row.addView(t, tl);
+                }
+                if (!ap.isEmpty()) { TextView a = text(26 * k, 500, white(.7), .08f, true); a.setText(ap); LinearLayout.LayoutParams al = new LinearLayout.LayoutParams(-2, -2); al.leftMargin = 6; row.addView(a, al); }
+                clockAlt.addView(row);
+                TextView d = text(24 * k, 400, white(.7), .14f, true);
+                d.setText(withWeather(day.substring(0, 3) + " " + dom + " " + mon.substring(0, 3), 24 * k));
+                clockAlt.addView(d, below(Math.round(12 * k)));
+                break;
+            }
+            case "analog": {
+                LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER_VERTICAL);
+                AnalogFace f = new AnalogFace(this); f.hour = h; f.minute = m;
+                int size = rows >= 3 ? 290 : rows == 1 ? 92 : 196;
+                row.addView(f, new LinearLayout.LayoutParams(size, size));
+                TextView d = text((rows == 1 ? 40 : 28) * k, 400, white(.75), .14f, true);
+                d.setLineSpacing(0, 1.3f); d.setSingleLine(false); d.setMaxLines(4); d.setEllipsize(null); d.setAllCaps(true);   // (setSingleLine drops the capitals)
+                d.setText(withWeather(rows == 1 ? day.substring(0, 3) + " " + dom : day + "\n" + dom + " " + mon + (clockConf.optBoolean("weather") ? "\n" : ""), (rows == 1 ? 40 : 28) * k));
+                LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(-2, -2); dl.leftMargin = Math.round(28 * k) + 8;
+                row.addView(d, dl);
+                clockAlt.addView(row);
+                break;
+            }
+            case "words": {
+                String[] w = timeInWords(h, m);
+                TextView t = new TextView(this);
+                t.setTypeface(Typeface.create("serif", Typeface.NORMAL));
+                t.setTextColor(Color.WHITE);
+                t.setTextSize(TypedValue.COMPLEX_UNIT_PX, (rows == 1 ? 74 : 60) * k);
+                t.setLineSpacing(0, 1.05f);
+                android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder("It’s ");
+                int from = sb.length();
+                sb.append(w[0]);
+                sb.setSpan(new android.text.style.StyleSpan(Typeface.ITALIC), from, sb.length(), 0);
+                sb.setSpan(new android.text.style.ForegroundColorSpan(0xFFF5B971), from, sb.length(), 0);
+                sb.append(rows == 1 ? " " : "\n").append(w[1]);
+                t.setText(sb);
+                clockAlt.addView(t);
+                TextView d = text(24 * k, 400, white(.7), .14f, true);
+                d.setText(withWeather(hh + ":" + mm + (ap.isEmpty() ? "" : " " + ap) + "  ·  " + day + " " + dom + " " + mon, 24 * k));
+                clockAlt.addView(d, below(Math.round(12 * k)));
+                break;
+            }
+            default: break;
+        }
+        if (hasWallpaper) shadowAll(clockAlt);
+    }
+
     // =====================================================================================================
     // Clock, greeting, date
     // =====================================================================================================
@@ -2441,6 +2625,7 @@ public class MainActivity extends Activity {
                 String g = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
                 String name = cfg.optString("greeting_name", "");
                 greeting.setText(name.isEmpty() ? g : g + ", " + name);
+                drawClockStyle(c);
                 showQuote();   // a new one at midnight
                 refreshWidgetTimes();   // countdowns
                 long now = System.currentTimeMillis();
@@ -2526,6 +2711,7 @@ public class MainActivity extends Activity {
             helperDownUntil = 0;   // try the Mac again
             try {
                 JSONObject c = new JSONObject(get("/api/cc", 8000));
+                if (c.has("started")) { revStarted = c.optLong("started"); revSaved = c.optDouble("saved", 0); }   // the version these settings are
                 // Saved in the admin panel since we last looked: the panel's dock and hidden apps win over
                 // what was moved or removed here with the remote.
                 long rev = c.optLong("rev", 0);
@@ -2642,6 +2828,8 @@ public class MainActivity extends Activity {
                 else if (!day && icon == R.drawable.wx_part) icon = R.drawable.wx_cloud;
                 wxIcon.setImageResource(icon);
                 wxTemp.setText(fw.optInt("temp") + "°");
+                wxNowTemp = fw.optInt("temp"); wxNowIcon = icon;
+                lastMinute = -1;   // the clock may show it
                 String city = fw.optString("city", "");
                 wxInfo.setText((city.isEmpty() ? "" : city + "  ·  ") + WX_LABEL[k] + "  ·  " + fw.optInt("high") + "° / " + fw.optInt("low") + "°");
                 weatherBox.setTag("ok");
