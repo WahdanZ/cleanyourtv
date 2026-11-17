@@ -709,7 +709,7 @@ _auto_vpn = {"prev": None}   # the region before an app switched it, while that 
 CHROMECAST = CONFIG.get("chromecast") or {}
 _cc_ip = CHROMECAST.get("ip", [])
 CC_IPS = {str(x) for x in (_cc_ip if isinstance(_cc_ip, list) else [_cc_ip]) if x}
-CC_PATHS = {"/", "/index.html", "/quotes.json", "/api/rev", "/api/admin-link", "/api/cc", "/api/cc-open", "/api/cc-apps", "/api/weather", "/api/quote",
+CC_PATHS = {"/", "/index.html", "/quotes.json", "/api/rev", "/api/admin-link", "/api/home-edit", "/api/cc", "/api/cc-open", "/api/cc-apps", "/api/weather", "/api/quote",
             "/api/quote-image", "/api/wallpaper", "/api/wallpaper.jpg", "/api/region", "/vpn"}
 APP_VPN.update({str(k): str(v).lower() for k, v in (CHROMECAST.get("app_vpn") or {}).items()})
 
@@ -863,6 +863,29 @@ def admin_state() -> dict:
             "layout_spec": layout.spec(), "preview": layout_preview(),
             "wallpaper": {"now": wallpaper_meta(), "sources": WALLPAPER_SOURCES, "own": own_wallpapers(),
                           "active": {"source": WALLPAPER_SOURCE, "market": WALLPAPER_MARKET, "pick": WALLPAPER_PICK}}}
+
+
+# "Edit Home" on the TV or the Chromecast, with the remote: the layout, what can go in it, and a save. Only those two
+# screens may use it (the admin panel has its own, with a password); a save is checked like the admin panel's.
+def home_edit_state() -> dict:
+    conf = CONFIG.get("addons") or {}
+    widgets = [{"id": a.id, "name": a.public()["name"], "emoji": a.public()["emoji"], "on": bool((conf.get(a.id) or {}).get("enabled"))}
+               for a in ADDONS.items.values() if a.type == "widget" and not a.slot]
+    return {"layout": CONFIG.get("home_layout") or layout.PRESETS["classic"], "spec": layout.spec(), "widgets": widgets}
+
+
+def home_edit_save(data: dict) -> dict:
+    cfg = ADMIN.read_config()
+    addons_conf = json.loads(json.dumps(cfg.get("addons") or {}))
+    known = {a.id for a in ADDONS.items.values() if a.type == "widget" and not a.slot}
+    for key, on in (("on", True), ("off", False)):
+        for i in data.get(key) or []:
+            if str(i) in known:
+                addons_conf.setdefault(str(i), {"settings": {}})["enabled"] = on
+    new, _ = ADMIN.apply({"home_layout": data.get("layout"), "addons": addons_conf})
+    ADMIN.save(new)
+    apply_live(new)
+    return {"ok": True}
 
 
 def layout_preview() -> dict:
@@ -1176,6 +1199,9 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path == "/api/cc":
             self._json(200, chromecast_settings())
+            return
+        if path == "/api/home-edit":
+            self._json(200, home_edit_state())
             return
         if path.startswith("/api/addons/"):
             self._addons_get(path)
@@ -1642,6 +1668,12 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
                 return
             if path.startswith("/api/addons/") and path.endswith("/run"):
                 self._json(200, addon_run(path.split("/")[3]))
+                return
+            if path == "/api/home-edit":
+                try:
+                    self._json(200, home_edit_save(data))
+                except (ValueError, TypeError, KeyError) as e:
+                    self._json(400, {"ok": False, "error": str(e)})
                 return
             if path == "/api/cc-apps":
                 if self.client_address[0] not in CC_IPS or not isinstance(data.get("apps"), list):

@@ -42,6 +42,27 @@
   body.wallpaper #header, body.wallpaper #quote, body.wallpaper #weather, body.wallpaper #wallCredit { text-shadow: 0 1px 6px rgba(0,0,0,.6); }
   body.ingrid #wallCredit { opacity: 0; }
 
+  /* Edit Home: the grid, an outline per block (the chosen one lit; red where it can't go), and a bar of keys. */
+  #editLayer { position: absolute; left: 0; top: 0; width: 1920px; height: 680px; z-index: 4; pointer-events: none; }
+  .ecell { position: absolute; border: 1px dashed rgba(255,255,255,.14); box-sizing: border-box; }
+  .eb { position: absolute; border: 3px dashed rgba(255,255,255,.55); border-radius: 18px; box-sizing: border-box; }
+  .eb.sel { border: 4px solid #fff; box-shadow: 0 0 0 6px rgba(255,255,255,.18); }
+  .eb.move { border-color: #4ade80; box-shadow: 0 0 0 6px rgba(74,222,128,.25); }
+  .eb.bad { border-color: #ff6b6b; box-shadow: 0 0 0 6px rgba(255,107,107,.25); }
+  .elabel { position: absolute; left: 10px; bottom: -48px; font-size: 22px; font-weight: 500; white-space: nowrap; background: rgba(0,0,0,.75);
+            padding: 6px 14px; border-radius: 12px; display: none; text-shadow: none; }
+  .eb.sel .elabel { display: block; }
+  .eb.above .elabel { bottom: auto; top: -50px; }   /* above the block: its content may run past its bottom edge */
+  #editBar { position: absolute; left: 50%; top: 760px; transform: translateX(-50%); z-index: 4; display: none; align-items: center; gap: 28px;
+             padding: 18px 22px 18px 36px; border-radius: 48px; background: rgba(20,20,22,.92); border: 2px solid rgba(255,255,255,.18);
+             font-size: 26px; white-space: nowrap; }
+  #editAdd { padding: 14px 28px; border-radius: 32px; border: 2px solid rgba(255,255,255,.3); font-weight: 500; }
+  #editAdd.focus { background: rgba(255,255,255,.96); color: #111; border-color: transparent; }
+  body.editing #editBar { display: flex; }
+  body.editing #viewport { opacity: .2; }
+  body.editing #pills { opacity: .35; }
+  body.static .pill[data-action="edit"] { display: none; }
+
   /* Widget cards (add-ons): one per block, or two stacked in a four-row block. */
   .wslot { position: absolute; display: none; flex-direction: column; gap: 16px; transition: opacity .3s ease; }
   .wcard { background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.12); border-radius: 28px; padding: 16px 28px 18px;
@@ -261,6 +282,7 @@
   <div id="pills">
     <div class="pill round" data-action="search"><svg viewBox="0 0 24 24"><path d="M10 3a7 7 0 0 1 5.6 11.2l5.6 5.6-1.4 1.4-5.6-5.6A7 7 0 1 1 10 3zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg></div>
     <div class="pill round" data-action="admin"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm8-2h2v2h-2v-2zm4 0h4v2h-4v-2zm-4 4h2v4h-2v-4zm4 2h4v2h-4v-2zm2-4h2v2h-2v-2z"/></svg></div>
+    <div class="pill round" data-action="edit"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></div>
     <div class="pill" data-action="inputs"><svg viewBox="0 0 24 24"><path d="M8 2h8v6h2v6a6 6 0 0 1-5 5.9V22h-2v-2.1A6 6 0 0 1 6 14V8h2V2zm2 2v4h4V4h-4z"/></svg>Inputs</div>
     <div class="pill" data-action="settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5L19.4 13zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>Settings</div>
     <div class="pill" data-action="vidaa"><svg viewBox="0 0 24 24"><path d="M12 3 2 11.5h3V21h5.5v-6h3v6H19v-9.5h3L12 3z"/></svg>VIDAA</div>
@@ -280,6 +302,8 @@
   <div class="wslot" id="slot_widgets"></div><div class="wslot" id="slot_widgets2"></div><div class="wslot" id="slot_widgets3"></div>
 </div>
 <div id="wallCredit" style="display:none"></div>
+<div id="editLayer"></div>
+<div id="editBar"><span id="editHint"></span><span id="editAdd">+ Add to Home</span></div>
 
 <div id="viewport">
   <div id="rail">
@@ -599,6 +623,179 @@
     row.appendChild(col); card.appendChild(row);
   }
 
+  // ---------- Edit Home, with the remote: choose a block, move it, size it, hide it; put widgets in it; Back saves ----------
+  // The same layout as the admin panel's and the Chromecast's: a save here shows there too.
+  var edit = { lay: null, spec: null, widgets: [], sel: '', mode: 'nav', from: null, changed: false, on: {}, off: {} };
+  function openEdit() {
+    load('/api/home-edit').then(function (r) {
+      edit.lay = JSON.parse(JSON.stringify(r.layout)); edit.spec = r.spec; edit.widgets = r.widgets || [];
+      edit.mode = 'nav'; edit.changed = false; edit.on = {}; edit.off = {};
+      edit.sel = editShown()[0] || 'add';
+      focus.area = 'edit';
+      document.body.classList.add('editing');
+      applyLayout(edit.lay); render(); drawEdit();
+    }, function () { toast('Cannot reach the helper'); });
+  }
+  function closeEdit(save) {
+    document.body.classList.remove('editing');
+    $('editLayer').innerHTML = '';
+    focus.area = 'pills'; render();
+    if (!save || !edit.changed) { applyLayout(state.loaded && state.loaded.layout); return; }
+    var on = Object.keys(edit.on), off = Object.keys(edit.off);
+    post('/api/home-edit', { layout: edit.lay, on: on, off: off }).then(function (r) {
+      if (!r || !r.ok) { toast('Not saved: ' + ((r && r.error) || 'no answer')); applyLayout(state.loaded.layout); return; }
+      state.loaded.layout = edit.lay;
+      toast('Saved. The Chromecast shows it too.' + (on.length ? ' New widgets appear in a few seconds.' : ''));
+      setTimeout(loadWidgets, 4000);
+    }, function () { toast('Cannot reach the helper: not saved'); applyLayout(state.loaded.layout); });
+  }
+  function editShown() { var b = edit.lay.blocks; return Object.keys(b).filter(function (k) { return b[k].on !== false; }); }
+  function editIsWidgets(id) { return edit.spec.widget_blocks.indexOf(id) >= 0; }
+  function editOverlap(a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; }
+  function editFits(id, c) {
+    var sp = edit.spec, blocks = edit.lay.blocks;
+    if (c.x < 0 || c.y < 0 || c.x + c.w > sp.cols || c.y + c.h > sp.rows || editOverlap(c, sp.reserved)) return false;
+    return Object.keys(blocks).every(function (k) { return k === id || blocks[k].on === false || !editOverlap(c, blocks[k]); });
+  }
+  function editSizeName(id) {
+    var b = edit.lay.blocks[id], s = edit.spec.blocks[id].sizes.filter(function (z) { return z[0] === b.w && z[1] === b.h; })[0];
+    return s ? s[2] : '';
+  }
+  function editWidgetNames(id) {   // what a widget block shows: the ones picked, or every widget on Home no other block picked
+    var b = edit.lay.blocks[id], others = [];
+    edit.spec.widget_blocks.forEach(function (k) { var o = edit.lay.blocks[k]; if (k !== id && o && o.on !== false) others = others.concat(o.addons || []); });
+    return edit.widgets.filter(function (w) { return (b.addons || []).length ? b.addons.indexOf(w.id) >= 0 : w.on && others.indexOf(w.id) < 0; });
+  }
+  function drawEdit() {
+    var L = $('editLayer'), sp = edit.spec; L.innerHTML = '';
+    for (var r = 0; r < sp.rows; r++) for (var c = 0; c < sp.cols; c++) {
+      var cell = mk('div', 'ecell'); placeBlock(cell, { x: c, y: r, w: 1, h: 1 }, true); L.appendChild(cell);
+    }
+    editShown().forEach(function (id) {
+      var b = edit.lay.blocks[id], d = mk('div', 'eb' + (id === edit.sel ? ' sel' : '') + (id === edit.sel && edit.mode === 'move' ? ' move' : '') + (b.y > 0 ? ' above' : ''));
+      if (id === edit.sel && edit.mode === 'move' && !editFits(id, b)) d.className += ' bad';
+      placeBlock(d, b, true);
+      var label = sp.blocks[id].name + ' · ' + editSizeName(id);
+      if (editIsWidgets(id)) { var names = editWidgetNames(id).map(function (w) { return w.name; }); label += names.length ? ' · ' + names.join(', ') : ' · empty'; }
+      d.appendChild(mk('span', 'elabel', label));
+      L.appendChild(d);
+    });
+    $('editAdd').classList.toggle('focus', edit.sel === 'add');
+    $('editHint').textContent = edit.mode === 'move' ? 'Arrows move it  ·  OK places it  ·  Back puts it back'
+      : 'Arrows choose  ·  OK changes it  ·  Back saves and finishes';
+  }
+  function editCentre(id) { var b = edit.lay.blocks[id]; return { x: b.x + b.w / 2, y: b.y + b.h / 2 }; }
+  function editNav(dx, dy) {
+    if (edit.sel === 'add') { if (dy < 0 && editShown().length) edit.sel = edit.last || editShown()[0]; drawEdit(); return; }
+    var cur = editCentre(edit.sel), best = null, score = 1e9;
+    editShown().forEach(function (id) {
+      if (id === edit.sel) return;
+      var c = editCentre(id), vx = c.x - cur.x, vy = c.y - cur.y;
+      if ((dx && vx * dx <= 0) || (dy && vy * dy <= 0)) return;
+      var sc = dx ? Math.abs(vx) + 2 * Math.abs(vy) : Math.abs(vy) + 2 * Math.abs(vx);
+      if (sc < score) { score = sc; best = id; }
+    });
+    if (best) edit.sel = best;
+    else if (dy > 0) { edit.last = edit.sel; edit.sel = 'add'; }
+    drawEdit();
+  }
+  function editMove(dx, dy) {
+    var b = edit.lay.blocks[edit.sel], sp = edit.spec;
+    b.x = Math.max(0, Math.min(sp.cols - b.w, b.x + dx)); b.y = Math.max(0, Math.min(sp.rows - b.h, b.y + dy));
+    applyLayout(edit.lay); drawEdit();
+  }
+  function editChanged() { edit.changed = true; edit.lay.preset = ''; applyLayout(edit.lay); drawEdit(); }
+  function editMenu() {
+    if (edit.sel === 'add') { editAddMenu(); return; }
+    var id = edit.sel, b = edit.lay.blocks[id], info = edit.spec.blocks[id], items = [{ label: 'Move', act: 'e-move' }];
+    info.sizes.forEach(function (z) {
+      var cur = z[0] === b.w && z[1] === b.h;
+      items.push({ label: 'Size: ' + z[2] + (cur ? '  ✓' : ''), act: 'e-size', w: z[0], h: z[1] });
+    });
+    if (editIsWidgets(id)) {
+      var shown = editWidgetNames(id).map(function (w) { return w.id; });
+      edit.widgets.forEach(function (w) { items.push({ label: (shown.indexOf(w.id) >= 0 ? '✓  ' : '+  ') + w.emoji + '  ' + w.name, act: 'e-widget', id: w.id }); });
+    }
+    items.push({ label: 'Hide from Home', act: 'e-hide' }, { label: 'Done', act: 'cancel' });
+    menu.kind = 'edit';
+    showMenu(info.name, items);
+  }
+  function editAddMenu() {
+    var items = [], blocks = edit.lay.blocks;
+    Object.keys(blocks).forEach(function (k) {
+      if (blocks[k].on === false && !editIsWidgets(k)) items.push({ label: 'Show the ' + edit.spec.blocks[k].name.toLowerCase(), act: 'e-show', id: k });
+    });
+    edit.widgets.forEach(function (w) {
+      var placed = edit.spec.widget_blocks.some(function (k) { return blocks[k].on !== false && editWidgetNames(k).some(function (x) { return x.id === w.id; }); });
+      if (!placed) items.push({ label: w.emoji + '  ' + w.name, act: 'e-addwidget', id: w.id });
+    });
+    if (!items.length) { toast('Everything is on Home already.'); return; }
+    items.push({ label: 'Cancel', act: 'cancel' });
+    menu.kind = 'edit';
+    showMenu('Add to Home', items);
+  }
+  function editFindPlace(id, sizes) {   // the first free place for one of its sizes
+    var sp = edit.spec, found = null;
+    sizes.some(function (z) {
+      for (var y = 0; y + z[1] <= sp.rows && !found; y++)
+        for (var x = 0; x + z[0] <= sp.cols && !found; x++) if (editFits(id, { x: x, y: y, w: z[0], h: z[1] })) found = { x: x, y: y, w: z[0], h: z[1] };
+      return !!found;
+    });
+    return found;
+  }
+  function editShow(id) {
+    var b = edit.lay.blocks[id];
+    if (!editFits(id, b)) {
+      var f = editFindPlace(id, edit.spec.blocks[id].sizes);
+      if (!f) { toast('No room for the ' + edit.spec.blocks[id].name.toLowerCase() + ': hide or shrink something first.'); return false; }
+      b.x = f.x; b.y = f.y; b.w = f.w; b.h = f.h;
+    }
+    b.on = true; edit.sel = id;
+    return true;
+  }
+  function editSetWidget(blockId, wid, on) {
+    var blocks = edit.lay.blocks, b = blocks[blockId];
+    if (!(b.addons || []).length) b.addons = editWidgetNames(blockId).map(function (w) { return w.id; });   // keep what it showed
+    edit.spec.widget_blocks.forEach(function (k) { if (blocks[k].addons) blocks[k].addons = blocks[k].addons.filter(function (x) { return x !== wid; }); });
+    var w = edit.widgets.filter(function (x) { return x.id === wid; })[0];
+    if (on) { b.addons.push(wid); if (w) w.on = true; edit.on[wid] = 1; delete edit.off[wid]; }
+    else { if (w) w.on = false; edit.off[wid] = 1; delete edit.on[wid]; }
+  }
+  function editChoose(it) {
+    var id = edit.sel, b = edit.lay.blocks[id];
+    if (it.act === 'e-move') { edit.mode = 'move'; edit.from = { x: b.x, y: b.y }; drawEdit(); return; }
+    if (it.act === 'e-size') {
+      if (!editFits(id, { x: b.x, y: b.y, w: it.w, h: it.h })) { toast('No room for that size here: move it first.'); return; }
+      b.w = it.w; b.h = it.h; editChanged(); return;
+    }
+    if (it.act === 'e-hide') { b.on = false; edit.sel = editShown()[0] || 'add'; editChanged(); return; }
+    if (it.act === 'e-widget') {
+      var isIn = editWidgetNames(id).some(function (w) { return w.id === it.id; });
+      var keep = menu.index;
+      editSetWidget(id, it.id, !isIn); editChanged(); editMenu(); menu.index = keep; renderMenu(); return;   // stay in the menu to pick more
+    }
+    if (it.act === 'e-show') { if (editShow(it.id)) editChanged(); return; }
+    if (it.act === 'e-addwidget') {
+      var target = edit.spec.widget_blocks.filter(function (k) { return edit.lay.blocks[k].on !== false; })[0];
+      if (!target) { target = edit.spec.widget_blocks[0]; if (!editShow(target)) return; }
+      editSetWidget(target, it.id, true); edit.sel = target; editChanged();
+    }
+  }
+  function editKey(k, e) {
+    var back = k === 8 || k === 461 || k === 27;
+    if (edit.mode === 'move') {
+      if (k === 37) editMove(-1, 0); else if (k === 39) editMove(1, 0); else if (k === 38) editMove(0, -1); else if (k === 40) editMove(0, 1);
+      else if (k === 13 && !e.repeat) {
+        if (!editFits(edit.sel, edit.lay.blocks[edit.sel])) { toast("Can't go there: it covers another block or the buttons."); return; }
+        edit.mode = 'nav'; editChanged();
+      } else if (back) { var b = edit.lay.blocks[edit.sel]; b.x = edit.from.x; b.y = edit.from.y; edit.mode = 'nav'; applyLayout(edit.lay); drawEdit(); }
+      return;
+    }
+    if (k === 37) editNav(-1, 0); else if (k === 39) editNav(1, 0); else if (k === 38) editNav(0, -1); else if (k === 40) editNav(0, 1);
+    else if (k === 13 && !e.repeat) editMenu();
+    else if (back) closeEdit(true);
+  }
+
 
   // ---------- layout ----------
   // Every tile gets a place and a line: line 0 is the dock, then each section's tiles wrap in lines of four.
@@ -734,7 +931,7 @@
   function paintGlass() { $('glass').style.transform = 'translate(' + spring.x + 'px,' + spring.y + 'px)'; }
 
   // ---------- focus ----------
-  function onTop() { return focus.area === 'pills' || focus.area === 'admin' || focus.area === 'inputs' || (focus.area === 'menu' && menu.kind !== 'tile'); }
+  function onTop() { return focus.area === 'pills' || focus.area === 'admin' || focus.area === 'inputs' || focus.area === 'edit' || (focus.area === 'menu' && menu.kind !== 'tile'); }
   function focused() { return onTop() ? null : state.apps[focus.index]; }
 
   function render() {
@@ -907,13 +1104,14 @@
     for (var i = 0; i < rows.length; i++) rows[i].classList.toggle('focus', i === menu.index);
   }
   function closeMenu() {
-    focus.area = menu.kind !== 'tile' ? 'pills' : focus.index < state.dockSize ? 'dock' : 'grid';
+    focus.area = menu.kind === 'edit' ? 'edit' : menu.kind !== 'tile' ? 'pills' : focus.index < state.dockSize ? 'dock' : 'grid';
     menu.kind = 'tile';
     renderMenu(); render();
   }
   function menuChoose() {
-    var it = menu.items[menu.index], app = menu.app;
+    var it = menu.items[menu.index], app = menu.app, wasEdit = menu.kind === 'edit';
     closeMenu();
+    if (wasEdit) { if (it && it.act !== 'cancel') editChoose(it); return; }
     if (!it || it.act === 'cancel') return;
     if (it.act === 'move') { startMove(); return; }
     if (it.act === 'reset-order') { saveOrder(null); return; }
@@ -989,6 +1187,7 @@
       else if (action === 'vidaa') openVidaaMenu();
       else if (action === 'region') openRegionMenu();
       else if (action === 'admin') openAdmin();
+      else if (action === 'edit') openEdit();
       else viaHelper('key=KEY_MENU');
       return;
     }
@@ -1048,6 +1247,7 @@
       e.preventDefault();
       return;
     }
+    if (focus.area === 'edit') { editKey(k, e); e.preventDefault(); return; }
     if (focus.area === 'move') {
       if (k === 37) moveKey(-1, 0); else if (k === 39) moveKey(1, 0); else if (k === 38) moveKey(0, -1); else if (k === 40) moveKey(0, 1);
       else if (k === 13 && !e.repeat) endMove(true);

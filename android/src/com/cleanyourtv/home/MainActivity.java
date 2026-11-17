@@ -368,6 +368,7 @@ public class MainActivity extends Activity {
         glass.setOutlineProvider(null);   // no shadow under the glass
         rail.addView(glass, at(0, 0, 10, 10));
 
+        buildEdit();
         buildHeader();
 
         scrim = new View(this);
@@ -617,6 +618,7 @@ public class MainActivity extends Activity {
         pillViews.clear(); pillActions.clear();
         if (cfg.optBoolean("region") && regionNow != null) addPill(R.drawable.ic_globe, regionLabel(), "region");
         addPill(R.drawable.ic_qr, "Admin", "admin");
+        addPill(R.drawable.ic_edit, "", "edit");
         addPill(R.drawable.ic_settings, "Settings", "settings");
         if (pill >= pillViews.size()) pill = pillViews.size() - 1;
     }
@@ -625,12 +627,13 @@ public class MainActivity extends Activity {
         LinearLayout p = new LinearLayout(this);
         p.setOrientation(LinearLayout.HORIZONTAL);
         p.setGravity(Gravity.CENTER_VERTICAL);
-        p.setPadding(24, 0, 28, 0);
+        p.setPadding(label.isEmpty() ? 19 : 24, 0, label.isEmpty() ? 19 : 28, 0);   // no label: a round button
         ImageView iv = new ImageView(this);
         iv.setImageResource(icon);
         p.addView(iv, new LinearLayout.LayoutParams(34, 34));
         TextView t = text(27, 500, Color.WHITE, 0, false);
         t.setText(label);
+        if (label.isEmpty()) t.setVisibility(View.GONE);
         LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         tl.leftMargin = 12;
         p.addView(t, tl);
@@ -907,7 +910,7 @@ public class MainActivity extends Activity {
     // =====================================================================================================
     // Focus
     // =====================================================================================================
-    boolean onTop() { return area.equals("pills") || area.equals("admin") || area.equals("screen") || (area.equals("menu") && !menuKind.equals("tile")); }
+    boolean onTop() { return area.equals("pills") || area.equals("admin") || area.equals("screen") || area.equals("edit") || (area.equals("menu") && !menuKind.equals("tile")); }
     App focused() { return onTop() || index >= apps.size() ? null : apps.get(index); }
     final DecelerateInterpolator decel = new DecelerateInterpolator(2f);
 
@@ -1036,6 +1039,7 @@ public class MainActivity extends Activity {
 
     void arrow(int dx, int dy) {
         if (area.equals("admin")) return;
+        if (area.equals("edit")) { editArrow(dx, dy); return; }
         if (area.equals("screen")) { screenArrow(dx, dy); return; }
         if (area.equals("menu")) {
             if (dy != 0) { menuIndex = Math.max(0, Math.min(menuItems.size() - 1, menuIndex + dy)); renderMenu(); }
@@ -1046,6 +1050,7 @@ public class MainActivity extends Activity {
     }
 
     void back() {
+        if (area.equals("edit")) { editBack(); return; }
         if (area.equals("screen")) { closeScreen(); return; }
         if (area.equals("admin")) { closeAdmin(); return; }
         if (area.equals("menu")) { closeMenu(); return; }
@@ -1058,6 +1063,7 @@ public class MainActivity extends Activity {
     }
 
     void activate() {
+        if (area.equals("edit")) { editOk(); return; }
         if (area.equals("screen")) { screenOk(); return; }
         if (area.equals("admin")) { closeAdmin(); return; }
         if (area.equals("menu")) { menuChoose(); return; }
@@ -1066,6 +1072,7 @@ public class MainActivity extends Activity {
             String a = pillActions.get(pill);
             if (a.equals("region")) openRegionMenu();
             else if (a.equals("admin")) openAdmin();
+            else if (a.equals("edit")) openEdit();
             else startSafely(new Intent(Settings.ACTION_SETTINGS));
             return;
         }
@@ -1849,6 +1856,409 @@ public class MainActivity extends Activity {
         render();
     }
 
+    // =====================================================================================================
+    // Edit Home, with the remote: choose a block, move it, size it, hide it; put widgets in it; Back saves.
+    // The same layout as the admin panel's and the TV's: a save here shows there too.
+    // =====================================================================================================
+    FrameLayout editLayer;
+    LinearLayout editBar;
+    TextView editHint, editAdd;
+    JSONObject editLay, editSpec, editSavedLayout;
+    JSONArray editWidgets = new JSONArray();
+    String editSel = "", editLast = "";
+    boolean editMoving = false, editChanged = false;
+    int editFromX, editFromY;
+    final Set<String> editOn = new java.util.HashSet<>(), editOff = new java.util.HashSet<>();
+
+    void buildEdit() {
+        editLayer = new FrameLayout(this);
+        editLayer.setVisibility(View.GONE);
+        stage.addView(editLayer, at(0, 0, W, 700));
+        editBar = new LinearLayout(this);
+        editBar.setOrientation(LinearLayout.HORIZONTAL);
+        editBar.setGravity(Gravity.CENTER_VERTICAL);
+        editBar.setPadding(36, 18, 22, 18);
+        GradientDrawable g = new GradientDrawable(); g.setColor(0xEB141416); g.setCornerRadius(48); g.setStroke(2, white(.18));
+        editBar.setBackground(g);
+        editHint = text(26, 400, Color.WHITE, 0, false);
+        editBar.addView(editHint);
+        editAdd = text(26, 500, Color.WHITE, 0, false);
+        editAdd.setText("+ Add to Home");
+        editAdd.setPadding(28, 14, 28, 14);
+        LinearLayout.LayoutParams al = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        al.leftMargin = 28;
+        editBar.addView(editAdd, al);
+        editBar.setVisibility(View.GONE);
+        FrameLayout.LayoutParams bl = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL | Gravity.TOP);
+        bl.topMargin = 760;
+        stage.addView(editBar, bl);
+    }
+
+    void openEdit() {
+        io.execute(() -> {
+            try {
+                JSONObject r = new JSONObject(get("/api/home-edit", 8000));
+                ui.post(() -> {
+                    try {
+                        editLay = new JSONObject(r.getJSONObject("layout").toString());
+                        editSpec = r.getJSONObject("spec");
+                        editWidgets = r.optJSONArray("widgets") == null ? new JSONArray() : r.optJSONArray("widgets");
+                    } catch (Exception e) { toast("Cannot read the layout"); return; }
+                    editSavedLayout = cfg.optJSONObject("layout");
+                    editMoving = false; editChanged = false; editOn.clear(); editOff.clear();
+                    List<String> shown = editShown();
+                    editSel = shown.isEmpty() ? "add" : shown.get(0);
+                    area = "edit";
+                    editLayer.setVisibility(View.VISIBLE);
+                    editBar.setVisibility(View.VISIBLE);
+                    dimForEdit(true);
+                    editPreview();
+                    render();
+                    drawEdit();
+                });
+            } catch (Exception e) { ui.post(() -> toast("Cannot reach the Mac")); }
+        });
+    }
+
+    void dimForEdit(boolean on) {
+        for (View t : tiles) t.setAlpha(on ? .2f : 1f);
+        band.setAlpha(on ? .2f : 1f);
+        pills.setAlpha(on ? .35f : 1f);
+        for (View v : sectionViews) v.setAlpha(on ? .2f : 1f);
+    }
+
+    /** The layout being edited, drawn by the real blocks. */
+    void editPreview() {
+        try { cfg.put("layout", editLay); } catch (Exception ignored) { }
+        applyLayout();
+    }
+
+    void closeEdit(boolean save) {
+        editLayer.removeAllViews();
+        editLayer.setVisibility(View.GONE);
+        editBar.setVisibility(View.GONE);
+        dimForEdit(false);
+        area = "pills";
+        render();
+        if (!save || !editChanged) { restoreLayout(); return; }
+        final JSONObject body = new JSONObject();
+        try {
+            body.put("layout", editLay);
+            body.put("on", new JSONArray(editOn));
+            body.put("off", new JSONArray(editOff));
+        } catch (Exception ignored) { }
+        final boolean added = !editOn.isEmpty();
+        io.execute(() -> {
+            try {
+                JSONObject r = new JSONObject(post("/api/home-edit", body.toString(), 10_000));
+                ui.post(() -> {
+                    if (!r.optBoolean("ok")) { toast("Not saved: " + r.optString("error", "no answer")); restoreLayout(); return; }
+                    toast("Saved. The TV shows it too." + (added ? " New widgets appear in a few seconds." : ""));
+                    ui.postDelayed(() -> io.execute(this::refreshAddons), 4000);
+                });
+            } catch (Exception e) { ui.post(() -> { toast("Cannot reach the Mac: not saved"); restoreLayout(); }); }
+        });
+    }
+
+    void restoreLayout() {
+        try { if (editSavedLayout != null) cfg.put("layout", editSavedLayout); else cfg.remove("layout"); } catch (Exception ignored) { }
+        applyLayout();
+    }
+
+    JSONObject eb(String id) { JSONObject b = editLay.optJSONObject("blocks"); return b == null ? null : b.optJSONObject(id); }
+    List<String> editShown() {
+        List<String> out = new ArrayList<>();
+        JSONObject blocks = editLay.optJSONObject("blocks");
+        if (blocks == null) return out;
+        java.util.Iterator<String> it = blocks.keys();
+        while (it.hasNext()) { String k = it.next(); if (blocks.optJSONObject(k).optBoolean("on", true)) out.add(k); }
+        return out;
+    }
+    boolean editIsWidgets(String id) {
+        JSONArray w = editSpec.optJSONArray("widget_blocks");
+        for (int i = 0; w != null && i < w.length(); i++) if (w.optString(i).equals(id)) return true;
+        return false;
+    }
+    static boolean overlap(int ax, int ay, int aw, int ah, int bx, int by, int bw, int bh) { return ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah; }
+    boolean editFits(String id, int x, int y, int w, int h) {
+        int cols = editSpec.optInt("cols", 12), rows = editSpec.optInt("rows", 6);
+        if (x < 0 || y < 0 || x + w > cols || y + h > rows) return false;
+        JSONObject r = editSpec.optJSONObject("reserved");
+        if (r != null && overlap(x, y, w, h, r.optInt("x"), r.optInt("y"), r.optInt("w"), r.optInt("h"))) return false;
+        for (String k : editShown()) {
+            if (k.equals(id)) continue;
+            JSONObject o = eb(k);
+            if (overlap(x, y, w, h, o.optInt("x"), o.optInt("y"), o.optInt("w"), o.optInt("h"))) return false;
+        }
+        return true;
+    }
+    JSONArray editSizes(String id) { JSONObject b = editSpec.optJSONObject("blocks"); return b == null ? new JSONArray() : b.optJSONObject(id).optJSONArray("sizes"); }
+    String editName(String id) { JSONObject b = editSpec.optJSONObject("blocks"); return b == null ? id : b.optJSONObject(id).optString("name", id); }
+    String editSizeName(String id) {
+        JSONObject b = eb(id); JSONArray s = editSizes(id);
+        for (int i = 0; i < s.length(); i++) { JSONArray z = s.optJSONArray(i); if (z.optInt(0) == b.optInt("w") && z.optInt(1) == b.optInt("h")) return z.optString(2); }
+        return "";
+    }
+    /** What a widget block shows: the ones picked, or every widget on Home that no other block picked. */
+    List<JSONObject> editWidgetsIn(String id) {
+        List<JSONObject> out = new ArrayList<>();
+        JSONArray picks = eb(id).optJSONArray("addons");
+        java.util.Set<String> others = new java.util.HashSet<>();
+        JSONArray wb = editSpec.optJSONArray("widget_blocks");
+        for (int i = 0; wb != null && i < wb.length(); i++) {
+            String k = wb.optString(i); JSONObject o = eb(k);
+            if (k.equals(id) || o == null || !o.optBoolean("on", true)) continue;
+            JSONArray p = o.optJSONArray("addons");
+            for (int j = 0; p != null && j < p.length(); j++) others.add(p.optString(j));
+        }
+        for (int i = 0; i < editWidgets.length(); i++) {
+            JSONObject w = editWidgets.optJSONObject(i);
+            boolean in = picks != null && picks.length() > 0 ? contains(picks, w.optString("id")) : w.optBoolean("on") && !others.contains(w.optString("id"));
+            if (in) out.add(w);
+        }
+        return out;
+    }
+    static boolean contains(JSONArray a, String s) { for (int i = 0; a != null && i < a.length(); i++) if (a.optString(i).equals(s)) return true; return false; }
+
+    void drawEdit() {
+        editLayer.removeAllViews();
+        int cols = editSpec.optInt("cols", 12), rows = editSpec.optInt("rows", 6);
+        for (int r = 0; r < rows; r++) for (int c = 0; c < cols; c++) {
+            View cell = new View(this);
+            GradientDrawable g = new GradientDrawable(); g.setStroke(1, white(.14), 6, 6);
+            cell.setBackground(g);
+            editLayer.addView(cell, at(GX + c * CW, GY + r * RH, CW, RH));
+        }
+        for (String id : editShown()) {
+            JSONObject b = eb(id);
+            boolean sel = id.equals(editSel), moving = sel && editMoving;
+            boolean bad = moving && !editFits(id, b.optInt("x"), b.optInt("y"), b.optInt("w"), b.optInt("h"));
+            View o = new View(this);
+            GradientDrawable g = new GradientDrawable(); g.setCornerRadius(18);
+            if (bad) g.setStroke(5, 0xFFFF6B6B); else if (moving) g.setStroke(5, 0xFF4ADE80); else if (sel) g.setStroke(5, Color.WHITE);
+            else g.setStroke(3, white(.55), 14, 10);
+            o.setBackground(g);
+            editLayer.addView(o, at(GX + b.optInt("x") * CW, GY + b.optInt("y") * RH, b.optInt("w") * CW, b.optInt("h") * RH));
+            if (sel) {
+                StringBuilder label = new StringBuilder(editName(id)).append(" · ").append(editSizeName(id));
+                if (editIsWidgets(id)) {
+                    List<JSONObject> ws = editWidgetsIn(id);
+                    label.append(" · ");
+                    if (ws.isEmpty()) label.append("empty");
+                    for (int i = 0; i < ws.size(); i++) label.append(i > 0 ? ", " : "").append(ws.get(i).optString("name"));
+                }
+                TextView t = text(22, 500, Color.WHITE, 0, false);
+                t.setText(label.toString());
+                t.setPadding(14, 6, 14, 6);
+                GradientDrawable lb = new GradientDrawable(); lb.setColor(black(.75)); lb.setCornerRadius(12);
+                t.setBackground(lb);
+                // Above the block (its content may run past its bottom edge); below it for a block in the top row.
+                int ty = b.optInt("y") > 0 ? GY + b.optInt("y") * RH - 46 : GY + b.optInt("h") * RH + 8;
+                editLayer.addView(t, at(GX + b.optInt("x") * CW + 10, ty, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            }
+        }
+        boolean addOn = editSel.equals("add");
+        GradientDrawable ag = new GradientDrawable(); ag.setCornerRadius(32);
+        if (addOn) ag.setColor(white(.96)); else ag.setStroke(2, white(.3));
+        editAdd.setBackground(ag);
+        editAdd.setTextColor(addOn ? 0xFF111111 : Color.WHITE);
+        editHint.setText(editMoving ? "Arrows move it  ·  OK places it  ·  Back puts it back" : "Arrows choose  ·  OK changes it  ·  Back saves and finishes");
+    }
+
+    void editArrow(int dx, int dy) {
+        if (editMoving) {
+            JSONObject b = eb(editSel);
+            int cols = editSpec.optInt("cols", 12), rows = editSpec.optInt("rows", 6);
+            try {
+                b.put("x", Math.max(0, Math.min(cols - b.optInt("w"), b.optInt("x") + dx)));
+                b.put("y", Math.max(0, Math.min(rows - b.optInt("h"), b.optInt("y") + dy)));
+            } catch (Exception ignored) { }
+            editPreview(); drawEdit();
+            return;
+        }
+        if (editSel.equals("add")) {
+            if (dy < 0 && !editShown().isEmpty()) editSel = editShown().contains(editLast) ? editLast : editShown().get(0);
+            drawEdit();
+            return;
+        }
+        JSONObject cur = eb(editSel);
+        float cx = cur.optInt("x") + cur.optInt("w") / 2f, cy = cur.optInt("y") + cur.optInt("h") / 2f;
+        String best = null; float score = 1e9f;
+        for (String id : editShown()) {
+            if (id.equals(editSel)) continue;
+            JSONObject b = eb(id);
+            float vx = b.optInt("x") + b.optInt("w") / 2f - cx, vy = b.optInt("y") + b.optInt("h") / 2f - cy;
+            if ((dx != 0 && vx * dx <= 0) || (dy != 0 && vy * dy <= 0)) continue;
+            float sc = dx != 0 ? Math.abs(vx) + 2 * Math.abs(vy) : Math.abs(vy) + 2 * Math.abs(vx);
+            if (sc < score) { score = sc; best = id; }
+        }
+        if (best != null) editSel = best;
+        else if (dy > 0) { editLast = editSel; editSel = "add"; }
+        drawEdit();
+    }
+
+    void editOk() {
+        if (editMoving) {
+            JSONObject b = eb(editSel);
+            if (!editFits(editSel, b.optInt("x"), b.optInt("y"), b.optInt("w"), b.optInt("h"))) { toast("Can't go there: it covers another block or the buttons."); return; }
+            editMoving = false; editChange();
+            return;
+        }
+        if (editSel.equals("add")) { editAddMenu(); return; }
+        editMenu(0);
+    }
+
+    void editBack() {
+        if (editMoving) {
+            JSONObject b = eb(editSel);
+            try { b.put("x", editFromX); b.put("y", editFromY); } catch (Exception ignored) { }
+            editMoving = false; editPreview(); drawEdit();
+            return;
+        }
+        closeEdit(true);
+    }
+
+    void editChange() {
+        editChanged = true;
+        try { editLay.put("preset", ""); } catch (Exception ignored) { }
+        editPreview(); drawEdit();
+    }
+
+    void editMenu(int keepIndex) {
+        String id = editSel; JSONObject b = eb(id);
+        List<Item> items = new ArrayList<>();
+        items.add(new Item("Move", "e-move", null));
+        JSONArray sizes = editSizes(id);
+        for (int i = 0; i < sizes.length(); i++) {
+            JSONArray z = sizes.optJSONArray(i);
+            boolean cur = z.optInt(0) == b.optInt("w") && z.optInt(1) == b.optInt("h");
+            items.add(new Item("Size: " + z.optString(2) + (cur ? "  ✓" : ""), "e-size", z.optInt(0) + "," + z.optInt(1)));
+        }
+        if (editIsWidgets(id)) {
+            List<JSONObject> in = editWidgetsIn(id);
+            for (int i = 0; i < editWidgets.length(); i++) {
+                JSONObject w = editWidgets.optJSONObject(i);
+                boolean on = false;
+                for (JSONObject x : in) if (x.optString("id").equals(w.optString("id"))) on = true;
+                items.add(new Item((on ? "✓  " : "+  ") + w.optString("emoji") + "  " + w.optString("name"), "e-widget", w.optString("id")));
+            }
+        }
+        items.add(new Item("Hide from Home", "e-hide", null));
+        items.add(new Item("Done", "cancel", null));
+        menuKind = "edit";
+        showMenu(editName(id), items);
+        menuIndex = Math.min(keepIndex, items.size() - 1);
+        renderMenu();
+    }
+
+    void editAddMenu() {
+        List<Item> items = new ArrayList<>();
+        JSONObject blocks = editLay.optJSONObject("blocks");
+        java.util.Iterator<String> it = blocks.keys();
+        while (it.hasNext()) {
+            String k = it.next();
+            if (!blocks.optJSONObject(k).optBoolean("on", true) && !editIsWidgets(k)) items.add(new Item("Show the " + editName(k).toLowerCase(Locale.ROOT), "e-show", k));
+        }
+        JSONArray wb = editSpec.optJSONArray("widget_blocks");
+        for (int i = 0; i < editWidgets.length(); i++) {
+            JSONObject w = editWidgets.optJSONObject(i);
+            boolean placed = false;
+            for (int j = 0; wb != null && j < wb.length(); j++) {
+                JSONObject o = eb(wb.optString(j));
+                if (o == null || !o.optBoolean("on", true)) continue;
+                for (JSONObject x : editWidgetsIn(wb.optString(j))) if (x.optString("id").equals(w.optString("id"))) placed = true;
+            }
+            if (!placed) items.add(new Item(w.optString("emoji") + "  " + w.optString("name"), "e-addwidget", w.optString("id")));
+        }
+        if (items.isEmpty()) { toast("Everything is on Home already."); return; }
+        items.add(new Item("Cancel", "cancel", null));
+        menuKind = "edit";
+        showMenu("Add to Home", items);
+    }
+
+    boolean editShow(String id) {
+        JSONObject b = eb(id);
+        try {
+            if (!editFits(id, b.optInt("x"), b.optInt("y"), b.optInt("w"), b.optInt("h"))) {
+                JSONArray sizes = editSizes(id);
+                int cols = editSpec.optInt("cols", 12), rows = editSpec.optInt("rows", 6);
+                boolean found = false;
+                for (int s = 0; s < sizes.length() && !found; s++) {
+                    int w = sizes.optJSONArray(s).optInt(0), h = sizes.optJSONArray(s).optInt(1);
+                    for (int y = 0; y + h <= rows && !found; y++)
+                        for (int x = 0; x + w <= cols && !found; x++)
+                            if (editFits(id, x, y, w, h)) { b.put("x", x); b.put("y", y); b.put("w", w); b.put("h", h); found = true; }
+                }
+                if (!found) { toast("No room for the " + editName(id).toLowerCase(Locale.ROOT) + ": hide or shrink something first."); return false; }
+            }
+            b.put("on", true);
+        } catch (Exception ignored) { }
+        editSel = id;
+        return true;
+    }
+
+    void editSetWidget(String blockId, String wid, boolean on) {
+        try {
+            JSONObject b = eb(blockId);
+            JSONArray picks = b.optJSONArray("addons");
+            if (picks == null || picks.length() == 0) {   // keep what it showed
+                picks = new JSONArray();
+                for (JSONObject w : editWidgetsIn(blockId)) picks.put(w.optString("id"));
+            }
+            JSONArray wb = editSpec.optJSONArray("widget_blocks");
+            for (int j = 0; wb != null && j < wb.length(); j++) {   // one block per widget
+                JSONObject o = eb(wb.optString(j)); if (o == null) continue;
+                JSONArray p = wb.optString(j).equals(blockId) ? picks : o.optJSONArray("addons");
+                JSONArray keep = new JSONArray();
+                for (int i = 0; p != null && i < p.length(); i++) if (!p.optString(i).equals(wid)) keep.put(p.optString(i));
+                if (wb.optString(j).equals(blockId)) picks = keep; else o.put("addons", keep);
+            }
+            if (on) picks.put(wid);
+            b.put("addons", picks);
+            for (int i = 0; i < editWidgets.length(); i++) if (editWidgets.optJSONObject(i).optString("id").equals(wid)) editWidgets.optJSONObject(i).put("on", on);
+            if (on) { editOn.add(wid); editOff.remove(wid); } else { editOff.add(wid); editOn.remove(wid); }
+        } catch (Exception ignored) { }
+    }
+
+    void editChoose(Item it, int index) {
+        String id = editSel; JSONObject b = eb(id);
+        try {
+            switch (it.act) {
+                case "e-move": editMoving = true; editFromX = b.optInt("x"); editFromY = b.optInt("y"); drawEdit(); break;
+                case "e-size": {
+                    String[] wh = it.arg.split(",");
+                    int w = Integer.parseInt(wh[0]), h = Integer.parseInt(wh[1]);
+                    if (!editFits(id, b.optInt("x"), b.optInt("y"), w, h)) { toast("No room for that size here: move it first."); break; }
+                    b.put("w", w); b.put("h", h); editChange();
+                    break;
+                }
+                case "e-hide": {
+                    b.put("on", false);
+                    List<String> shown = editShown();
+                    editSel = shown.isEmpty() ? "add" : shown.get(0);
+                    editChange();
+                    break;
+                }
+                case "e-widget": {
+                    boolean in = false;
+                    for (JSONObject x : editWidgetsIn(id)) if (x.optString("id").equals(it.arg)) in = true;
+                    editSetWidget(id, it.arg, !in); editChange(); editMenu(index);   // stay in the menu to pick more
+                    break;
+                }
+                case "e-show": if (editShow(it.arg)) editChange(); break;
+                case "e-addwidget": {
+                    JSONArray wb = editSpec.optJSONArray("widget_blocks");
+                    String target = null;
+                    for (int j = 0; wb != null && j < wb.length() && target == null; j++) { JSONObject o = eb(wb.optString(j)); if (o != null && o.optBoolean("on", true)) target = wb.optString(j); }
+                    if (target == null) { target = wb.optString(0); if (!editShow(target)) break; }
+                    editSetWidget(target, it.arg, true); editSel = target; editChange();
+                    break;
+                }
+                default: break;
+            }
+        } catch (Exception ignored) { }
+    }
+
     void showMenu(String title, List<Item> items) {
         menuItems.clear(); menuItems.addAll(items);
         menuRows.clear();
@@ -1888,7 +2298,7 @@ public class MainActivity extends Activity {
     }
 
     void closeMenu() {
-        area = !menuKind.equals("tile") ? "pills" : index < dockSize ? "dock" : "grid";
+        area = menuKind.equals("edit") ? "edit" : !menuKind.equals("tile") ? "pills" : index < dockSize ? "dock" : "grid";
         menuKind = "tile";
         scrim.animate().alpha(0f).setDuration(200).withEndAction(() -> scrim.setVisibility(View.GONE)).start();
         menuBox.setVisibility(View.GONE);
@@ -1926,7 +2336,10 @@ public class MainActivity extends Activity {
     void menuChoose() {
         Item it = menuItems.get(menuIndex);
         App app = menuApp;
+        boolean wasEdit = menuKind.equals("edit");
+        int at = menuIndex;
         closeMenu();
+        if (wasEdit) { if (!it.act.equals("cancel")) editChoose(it, at); return; }
         switch (it.act) {
             case "move": startMove(); break;
             case "region": setRegion(it.arg); break;

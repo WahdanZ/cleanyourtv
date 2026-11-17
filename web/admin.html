@@ -346,15 +346,12 @@
       <p class="hint">Saved with the other settings. Any NordVPN country works.</p>
     </div>
 
-    <div data-pane="tv" class="hidden">
-      <p class="hint">Drag apps between the dock and the rows (on a phone: hold, then drag). Tap an app to rename it, hide it or give it its own VPN country. The dock holds up to 4 apps.</p>
-      <div id="tvEditor"></div>
-      <div class="card pad section" id="tvRemovedBox"></div>
-    </div>
+    <div data-pane="tv" class="hidden" id="pane_tv"></div>
 
-    <div data-pane="cc" class="hidden">
+    <div data-pane="cc" class="hidden" id="pane_cc">
+      <div id="studioWrap">
       <div class="studiobar">
-        <h2 style="margin:0;flex:1">Chromecast home</h2>
+        <h2 style="margin:0;flex:1" id="studioTitle">Chromecast home</h2>
         <select id="presetSel" aria-label="Start from a layout"></select>
         <button class="btn small" id="undoBtn">↶ Undo</button>
         <button class="btn small" id="realShot">📷 Real screen</button>
@@ -363,7 +360,7 @@
         <div class="stagearea">
           <div class="canvas" id="canvas"><div class="dim"></div></div>
           <div class="realshot" id="realShotBox"></div>
-          <p class="hint">Tap anything to change it: a block, the dock, or the background for the wallpaper. Drag blocks to move them and apps to reorder the dock. The TV uses the same layout and widgets above its own dock.</p>
+          <p class="hint">Tap anything to change it: a block, the dock, or the background for the wallpaper. Drag blocks to move them and apps to reorder the dock. The TV and the Chromecast share the layout and widgets; each has its own dock and rows.</p>
         </div>
         <aside class="sidearea">
           <div class="card insp" id="inspector"></div>
@@ -373,7 +370,10 @@
           <h2>Dock and rows</h2>
           <p class="hint" id="ccNote"></p>
           <div id="ccEditor"></div>
+          <div id="tvEditor"></div>
+          <div class="card pad section" id="tvRemovedBox"></div>
         </div>
+      </div>
       </div>
       <div id="addonsHolder" class="hidden"><div id="addonsBody">
       <p class="hint">Widgets go on the screen: drag them from the library. Full-screen and quick-action add-ons become tiles under More (Dock and rows). The quote and the weather show on the TV too.</p>
@@ -596,6 +596,7 @@
     return list;
   }
   function lay(dev) { return dev === 'tv' ? draft.tv : draft.chromecast; }
+  var layOf = lay;
   // The TV's dock holds 4; the Chromecast's 4, 5 or 6, by its dock tile size (Layout tab).
   function dockMax(dev) { return dev === 'tv' ? 4 : tileCols(draft.home_layout && draft.home_layout.dock); }
   function tileCols(size) { var t = S.layout_spec.tile_sizes[size || 'big']; return t ? t[1] : 4; }
@@ -692,7 +693,7 @@
     box.appendChild(add);
     box.appendChild(section(dev, 'more', 'More (after the rows)', more(dev), { empty: 'Every app has a place.' }));
     box.appendChild(section(dev, 'hidden', 'Hidden', L.hidden, { empty: 'Nothing hidden.' }));
-    if (dev === 'cc') drawCanvas();
+    if (dev === SD) drawCanvas();
     if (dev === 'tv') {
       var rm = $('tvRemovedBox'); rm.innerHTML = '';
       var n = (S.tv_removed || []).length;
@@ -783,6 +784,20 @@
   // The same numbers as the Chromecast app: the grid starts at (96, 40) on a 1920 x 1080 screen, cells 144 x 104.
   var GX = 96, GY = 40, CW = 144, RH = 104, SW = 1920, SH = 1080;
   var sel = { kind: 'none' };   // what the side panel shows: none | block | dock | wall | addon | addons
+  var SD = 'cc';                // the screen the studio edits: 'cc' (Chromecast) or 'tv'; the layout and widgets are shared
+  function showStudio(dev) {
+    SD = dev;
+    $('pane_' + dev).appendChild($('studioWrap'));
+    $('studioTitle').textContent = dev === 'tv' ? 'TV home' : 'Chromecast home';
+    $('realShot').style.display = dev === 'tv' ? 'none' : '';
+    $('realShotBox').innerHTML = '';
+    $('ccEditor').style.display = $('ccNote').style.display = dev === 'cc' ? '' : 'none';
+    $('tvEditor').style.display = $('tvRemovedBox').style.display = dev === 'tv' ? '' : 'none';
+    if (dev === 'tv') { $('ccNote').style.display = ''; $('ccNote').textContent = 'The TV\'s apps. Drag them between the dock and the rows (on a phone: hold, then drag); tap one to rename it, hide it or give it its own VPN country. The dock holds up to 4 apps.'; }
+    else renderEditor('cc');
+    if (sel.kind === 'dock' || sel.kind === 'addon') sel = { kind: 'none' };
+    renderLayout();
+  }
   function L() { return draft.home_layout; }
   function pct(v, of) { return (v / of * 100) + '%'; }
   function place(el, x, y, w, h) {
@@ -906,9 +921,9 @@
       c.appendChild(pvLine(wx ? wx.temp + '°' : '–°', b.h < 2 ? 60 : 88, 300));
       if (b.h >= 2) c.appendChild(pvLine(wx ? wx.city + '  ·  ' + wx.high + '° / ' + wx.low + '°' : 'Weather', 22, 400, 'rgba(255,255,255,.8)'));
     } else if (id === 'hero') {
-      var first = (draft.chromecast.dock || [])[0];
+      var first = (lay(SD).dock || [])[0];
       c.style.justifyContent = 'flex-end';
-      c.appendChild(pvLine(first ? displayName('cc', first) : 'App name', 104, 300));
+      c.appendChild(pvLine(first ? displayName(SD, first) : 'App name', 104, 300));
     } else {   // a widget block: one card, or two stacked; ✕ takes a widget off the screen
       var ws = widgetsFor(id), k = Math.max(1, Math.floor(b.h / 2));
       c.style.textShadow = 'none'; c.style.gap = tv(16); c.style.padding = '0';
@@ -927,26 +942,27 @@
   // The dock and the first row, at their chosen sizes, with the Chromecast's own apps. Dock apps can be dragged.
   var dockGeo = null;
   function drawDock(cv) {
-    var lay = L(), dc = tileCols(lay.dock), rc = tileCols(lay.rows);
+    var lay = L(), tvMode = SD === 'tv', dc = tvMode ? 4 : tileCols(lay.dock), rc = tvMode ? 4 : tileCols(lay.rows);   // the TV: 4 across
     var dp = 1752 / dc, dw = dp * 400 / 438, dh = dw * 9 / 16, top = 690;
-    var dock = (draft.chromecast.dock || []).slice(0, dc);
-    var gap = dp - dw, span = (dc - 1) * dp + dw, tw0 = lay.dock_full && dock.length ? (span - (dock.length - 1) * gap) / dock.length : dw;
+    var dock = (layOf(SD).dock || []).slice(0, dc);
+    var full = !tvMode && lay.dock_full;
+    var gap = dp - dw, span = (dc - 1) * dp + dw, tw0 = full && dock.length ? (span - (dock.length - 1) * gap) / dock.length : dw;
     dockGeo = { pitch: tw0 + gap, n: dock.length };
     var put = function (e, x, y, w, h) { e.style.left = pct(x, SW); e.style.top = pct(y, SH); e.style.width = pct(w, SW); if (h != null) e.style.height = pct(h, SH); cv.appendChild(e); };
     var tile = function (id, x, y, w, h, i) {
-      var a = appById('cc', id), t = el('div', 'pv-tile' + (i != null ? ' dk' : ''));
+      var a = appById(SD, id), t = el('div', 'pv-tile' + (i != null ? ' dk' : ''));
       t.setAttribute('data-app', id); if (i != null) t.setAttribute('data-i', i);
-      t.title = displayName('cc', id);
+      t.title = displayName(SD, id);
       if (a.emoji) { t.textContent = a.emoji; t.style.fontSize = tv(h * .42); t.style.background = a.color || '#3a3a44'; }
-      else if (a.icon) { var img = new Image(); img.alt = ''; img.draggable = false; img.src = a.icon; if (a.banner) img.className = 'fill'; img.onerror = function () { t.textContent = displayName('cc', id); }; t.appendChild(img); }
-      else { t.textContent = displayName('cc', id); t.style.fontSize = tv(Math.max(20, 30 * h / 202)); }
+      else if (a.icon) { var img = new Image(); img.alt = ''; img.draggable = false; img.src = a.icon; if (a.banner) img.className = 'fill'; img.onerror = function () { t.textContent = displayName(SD, id); }; t.appendChild(img); }
+      else { t.textContent = displayName(SD, id); t.style.fontSize = tv(Math.max(20, 30 * h / 202)); }
       put(t, x, y, w, h);
     };
     var band = el('div', 'pv-dock' + (sel.kind === 'dock' ? ' sel' : '')); band.title = 'The dock: tap for its size';
-    put(band, 103 - 30, top, (lay.dock_full ? span : Math.max(0, dock.length - 1) * (tw0 + gap) + tw0) + 60, dh + 56);
+    put(band, 103 - 30, top, (full ? span : Math.max(0, dock.length - 1) * (tw0 + gap) + tw0) + 60, dh + 56);
     if (!dock.length) { band.textContent = 'Empty dock: the first apps fill it'; band.style.color = '#fff'; band.style.display = 'flex'; band.style.alignItems = 'center'; band.style.justifyContent = 'center'; }
     dock.forEach(function (id, i) { tile(id, 103 + i * (tw0 + gap), top + 28, tw0, dh, i); });
-    var row = (draft.chromecast.rows || []).filter(function (r) { return r.apps && r.apps.length; })[0];
+    var row = (layOf(SD).rows || []).filter(function (r) { return r.apps && r.apps.length; })[0];
     var rp = 1752 / rc, tw = rp * 360 / 438, th = tw * 9 / 16, left = 103 + (rp - tw) / 2, y = top + dh + 56 + 40;
     if (row) {
       if (row.title) { var st = el('div', 'pv-sec', row.title); st.style.fontSize = tv(26); put(st, left + 6, y, 800); y += 60; }
@@ -1038,6 +1054,12 @@
         n.oninput = function () { var v = parseInt(n.value, 10); if (v >= 4 && v <= 120) { draft.addons.widget_seconds = v; $('widgetSecs').value = v; dirty(); } };
         secs.appendChild(g2); secs.appendChild(n); box.appendChild(secs);
       }
+    } else if (sel.kind === 'dock' && SD === 'tv') {
+      inspectorHead(box, '▭  Dock and rows');
+      var st = sec('');
+      st.appendChild(el('p', 'hint', 'The TV\'s dock holds 4 apps, and its rows show 4 across. Drag apps in the dock on the screen to reorder them; tap one to rename, hide or move it. Everything else: Dock and rows, under the screen.'));
+      var go2 = el('button', 'btn small', 'Go to Dock and rows'); go2.onclick = function () { $('appsArea').scrollIntoView({ behavior: 'smooth' }); if (narrow()) select({ kind: 'none' }); };
+      st.appendChild(go2); box.appendChild(st);
     } else if (sel.kind === 'dock') {
       inspectorHead(box, '▭  Dock and rows');
       [['Dock tiles', 'dock'], ['Row tiles', 'rows']].forEach(function (pair) {
@@ -1074,7 +1096,7 @@
       inspectorHead(box, ad.emoji + '  ' + ad.name);
       box.appendChild(addonCard(ad, null));
     } else {
-      inspectorHead(box, 'Your Chromecast\'s Home');
+      inspectorHead(box, SD === 'tv' ? 'Your TV\'s Home' : 'Your Chromecast\'s Home');
       var s7 = sec('');
       s7.appendChild(el('p', 'hint', 'Tap anything on the screen to change it: the clock, a widget block, the dock, or the background for the wallpaper.'));
       box.appendChild(s7);
@@ -1118,7 +1140,8 @@
     if (!allWidgets().length) w.appendChild(el('span', 'hint', 'No widget add-ons.'));
     s1.appendChild(w); box.appendChild(s1);
     var others = S.addons.filter(function (a) { return a.type !== 'widget' && !a.slot; });
-    if (others.length) {
+    if (SD === 'tv') s1.appendChild(el('p', 'hint', 'Widgets show on the TV and the Chromecast.'));
+    if (others.length && SD === 'cc') {
       var s2 = sec('Rows and tiles: tap to add or change'), t = el('div', 'chips2');
       others.forEach(function (a) {
         var on = !!(draft.addons[a.id] || {}).enabled, c = el('button', 'chipa tile' + (on ? ' onhome' : ''));
@@ -1339,10 +1362,10 @@
   function dropOnCanvas(e) {
     if (app_drag) {
       var g = app_drag; app_drag = null;
-      if (!g.moved) { openSheet('cc', g.id); return; }
+      if (!g.moved) { openSheet(SD, g.id); return; }
       var steps = Math.round((e.clientX - g.sx) / g.w * SW / dockGeo.pitch);
-      var dock = draft.chromecast.dock, to = Math.max(0, Math.min(dockGeo.n - 1, g.i + steps));
-      if (to !== g.i) { dock.splice(to, 0, dock.splice(g.i, 1)[0]); renderEditor('cc'); dirty(); }
+      var dock = lay(SD).dock, to = Math.max(0, Math.min(dockGeo.n - 1, g.i + steps));
+      if (to !== g.i) { dock.splice(to, 0, dock.splice(g.i, 1)[0]); renderEditor(SD); dirty(); }
       renderLayout();
       return;
     }
@@ -1674,7 +1697,8 @@
   Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (b) {
     b.onclick = function () {
       tab = b.getAttribute('data-tab');
-      document.body.classList.toggle('wide', tab === 'cc');
+      document.body.classList.toggle('wide', tab === 'cc' || tab === 'tv');
+      if (tab === 'cc' || tab === 'tv') showStudio(tab);
       Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (x) { x.classList.toggle('on', x === b); });
       Array.prototype.forEach.call(document.querySelectorAll('[data-pane]'), function (p) { p.classList.toggle('hidden', p.getAttribute('data-pane') !== tab); });
       window.scrollTo(0, 0);
