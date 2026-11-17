@@ -368,6 +368,20 @@
   .remote { max-width: 360px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; padding-bottom: 20px; user-select: none; -webkit-user-select: none; }
   .remote [data-only] { }
   .remote.tv [data-only="cc"], .remote.cc [data-only="tv"] { display: none; }
+  /* Chromecast trackpad: a pointer over any app (the launcher's pointer service draws it) */
+  .rm-mode { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); width: max-content; margin: 0 auto; }
+  .rm-mode button { font: inherit; border: 0; background: none; color: var(--text); padding: 8px 18px; border-radius: 999px; cursor: pointer; }
+  .rm-mode button.on { background: var(--text); color: var(--bg); }
+  .tpad { display: none; height: 230px; border-radius: 24px; background: var(--card); border: 1px solid var(--line); touch-action: none;
+          align-items: center; justify-content: center; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.6; cursor: crosshair; }
+  .tpad.active { background: var(--soft); }
+  .tpad.arrows { border-color: var(--accent); }
+  .remote.cc .tpad { display: flex; }   /* the Chromecast: trackpad and buttons together */
+  .remote.cc .dpad { width: 220px; height: 220px; }
+  .remote.cc .dk.up, .remote.cc .dk.down, .remote.cc .dk.left, .remote.cc .dk.right { width: 68px; height: 68px; }
+  .remote.cc .dk.up, .remote.cc .dk.down { margin-left: -34px; }
+  .remote.cc .dk.left, .remote.cc .dk.right { margin-top: -34px; }
+  .remote.cc .dk.ok { width: 84px; height: 84px; margin: -42px 0 0 -42px; }
   .rm-row { display: flex; gap: 12px; justify-content: center; }
   .rm-btn { font: inherit; min-width: 64px; height: 64px; border-radius: 22px; border: 1px solid var(--line); background: var(--card); color: var(--text);
             display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 0 16px; touch-action: manipulation; }
@@ -689,7 +703,8 @@
         <div class="rm-grid" id="rmGrid"></div>
       </div>
       <div class="remote" id="remote">
-        <div class="rm-row">
+        <div class="tpad" data-only="cc" id="tpad"><div id="tpadHint">Drag: move the pointer<br>Tap: click · Hold: long press<br>Two fingers (or the mouse wheel): scroll</div></div>
+        <div class="rm-row top">
           <button class="rm-btn power" data-k="power" aria-label="Power"><svg viewBox="0 0 24 24"><path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button>
           <button class="rm-btn" data-k="wake" data-only="cc">Wake</button>
           <button class="rm-btn" data-k="input" data-only="tv">Input</button>
@@ -2313,6 +2328,78 @@
     rmLaunch({ url: u }, u.replace(/^https?:\/\//, '').slice(0, 40));
   };
   $('rmUrl').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); $('rmUrlGo').onclick(); } };
+  // ---------- trackpad (Chromecast): drag moves the pointer, tap clicks, hold long-presses, two fingers scroll ----------
+  var pad = { ptrs: {}, mx: 0, my: 0, sx: 0, sy: 0, queue: [], busy: false, downAt: 0, moved: 0, longT: 0, longDone: false, told: false };
+  function padFlush() {
+    if (pad.busy) return;
+    var ops = [];
+    if (pad.mx || pad.my) ops.push(['m', pad.mx, pad.my]);
+    if (pad.sx || pad.sy) ops.push(['s', pad.sx, pad.sy]);
+    ops = ops.concat(pad.queue);
+    pad.mx = pad.my = pad.sx = pad.sy = 0; pad.queue = [];
+    if (!ops.length) return;
+    pad.busy = true;
+    api('/api/admin/pointer', { ops: ops }).then(function (r) {
+      pad.busy = false;
+      if (r && r.mode && r.mode !== pad.mode) {   // an app that moves its own pointer with the arrows (BrowseHere)
+        pad.mode = r.mode;
+        $('tpadHint').innerHTML = r.mode === 'arrows'
+          ? 'Arrow mode: this app moves its own pointer<br>Touch and slide a little that way: it keeps going until you lift<br>Tap: OK'
+          : 'Drag: move the pointer<br>Tap: click · Hold: long press<br>Two fingers (or the mouse wheel): scroll';
+        tp.classList.toggle('arrows', r.mode === 'arrows');
+      }
+      if (r && r.ok === false) { if (!pad.told) { pad.told = true; toast(r.error || 'The pointer did not answer.', 7000); setTimeout(function () { pad.told = false; }, 8000); } return; }
+      padFlush();
+    }, function (e) { pad.busy = false; toast(e.message, 5000); });
+  }
+  var tp = $('tpad');
+  tp.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    try { tp.setPointerCapture(e.pointerId); } catch (x) {}
+    pad.ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+    tp.classList.add('active');
+    if (Object.keys(pad.ptrs).length === 1) {
+      pad.downAt = Date.now(); pad.moved = 0; pad.longDone = false; pad.ox = e.clientX; pad.oy = e.clientY; pad.joy = '';
+      clearTimeout(pad.longT);
+      pad.longT = setTimeout(function () {
+        if (pad.moved < 10 && Object.keys(pad.ptrs).length === 1) { pad.longDone = true; pad.queue.push(['l']); padFlush(); if (navigator.vibrate) { try { navigator.vibrate(20); } catch (x) {} } }
+      }, 550);
+    } else clearTimeout(pad.longT);
+  });
+  tp.addEventListener('pointermove', function (e) {
+    var p = pad.ptrs[e.pointerId]; if (!p) return;
+    var dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+    var n = Object.keys(pad.ptrs).length, d = Math.abs(dx) + Math.abs(dy);
+    pad.moved += d;
+    if (pad.mode === 'arrows') {   // like holding the remote's arrow: the way the finger went from where it went down
+      var vx = e.clientX - pad.ox, vy = e.clientY - pad.oy, j = '';
+      if (Math.abs(vx) + Math.abs(vy) > 26) j = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? '1,0' : '-1,0') : (vy > 0 ? '0,1' : '0,-1');
+      if (j && j !== pad.joy) {
+        pad.joy = j; pad.ox = e.clientX; pad.oy = e.clientY;   // a turn needs another little slide the new way
+        var jj = j.split(','); pad.queue.push(['j', +jj[0], +jj[1]]); padFlush();
+      }
+      if (pad.moved > 10) clearTimeout(pad.longT);
+      return;
+    }
+    if (n === 1) {   // faster flicks go further, slow moves stay precise
+      var k = 1.6 * (1 + Math.min(2.5, d / 14));
+      pad.mx += dx * k; pad.my += dy * k;
+    } else { pad.sx += dx * 2.4 / n; pad.sy += dy * 2.4 / n; }   // two fingers: the page moves with them
+    if (pad.moved > 10) clearTimeout(pad.longT);
+    padFlush();
+  });
+  function padUp(e) {
+    var had = Object.keys(pad.ptrs).length;
+    delete pad.ptrs[e.pointerId];
+    if (!Object.keys(pad.ptrs).length) tp.classList.remove('active');
+    clearTimeout(pad.longT);
+    if (pad.joy) { pad.joy = ''; pad.queue.push(['j', 0, 0]); padFlush(); return; }   // let go of the held arrow
+    if (had === 1 && e.type === 'pointerup' && !pad.longDone && pad.moved < 10 && Date.now() - pad.downAt < 350) { pad.queue.push(['c']); padFlush(); }
+  }
+  tp.addEventListener('pointerup', padUp);
+  tp.addEventListener('pointercancel', padUp);
+  tp.addEventListener('wheel', function (e) { e.preventDefault(); pad.sy -= e.deltaY * 1.2; pad.sx -= e.deltaX * 1.2; padFlush(); }, { passive: false });
+
   // A press sends the key; held, the arrows and the volume repeat.
   function rmStop() { clearTimeout(rmRepeat); clearInterval(rmRepeat); rmRepeat = 0; }
   $('remote').addEventListener('pointerdown', function (e) {

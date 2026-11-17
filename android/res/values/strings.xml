@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cursor_desc">Trackpad pointer: shows a pointer over apps and taps where it points, moved from the phone remote in the Home admin panel. It reads nothing on the screen.</string>
+</resources>

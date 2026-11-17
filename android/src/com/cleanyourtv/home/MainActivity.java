@@ -26,6 +26,7 @@ import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
@@ -1090,6 +1091,44 @@ public class MainActivity extends Activity {
                 return true;
         }
         return super.dispatchKeyEvent(e);
+    }
+
+    // ---------- the phone's trackpad: a click (a touch at the pointer) does what OK would on what it is over ----------
+    float touchX, touchY;
+    long touchAt;
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent e) {
+        if (e.getActionMasked() == MotionEvent.ACTION_DOWN) { touchX = e.getRawX(); touchY = e.getRawY(); touchAt = e.getEventTime(); }
+        else if (e.getActionMasked() == MotionEvent.ACTION_UP) {
+            float moved = Math.abs(e.getRawX() - touchX) + Math.abs(e.getRawY() - touchY);
+            if (moved < 24) tapAt(touchX, touchY, e.getEventTime() - touchAt > 500);
+        }
+        return true;
+    }
+
+    boolean hit(View v, float x, float y) {
+        if (v == null || !v.isShown()) return false;
+        android.graphics.Rect r = new android.graphics.Rect();
+        return v.getGlobalVisibleRect(r) && r.contains(Math.round(x), Math.round(y));
+    }
+
+    void tapAt(float x, float y, boolean longPress) {
+        if (area.equals("menu")) {   // a menu: the item under the pointer, or outside it closes the menu
+            for (int i = 0; i < menuRows.size(); i++)
+                if (hit(menuRows.get(i), x, y)) { menuIndex = i; renderMenu(); menuChoose(); return; }
+            if (!hit(menuBox, x, y)) closeMenu();
+            return;
+        }
+        if (area.equals("edit") || area.equals("screen") || area.equals("admin") || area.equals("move")) { activate(); return; }
+        for (int i = 0; i < pillViews.size(); i++)
+            if (hit(pillViews.get(i), x, y)) { area = "pills"; pill = i; render(); activate(); return; }
+        for (int i = 0; i < tiles.size(); i++)
+            if (hit(tiles.get(i), x, y)) {
+                area = i < dockSize ? "dock" : "grid"; index = i; render();
+                if (longPress) openTileMenu(); else activate();
+                return;
+            }
     }
 
     void arrow(int dx, int dy) {

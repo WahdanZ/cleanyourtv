@@ -96,6 +96,13 @@ In the admin panel (best as an app on your phone's Home screen, see [setup/helpe
 
 - **Remote** (the Home tab, or the round button at the bottom right on other tabs): arrows, OK, Back, Home, volume, for the TV or the Chromecast. Home goes
   to our launcher. **Apps**: open any app on either device, or type a web address (a YouTube link opens in YouTube).
+- **Trackpad** (Chromecast: above the remote's buttons): a pointer over any app, handy in a browser or on a
+  website. Drag to move it, tap to click, hold for a long press, two fingers (or a mouse wheel) to scroll. The first
+  time, the helper switches on the launcher's pointer service over adb (Android lets an app tap inside other apps only
+  as an accessibility service); it reads nothing on the screen. Apps that move their own pointer with the arrow keys
+  and ignore clicks, like BrowseHere, switch the trackpad to **arrow mode** by themselves: a tap sends OK; touch and slide a little in a
+  direction and its pointer keeps moving that way until you lift your finger, like holding the remote's arrow
+  (`chromecast.trackpad_arrow_apps` in `config.json` lists these apps).
 - **Now playing** (the ♫ button): what's playing on the Chromecast, with play/pause, back and forward.
 - **QR codes** on Home (the **Admin** pill, top right): point your phone at one to open the panel, the remote or the
   player, no typing.

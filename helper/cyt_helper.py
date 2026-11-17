@@ -829,6 +829,7 @@ def chromecast_settings() -> dict:
             "wallpaper": bool(WALLPAPER_ON), "region": vpn_available(), "clock_24h": CONFIG.get("clock_24h", False),
             "rev": CHROMECAST.get("rev", 0), "layout": CONFIG.get("home_layout") or layout.PRESETS["classic"],
             "live_refresh": CONFIG.get("live_refresh", True) is not False,
+            "cursor": {"port": POINTER_PORT, "token": pointer_token()},
             "started": STARTED, "saved": SAVED["at"]}
 
 
@@ -1046,6 +1047,241 @@ CC_KEYS = {"up": "DPAD_UP", "down": "DPAD_DOWN", "left": "DPAD_LEFT", "right": "
            "back": "BACK", "home": "HOME", "menu": "MENU", "volup": "VOLUME_UP", "voldown": "VOLUME_DOWN", "mute": "VOLUME_MUTE",
            "play": "MEDIA_PLAY_PAUSE", "pause": "MEDIA_PLAY_PAUSE", "power": "SLEEP", "wake": "WAKEUP", "settings": "SETTINGS",
            "prev": "MEDIA_PREVIOUS", "next": "MEDIA_NEXT", "rew": "MEDIA_REWIND", "ff": "MEDIA_FAST_FORWARD", "stop": "MEDIA_STOP"}
+
+
+# ---------- the trackpad (admin panel): a pointer over any app on the Chromecast ----------
+# Google TV shows no pointer for injected mouse events, so the launcher app has a small accessibility service
+# (android/.../CursorService.java) that draws one and taps where it points. It listens on POINTER_PORT for this
+# helper only (a token it gets with its settings); the helper keeps one connection open, so a move costs no adb call.
+POINTER_PORT = 8791
+POINTER_SERVICE = "com.cleanyourtv.home/com.cleanyourtv.home.CursorService"
+_pointer = {"sock": None, "rf": None, "lock": threading.Lock(), "enabled_at": 0.0, "sh": None, "sx": 0.0, "sy": 0.0,
+            "scroller": None, "fg": "", "fg_at": 0.0, "used": 0.0, "kx": 0.0, "ky": 0.0, "keys": [], "joy": None, "joy_at": 0.0,
+            "joy_since": 0.0}
+# Apps that ignore taps and clicks and move their own pointer with the arrow keys (BrowseHere): while one is in front,
+# the trackpad sends arrow keys and OK instead. BrowseHere's pointer moves only while an arrow is held (a single press
+# doesn't move it), and adb can only hold a key as a "long press": about 250 px in half a second. So each KEY_STEP of
+# trackpad movement is one long press that way; at most KEY_QUEUE wait, so a long drag doesn't keep it going after.
+KEY_APPS = {str(a) for a in (CHROMECAST.get("trackpad_arrow_apps") or ["com.tcl.browser"])}
+KEY_STEP = 250
+KEY_QUEUE = 3
+
+
+def pointer_token() -> str:
+    f = DATA / "pointer-token"
+    try:
+        t = f.read_text().strip()
+        if len(t) >= 16:
+            return t
+    except OSError:
+        pass
+    import secrets
+    DATA.mkdir(exist_ok=True)
+    t = secrets.token_hex(16)
+    f.write_text(t)
+    try:
+        f.chmod(0o600)
+    except OSError:
+        pass
+    return t
+
+
+def _pointer_switch_on() -> str:
+    """Switch the pointer service on over adb (Android lets an app tap inside others only as an accessibility service)."""
+    adb, serial, why = _cc_serial()
+    if not serial:
+        return why
+    sh = lambda *a: subprocess.run([adb, "-s", serial, "shell", *a], capture_output=True, text=True, timeout=15).stdout.strip()
+    cur = sh("settings", "get", "secure", "enabled_accessibility_services")
+    others = [x for x in ("" if cur in ("", "null") else cur).split(":") if x and x != POINTER_SERVICE]
+    # Out and back in: after an app update Android leaves it listed but not running; changing the list starts it.
+    sh("settings", "put", "secure", "enabled_accessibility_services", ":".join(others) or "null")
+    sh("settings", "put", "secure", "enabled_accessibility_services", ":".join(others + [POINTER_SERVICE]))
+    sh("settings", "put", "secure", "accessibility_enabled", "1")
+    log("trackpad: pointer service switched on")
+    return ""
+
+
+def _pointer_connect():
+    ip = sorted(CC_IPS)[0] if CC_IPS else ""
+    if not ip:
+        raise ConnectionError("no Chromecast in the settings")
+    sock = socket.create_connection((ip, POINTER_PORT), timeout=2)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    sock.sendall(f"auth {pointer_token()}\n".encode())
+    sock.settimeout(3)
+    answer = sock.recv(16)
+    if not answer:   # nothing listening (adb's port forward, or the service just stopped)
+        sock.close()
+        raise OSError("the pointer service isn't running")
+    if not answer.startswith(b"ok"):
+        sock.close()
+        raise ConnectionError("the Chromecast app doesn't have the trackpad's key yet: open Home on it once")
+    sock.settimeout(5)
+    _pointer["rf"] = sock.makefile("rb")
+    return sock
+
+
+def _pointer_shell(cmd: str):
+    """One command in a long-lived adb shell on the Chromecast (no new adb process per click)."""
+    sh = _pointer["sh"]
+    if sh is None or sh.poll() is not None:
+        adb, serial, why = _cc_serial()
+        if not serial:
+            raise ConnectionError(why)
+        sh = _pointer["sh"] = subprocess.Popen([adb, "-s", serial, "shell"], stdin=subprocess.PIPE,
+                                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True)
+    sh.stdin.write(cmd + "\n")
+    sh.stdin.flush()
+
+
+def _pointer_pos() -> tuple[int, int]:
+    _pointer["sock"].sendall(b"p\n")
+    line = _pointer["rf"].readline().decode().split()
+    if len(line) != 3 or line[0] != "pos":
+        raise OSError("no answer from the pointer")
+    return int(line[1]), int(line[2])
+
+
+def _pointer_foreground() -> str:
+    """The app in front on the Chromecast (asked at most every 1.5 s, and only while the trackpad is in use)."""
+    if time.time() - _pointer["fg_at"] > 1.5:
+        _pointer["fg_at"] = time.time()
+        adb, serial, _ = _cc_serial()
+        if serial:
+            try:
+                out = subprocess.run([adb, "-s", serial, "shell", "dumpsys activity activities | grep -m1 topResumedActivity"],
+                                     capture_output=True, text=True, timeout=5).stdout
+                m = re.search(r"\s([\w.]+)/", out)
+                _pointer["fg"] = m.group(1) if m else ""
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+    return _pointer["fg"]
+
+
+def _pointer_keys_worker():
+    """Arrow mode: the keys that piled up, sent together every 0.12 s (one adb command for several keys)."""
+    while True:
+        time.sleep(0.12)
+        with _pointer["lock"]:
+            keys, _pointer["keys"] = _pointer["keys"][:12], _pointer["keys"][12:]
+        cmds, run = [], []
+        for k in keys:   # a long press is a command of its own (its flag would apply to every key with it)
+            if k.startswith("--longpress"):
+                if run: cmds.append(" ".join(run)); run = []
+                cmds.append(k)
+            else:
+                run.append(k)
+        if run:
+            cmds.append(" ".join(run))
+        for c in cmds:
+            try:
+                _pointer_shell("input keyevent " + c)
+            except (OSError, ConnectionError, AttributeError):
+                pass
+        joy = _pointer["joy"]
+        if joy:   # holding a direction on the trackpad: the arrow is held again as each long press ends (~0.5 s)
+            if time.time() - _pointer["joy_since"] > 20 or _pointer["fg"] not in KEY_APPS:
+                _pointer["joy"] = None
+            elif time.time() - _pointer["joy_at"] >= 0.5:
+                _pointer["joy_at"] = time.time()
+                try:
+                    _pointer_shell("input keyevent --longpress " + joy)
+                except (OSError, ConnectionError, AttributeError):
+                    pass
+        if time.time() - _pointer["used"] < 60:
+            _pointer_foreground()
+
+
+def _pointer_scroller():
+    """Two-finger scrolling, as touch swipes from the pointer: at most one every quarter second, the rest added up."""
+    threading.Thread(target=_pointer_keys_worker, daemon=True).start()
+    while True:
+        time.sleep(0.25)
+        with _pointer["lock"]:
+            dx, dy = _pointer["sx"], _pointer["sy"]
+            if abs(dx) < 4 and abs(dy) < 4:
+                continue
+            _pointer["sx"] = _pointer["sy"] = 0.0
+            try:
+                x, y = _pointer_pos()
+                _pointer_shell(f"input touchscreen swipe {x} {y} {max(1, round(x + dx))} {max(1, round(y + dy))} 220")
+            except (OSError, ConnectionError, AttributeError):
+                pass
+
+
+def pointer_send(ops: list) -> dict:
+    """Moves, clicks and scrolls from the trackpad, as lines for the pointer service."""
+    steps = []
+    for op in (ops or [])[:200]:
+        if not isinstance(op, list) or not op or op[0] not in ("m", "c", "l", "s", "h", "j"):
+            raise ValueError("bad trackpad step")
+        steps.append([op[0]] + [max(-4000.0, min(4000.0, float(v))) for v in op[1:3]])
+    if not steps:
+        return {"ok": True}
+    if _pointer["scroller"] is None:
+        _pointer["scroller"] = threading.Thread(target=_pointer_scroller, daemon=True)
+        _pointer["scroller"].start()
+    _pointer["used"] = time.time()
+    if _pointer_foreground() in KEY_APPS:   # arrow mode: no pointer of ours; its own pointer, with the arrow keys
+        with _pointer["lock"]:
+            for st in steps:
+                if st[0] in ("m", "s"):
+                    _pointer["kx"] += st[1]; _pointer["ky"] += st[2]
+                    for axis, plus, minus in (("kx", "DPAD_RIGHT", "DPAD_LEFT"), ("ky", "DPAD_DOWN", "DPAD_UP")):
+                        while abs(_pointer[axis]) >= KEY_STEP:
+                            if len(_pointer["keys"]) < KEY_QUEUE:
+                                _pointer["keys"].append("--longpress " + (plus if _pointer[axis] > 0 else minus))
+                            _pointer[axis] -= KEY_STEP if _pointer[axis] > 0 else -KEY_STEP
+                elif st[0] == "j":   # hold a direction (1/-1 on one axis), or let go (0 0)
+                    key = {(1, 0): "DPAD_RIGHT", (-1, 0): "DPAD_LEFT", (0, 1): "DPAD_DOWN", (0, -1): "DPAD_UP"}.get(
+                        (int(st[1]), int(st[2])))
+                    if key != _pointer["joy"]:
+                        _pointer["joy"], _pointer["joy_at"], _pointer["joy_since"] = key, 0.0, time.time()
+                    _pointer["kx"] = _pointer["ky"] = 0.0
+                elif st[0] == "c":
+                    _pointer["keys"].append("DPAD_CENTER")
+                elif st[0] == "l":
+                    _pointer["keys"].append("--longpress DPAD_CENTER")
+            try:
+                if _pointer["sock"] is not None:
+                    _pointer["sock"].sendall(b"h\n")
+            except OSError:
+                _pointer["sock"] = None
+        return {"ok": True, "mode": "arrows", "app": _pointer["fg"]}
+    with _pointer["lock"]:
+        for attempt in range(3):
+            try:
+                if _pointer["sock"] is None:
+                    _pointer["sock"] = _pointer_connect()
+                # Moves (and hide) go to the pointer service; a click, a long press or a scroll is a touch at the
+                # pointer over adb: Google TV ignores an accessibility service's gestures but takes adb's touches.
+                for st in steps:
+                    if st[0] in ("m", "h"):
+                        _pointer["sock"].sendall((" ".join([st[0]] + [f"{v:.1f}" for v in st[1:]]) + "\n").encode())
+                    elif st[0] == "s":
+                        _pointer["sx"] += st[1]; _pointer["sy"] += st[2]
+                    else:
+                        x, y = _pointer_pos()
+                        _pointer_shell(f"input touchscreen tap {x} {y}" if st[0] == "c"
+                                       else f"input touchscreen swipe {x} {y} {x} {y} 700")
+                return {"ok": True, "mode": "pointer"}
+            except (OSError, ConnectionError) as e:
+                try:
+                    if _pointer["sock"]:
+                        _pointer["sock"].close()
+                except OSError:
+                    pass
+                _pointer["sock"] = None
+                if "key yet" in str(e):
+                    return {"ok": False, "error": str(e)}
+                if attempt == 0 and time.time() - _pointer["enabled_at"] > 20:   # not listening: the service is off
+                    _pointer["enabled_at"] = time.time()
+                    why = _pointer_switch_on()
+                    if why:
+                        return {"ok": False, "error": why}
+                time.sleep(1.2)
+        return {"ok": False, "error": "The Chromecast's pointer didn't answer. Is the Chromecast on, with the latest Home app (android/build.sh install)?"}
 
 
 _np_cache = {"at": 0.0, "data": None}
@@ -1805,6 +2041,11 @@ class Handler(SimpleHTTPRequestHandler):
                 self._json(400, {"ok": False, "error": str(e)})
             except (ConnectionError, OSError, subprocess.TimeoutExpired) as e:
                 self._json(502, {"ok": False, "error": "Couldn't reach it: " + str(e)})
+        elif path == "/api/admin/pointer":
+            try:
+                self._json(200, pointer_send(data.get("ops") or []))
+            except (ValueError, TypeError) as e:
+                self._json(400, {"ok": False, "error": str(e)})
         elif path == "/api/admin/launch":
             try:
                 self._json(200, remote_open(str(data.get("device", "")), str(data.get("app", "")), str(data.get("url", ""))))

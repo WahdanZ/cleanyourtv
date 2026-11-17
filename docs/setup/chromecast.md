@@ -77,6 +77,10 @@ names, hidden apps, the layout of the clock, widgets and the rest, add-ons, the 
 Chromecast within a few seconds. On the Chromecast itself: hold OK on an app to move or remove it, or open the ✎ pill
 (top right) to rearrange Home with the remote.
 
+The phone remote's **Trackpad** uses a small pointer service in the launcher (an accessibility service, listed as
+"Home trackpad" under *Settings > System > Accessibility*); the helper switches it on over adb the first time you use
+the trackpad, and it listens on port 8791 for the helper only (with a key the helper gives it).
+
 The app asks the helper for its settings, apps and widgets; only the paths it needs are open to the Chromecast's
 address (it can't reach the admin panel or control the TV).
 
