@@ -178,14 +178,19 @@
   #divider { width: 2px; height: 52px; margin: 0 32px 0 32px; background: rgba(255,255,255,.2); }
   #date { margin-bottom: 8px; font-size: 28px; font-weight: 400; letter-spacing: .14em; color: rgba(255,255,255,.74); text-transform: uppercase; white-space: nowrap; }
 
-  #pills { display: flex; gap: 16px; margin-bottom: 8px; }
+  /* The buttons are round icons so all of them fit in the corner kept free for them (columns 7-11 of the layout grid);
+     the focused one's name shows under it. */
+  #pills { display: flex; gap: 12px; margin-bottom: 8px; position: relative; }
   .pill { height: 72px; padding: 0 28px 0 24px; border-radius: 36px; display: flex; align-items: center; gap: 12px;
           font-size: 27px; font-weight: 500; color: #f2f2f2; box-sizing: border-box;
           background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.08));
           border: 2px solid rgba(255,255,255,.22);
           transition: transform .2s ease, background-color .2s ease; }
   .pill svg { width: 34px; height: 34px; fill: currentColor; }
-  .pill.round { width: 72px; padding: 0; justify-content: center; }
+  .pill.round, .pill { width: 72px; padding: 0; justify-content: center; font-size: 0; gap: 0; }
+  .pill .code { font-size: 26px; font-weight: 600; letter-spacing: .02em; }
+  #pillTip { position: absolute; top: 86px; left: 0; white-space: nowrap; font-size: 24px; font-weight: 500; color: #f2f2f2;
+             background: rgba(0,0,0,.72); border-radius: 14px; padding: 6px 16px; pointer-events: none; display: none; z-index: 4; }
   .pill.focus { background: rgba(255,255,255,.96); color: #111; border-color: transparent; transform: scale(1.06); }
 
   /* Everything below the header scrolls in one rail; the viewport clips it under the header with a soft fade. */
@@ -336,12 +341,12 @@
 <div id="header">
   <div id="miniClock"></div>
   <div id="pills">
-    <div class="pill round" data-action="search"><svg viewBox="0 0 24 24"><path d="M10 3a7 7 0 0 1 5.6 11.2l5.6 5.6-1.4 1.4-5.6-5.6A7 7 0 1 1 10 3zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg></div>
-    <div class="pill round" data-action="admin"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm8-2h2v2h-2v-2zm4 0h4v2h-4v-2zm-4 4h2v4h-2v-4zm4 2h4v2h-4v-2zm2-4h2v2h-2v-2z"/></svg></div>
-    <div class="pill round" data-action="edit"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></div>
-    <div class="pill" data-action="inputs"><svg viewBox="0 0 24 24"><path d="M8 2h8v6h2v6a6 6 0 0 1-5 5.9V22h-2v-2.1A6 6 0 0 1 6 14V8h2V2zm2 2v4h4V4h-4z"/></svg>Inputs</div>
-    <div class="pill" data-action="settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5L19.4 13zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>Settings</div>
-    <div class="pill" data-action="vidaa"><svg viewBox="0 0 24 24"><path d="M12 3 2 11.5h3V21h5.5v-6h3v6H19v-9.5h3L12 3z"/></svg>VIDAA</div>
+    <div class="pill round" data-action="search" data-label="Search"><svg viewBox="0 0 24 24"><path d="M10 3a7 7 0 0 1 5.6 11.2l5.6 5.6-1.4 1.4-5.6-5.6A7 7 0 1 1 10 3zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg></div>
+    <div class="pill round" data-action="admin" data-label="Your phone: admin, remote, player"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm8-2h2v2h-2v-2zm4 0h4v2h-4v-2zm-4 4h2v4h-2v-4zm4 2h4v2h-4v-2zm2-4h2v2h-2v-2z"/></svg></div>
+    <div class="pill round" data-action="edit" data-label="Edit Home"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></div>
+    <div class="pill" data-action="inputs" data-label="Inputs"><svg viewBox="0 0 24 24"><path d="M8 2h8v6h2v6a6 6 0 0 1-5 5.9V22h-2v-2.1A6 6 0 0 1 6 14V8h2V2zm2 2v4h4V4h-4z"/></svg>Inputs</div>
+    <div class="pill" data-action="settings" data-label="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5L19.4 13zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>Settings</div>
+    <div class="pill" data-action="vidaa" data-label="VIDAA"><svg viewBox="0 0 24 24"><path d="M12 3 2 11.5h3V21h5.5v-6h3v6H19v-9.5h3L12 3z"/></svg>VIDAA</div>
   </div>
 </div>
 
@@ -1062,7 +1067,7 @@
     if (!npNow) { if (pill) { pill.parentNode.removeChild(pill); if (focus.area === 'pills') { focus.pill = 0; render(); } } return; }
     if (!pill) {
       pill = document.createElement('div');
-      pill.className = 'pill round np'; pill.id = 'npPill'; pill.setAttribute('data-action', 'np');   // round: the top row is full
+      pill.className = 'pill round np'; pill.id = 'npPill'; pill.setAttribute('data-action', 'np'); pill.setAttribute('data-label', 'Now playing');
       pill.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>';
       $('pills').insertBefore(pill, $('pills').firstChild);
       if (focus.area === 'pills') focus.pill++;
@@ -1237,9 +1242,19 @@
   function onTop() { return focus.area === 'pills' || focus.area === 'admin' || focus.area === 'inputs' || focus.area === 'edit' || (focus.area === 'menu' && menu.kind !== 'tile'); }
   function focused() { return onTop() ? null : state.apps[focus.index]; }
 
+  function pillTip(pill) {   // the focused button's name, under it (kept inside the screen's right edge)
+    var tip = $('pillTip');
+    if (!tip) { tip = document.createElement('div'); tip.id = 'pillTip'; $('pills').appendChild(tip); }
+    var label = pill && pill.getAttribute('data-label');
+    if (!label) { tip.style.display = 'none'; return; }
+    tip.textContent = label; tip.style.display = 'block';
+    var row = $('pills'), x = pill.offsetLeft + pill.offsetWidth / 2 - tip.offsetWidth / 2;
+    tip.style.left = Math.max(-200, Math.min(row.offsetWidth - tip.offsetWidth, x)) + 'px';
+  }
   function render() {
     var pills = document.querySelectorAll('.pill');
     for (var p = 0; p < pills.length; p++) pills[p].classList.toggle('focus', onTop() && p === focus.pill);
+    pillTip(focus.area === 'pills' ? pills[focus.pill] : null);
     tiles.forEach(function (t, i) { t.classList.toggle('focus', !onTop() && i === focus.index); });
     names.forEach(function (n, i) { n.classList.toggle('show', !onTop() && i === focus.index && i >= state.dockSize); });
 
@@ -1378,7 +1393,13 @@
       lastMinute = -1; tick();   // the date may need to shorten for the extra pill
     }
     var cur = region.list.filter(function (r) { return r.id === region.now; })[0];
-    $('regionLabel').textContent = (cur ? cur.name : region.now).replace(/\s*\(.*\)$/, '');   // "Germany (no VPN)" -> "Germany"
+    var name = (cur ? cur.name : region.now).replace(/\s*\(.*\)$/, '');   // "Germany (no VPN)" -> "Germany"
+    $('regionLabel').textContent = name;
+    // On the button: the country's code while the VPN is on ("US"), the globe while it's off; the name under it on focus.
+    var on = region.now && region.now !== 'off';
+    pill.innerHTML = (on ? '<span class="code">' + String(region.now).toUpperCase() + '</span>' : GLOBE) + '<span id="regionLabel" hidden>' + name + '</span>';
+    pill.setAttribute('data-label', on ? 'VPN: ' + name : name + ' (no VPN)');
+    if (focus.area === 'pills') render();
   }
   function loadRegion() {
     if (!state.region || state.static) { showRegion(); return; }
