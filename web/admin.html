@@ -53,7 +53,7 @@
   .row .grow { flex: 1; min-width: 0; }
   .row small, .hint { color: var(--muted); font-size: 13px; display: block; }
   .hint { margin: 8px 4px 0; }
-  input[type=text], input[type=number], input[type=password], input[type=search], select {
+  input[type=text], input[type=number], input[type=password], input[type=search], input[type=url], select {
     font: inherit; color: var(--text); background: var(--soft); border: 1px solid var(--line); border-radius: 10px;
     padding: 10px 12px; width: 100%; min-height: 44px; }
   input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -236,6 +236,24 @@
 
   /* the Chromecast studio: the TV drawn as it looks; a side panel for whatever is tapped; a library to drag from */
   body.wide .wrap { max-width: 1320px; }
+  /* Home tab: the remote and the apps on the page itself (the same controls as the remote sheet, moved here) */
+  .main-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  @media (min-width: 901px) { .main-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 32px; align-items: start; }
+    #mainApps .rm-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .main-h { margin: 18px 0 4px; }
+  #mainApps .rm-apps { max-width: none; margin-top: 8px; }
+  #mainRemote .remote { padding-top: 6px; }
+  .main-head .rm-status { text-align: center; margin: 6px 0 0; }
+  body.on-main #rmFab, body.on-main.np-strip #npFab { display: none; }   /* on Home, the strip is the player's way in */
+  .main-np { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin: 8px auto 4px; max-width: 520px;
+             border-radius: 16px; background: var(--card); border: 1px solid var(--line); cursor: pointer; }
+  .main-np img { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; background: var(--line); flex: none; }
+  .main-np .grow { min-width: 0; }
+  .main-np b, .main-np small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .main-np b { font-weight: 600; }
+  .main-np small { color: var(--muted); }
+  .main-np-btn { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--text); color: var(--bg); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .main-np-btn svg { width: 22px; height: 22px; fill: currentColor; stroke: none; }
   .studiobar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 10px; }
   .studiobar select { width: auto; min-height: 40px; }
   button.btn.small { min-height: 40px; padding: 8px 14px; background: var(--card); border: 1px solid var(--line); color: var(--text); }
@@ -504,14 +522,27 @@
       <button class="btn primary" id="installBtn" hidden>Install</button>
     </div>
     <nav id="tabs">
-      <button data-tab="vpn" class="on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg><span>VPN</span></button>
+      <button data-tab="main" class="on"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7M5 10v10h14V10"/></svg><span>Home</span></button>
+      <button data-tab="vpn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg><span>VPN</span></button>
       <button data-tab="tv"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg><span>TV</span></button>
       <button data-tab="cc"><svg viewBox="0 0 24 24"><path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-6M3 13a6 6 0 0 1 6 6M3 17a2 2 0 0 1 2 2"/></svg><span>Chromecast</span></button>
       <button data-tab="home"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>Settings</span></button>
-      <button data-tab="system"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5"/></svg><span>System</span></button>
     </nav>
 
-    <div data-pane="vpn">
+    <div data-pane="main" id="paneMain">
+      <div class="main-np" id="mainNp" hidden>
+        <img id="mainNpIcon" alt="">
+        <div class="grow"><b id="mainNpTitle"></b><small id="mainNpSub"></small></div>
+        <button class="main-np-btn" id="mainNpBtn" aria-label="Play or pause"><svg viewBox="0 0 24 24"><path id="mainNpIc" d="M8 5v14l11-7z"/></svg></button>
+      </div>
+      <div class="main-head" id="mainHead"></div>
+      <div class="main-cols">
+        <div id="mainRemote"></div>
+        <div id="mainApps"><h2 class="main-h">Apps</h2></div>
+      </div>
+    </div>
+
+    <div data-pane="vpn" class="hidden">
       <h2>Now</h2>
       <div class="card now"><span class="flag" id="vpnFlag">🌍</span><div class="grow"><div class="big" id="vpnNow">…</div><small id="vpnServer"></small></div></div>
       <p class="hint">One VPN for the TV and the Chromecast. Switching takes up to 20 seconds; close and reopen a streaming app to see its catalogue change.</p>
@@ -691,7 +722,7 @@
       </div>
     </div>
 
-    <div data-pane="system" class="hidden">
+    <div data-pane="home" class="hidden">
       <h2>Status</h2>
       <div class="card" id="sysStatus"></div>
       <h2>Actions</h2>
@@ -718,7 +749,7 @@
   var S = null;          // the server's state
   var orig = null;       // settings as loaded
   var draft = null;      // settings being edited
-  var tab = 'vpn';
+  var tab = 'main';
   var FLAGS = function (code) {
     if (!code || code === 'off') return '🏠';
     return code.toUpperCase().replace(/./g, function (c) { return String.fromCodePoint(127397 + c.charCodeAt(0)); });
@@ -777,12 +808,13 @@
       $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
       showDevices(s.devices || { tv: true, cc: true, vpn: true });
       renderAll(); snapReset(); dirty();
+      if (tab === 'main') showMain(true);
       setTimeout(npRefresh, 800);
       var want = location.hash;   // #remote or #player: from a QR code on the TV
       if (want === '#remote' || want === '#player') {
         try { history.replaceState(null, '', location.pathname); } catch (e) {}
-        if (want === '#remote') openRemote(); else openMedia();
-        sheetOpened();
+        if (want === '#player') { openMedia(); sheetOpened(); }
+        else if (tab !== 'main') { openRemote(); sheetOpened(); }   // on Home the remote is already on the page
       }
     });
   }
@@ -2094,6 +2126,7 @@
       var card = $('npCard'), p = r && r.playing;
       if (r && r.ok && (lastNp === undefined || JSON.stringify(lastNp) !== JSON.stringify(p || null))) { lastNp = p || null; drawCanvas(); }
       $('npFab').classList.toggle('live', !!(p && p.state === 'playing'));
+      paintMainNp(r);
       if (mdDev !== 'cc' || !$('mediaSheet').classList.contains('open')) return;
       card.classList.toggle('idle', !p);
       card.classList.toggle('noimg', !p);
@@ -2126,7 +2159,7 @@
     }, function () { $('rmStatus').textContent = ''; });
   }
   Array.prototype.forEach.call(document.querySelectorAll('#rmSwitch button'), function (b) {
-    b.onclick = function () { rmDev = b.getAttribute('data-dev'); rmShowStatus(); if (rmView === 'apps') renderRmApps(); };
+    b.onclick = function () { rmDev = b.getAttribute('data-dev'); rmShowStatus(); if (rmView === 'apps' || rmWhere === 'main') renderRmApps(); };
   });
   // Apps: open one of the device's apps, or a web address (on the Chromecast a YouTube or Netflix link opens in its app).
   var rmView = 'remote';
@@ -2191,8 +2224,52 @@
     rmSend(null, v).then(function (r) { if (r && r.ok) { $('rmText').value = ''; toast('Sent.'); } });
   };
   $('rmText').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); $('rmSend').onclick(); } };
+  // The Home tab shows the remote and the apps on the page; the sheet (from the floating button, on other tabs) shows
+  // the same elements, moved back into it. One set of controls, so their handlers stay as they are.
+  var rmWhere = 'sheet';
+  function mountRemote(where) {
+    if (where === rmWhere) return;
+    rmWhere = where;
+    if (where === 'main') {
+      $('mainHead').appendChild($('rmSwitch')); $('mainHead').appendChild($('rmStatus'));
+      $('mainRemote').appendChild($('remote')); $('mainApps').appendChild($('rmApps'));
+      $('remote').hidden = false; $('rmApps').hidden = false;
+    } else {
+      var sh = $('remoteSheet');
+      sh.appendChild($('rmSwitch')); sh.appendChild($('rmStatus')); sh.appendChild($('rmApps')); sh.appendChild($('remote'));
+      rmSetView(rmView);
+    }
+  }
+  var mainTimer = 0;
+  function showMain(on) {
+    document.body.classList.toggle('on-main', on);
+    clearInterval(mainTimer); mainTimer = 0;
+    if (!on || !S) return;
+    mountRemote('main'); renderRmApps(); rmShowStatus(); npRefresh();
+    mainTimer = setInterval(function () { rmShowStatus(); npRefresh(); }, 10000);
+  }
+  function paintMainNp(r) {
+    var p = r && r.ok && r.playing, box = $('mainNp');
+    box.hidden = !p;
+    document.body.classList.toggle('np-strip', !!p);
+    if (!p) return;
+    if ($('mainNpIcon').getAttribute('src') !== p.icon) $('mainNpIcon').src = p.icon;
+    $('mainNpTitle').textContent = p.title || p.name;
+    $('mainNpSub').textContent = [p.name, p.subtitle].filter(Boolean).join(' · ');
+    $('mainNpIc').setAttribute('d', p.state === 'playing' ? PAUSE : PLAY);
+  }
+  $('mainNp').onclick = function (e) {
+    if (e.target.closest('#mainNpBtn')) {
+      var ic = $('mainNpIc'), playing = ic.getAttribute('d') === PAUSE;
+      ic.setAttribute('d', playing ? PLAY : PAUSE);
+      sendKey('cc', 'play'); setTimeout(npRefresh, 900);
+      return;
+    }
+    mdDev = 'cc'; openMedia(); sheetOpened();
+  };
   // A floating button opens the remote over any page; ✕, a tap outside it or Esc closes it.
   function openRemote() {
+    mountRemote('sheet');
     $('remoteSheet').classList.add('open'); $('rmScrim').classList.add('open'); document.body.classList.add('remote-open');
     rmShowStatus(); clearInterval(rmTimer); rmTimer = setInterval(rmShowStatus, 15000);
     lockScroll(true);
@@ -2201,6 +2278,7 @@
     $('remoteSheet').classList.remove('open'); $('rmScrim').classList.remove('open'); document.body.classList.remove('remote-open');
     clearInterval(rmTimer); rmTimer = 0; rmStop();
     lockScroll(false);
+    if (tab === 'main') showMain(true);
   }
   // While a sheet is open the page behind it stays still (iPhone too: the page is pinned where it was, then put back).
   var lockedAt = null;
@@ -2322,6 +2400,7 @@
       tab = b.getAttribute('data-tab');
       document.body.classList.toggle('wide', tab === 'cc' || tab === 'tv');
       if (tab === 'cc' || tab === 'tv') showStudio(tab);
+      showMain(tab === 'main');
 
       Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (x) { x.classList.toggle('on', x === b); });
       Array.prototype.forEach.call(document.querySelectorAll('[data-pane]'), function (p) { p.classList.toggle('hidden', p.getAttribute('data-pane') !== tab); });

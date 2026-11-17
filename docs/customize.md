@@ -7,11 +7,11 @@ or with the TV remote. A save shows on the TV and the Chromecast within about 3 
 
 | Tab | What's in it |
 |---|---|
+| **Home** | Opens first: a remote for the TV or the Chromecast, what's playing, and every app to open (or a web address) |
 | **VPN** | The country now, a button per country, and which countries the TV's Region menu offers. Only with a VPN set up ([setup/vpn.md](setup/vpn.md)) |
 | **TV** | A picture of the TV's Home. Tap anything on it to change it: the clock, a widget block, the dock, the wallpaper |
 | **Chromecast** | The same for the Chromecast, plus its dock and rows, names, hidden apps, the VPN country per app, and **Real screen** (a photo of what the Chromecast shows now) |
-| **Settings** | Your name for the greeting, 24-hour clock, the weather's city, the wallpaper, the TV's Home takeover |
-| **System** | Status, open Home on the TV, restart the helper, sign out. Every save keeps a copy of the settings before it (the last 20, in `data/config-backups`) |
+| **Settings** | Your name for the greeting, 24-hour clock, the weather's city, the wallpaper, the TV's Home takeover; then status, open Home on the TV, restart the helper, sign out. Every save keeps a copy of the settings before it (the last 20, in `data/config-backups`) |
 
 Each tab shows only when you have that device: no Chromecast in `config.json`, no Chromecast tab; `"vidaa": false`,
 no TV tab; no VPN, no VPN tab. On a phone the tabs move to the bottom of the screen.
@@ -86,7 +86,7 @@ On the Chromecast, hold **OK** on an app to move it or take it off Home.
 
 In the admin panel (best as an app on your phone's Home screen, see [setup/helper.md](setup/helper.md)):
 
-- **Remote** (round button, bottom right): arrows, OK, Back, Home, volume, for the TV or the Chromecast. Home goes
+- **Remote** (the Home tab, or the round button at the bottom right on other tabs): arrows, OK, Back, Home, volume, for the TV or the Chromecast. Home goes
   to our launcher. **Apps**: open any app on either device, or type a web address (a YouTube link opens in YouTube).
 - **Now playing** (the ♫ button): what's playing on the Chromecast, with play/pause, back and forward.
 - **QR codes** on Home (the **Admin** pill, top right): point your phone at one to open the panel, the remote or the
