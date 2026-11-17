@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Home Admin</title>
+<style>
+  :root {
+    --bg: #f4f4f6; --card: #ffffff; --text: #16161a; --muted: #6b6b75; --line: #e3e3e8; --soft: #f0f0f3;
+    --accent: #2f6df6; --accent-text: #ffffff; --ok: #1f9d55; --warn: #c27c00; --bad: #d23c3c;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0e0e11; --card: #18181c; --text: #f2f2f5; --muted: #9a9aa6; --line: #2a2a31; --soft: #222228;
+            --accent: #5b8cff; --accent-text: #0b0b0d; --ok: #3ccf7a; --warn: #f0b23c; --bad: #ff6b6b;
+            --shadow: 0 1px 2px rgba(0,0,0,.4); }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+               font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { padding: 0 16px calc(96px + env(safe-area-inset-bottom)); }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  header { padding: 20px 0 8px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 22px; margin: 0; flex: 1; letter-spacing: -.01em; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 28px 4px 10px; font-weight: 600; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; font-size: 13px;
+          background: var(--card); border: 1px solid var(--line); white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.on { background: var(--ok); } .dot.off { background: var(--bad); } .dot.idle { background: var(--warn); }
+
+  nav { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 10px 0; display: flex; gap: 6px;
+        overflow-x: auto; scrollbar-width: none; }
+  nav::-webkit-scrollbar { display: none; }
+  nav button { flex: none; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px;
+               padding: 9px 16px; font: inherit; font-size: 15px; cursor: pointer; }
+  nav button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+  .pad { padding: 16px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-top: 1px solid var(--line); min-height: 56px; }
+  .row:first-child { border-top: 0; }
+  .row .grow { flex: 1; min-width: 0; }
+  .row small, .hint { color: var(--muted); font-size: 13px; display: block; }
+  .hint { margin: 8px 4px 0; }
+  input[type=text], input[type=number], input[type=password], input[type=search], select {
+    font: inherit; color: var(--text); background: var(--soft); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; width: 100%; min-height: 44px; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.btn { font: inherit; border: 0; border-radius: 12px; padding: 11px 16px; min-height: 44px; cursor: pointer;
+               background: var(--soft); color: var(--text); border: 1px solid var(--line); }
+  button.btn.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
+  button.btn.danger { color: var(--bad); }
+  button.btn:disabled { opacity: .5; cursor: default; }
+  button.link { background: none; border: 0; color: var(--accent); font: inherit; cursor: pointer; padding: 6px; }
+
+  /* switch */
+  .sw { position: relative; width: 52px; height: 32px; flex: none; }
+  .sw input { opacity: 0; width: 100%; height: 100%; position: absolute; margin: 0; cursor: pointer; }
+  .sw span { position: absolute; inset: 0; border-radius: 16px; background: var(--line); transition: background .2s; pointer-events: none; }
+  .sw span::after { content: ""; position: absolute; left: 3px; top: 3px; width: 26px; height: 26px; border-radius: 50%;
+                    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .2s; }
+  .sw input:checked + span { background: var(--ok); }
+  .sw input:checked + span::after { transform: translateX(20px); }
+
+  /* VPN */
+  .now { display: flex; align-items: center; gap: 14px; padding: 18px 16px; }
+  .now .big { font-size: 26px; font-weight: 650; letter-spacing: -.01em; }
+  .flag { font-size: 30px; }
+  .regions { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .regions button { font: inherit; text-align: left; padding: 14px; border-radius: 14px; border: 1px solid var(--line);
+                    background: var(--card); color: var(--text); cursor: pointer; min-height: 56px; display: flex; gap: 10px; align-items: center; }
+  .regions button.on { border-color: var(--ok); box-shadow: inset 0 0 0 1px var(--ok); }
+  .regions button:disabled { opacity: .6; }
+  .tagbox { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 16px; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; padding: 6px 6px 6px 12px; border-radius: 999px; background: var(--soft);
+         border: 1px solid var(--line); }
+  .tag button { border: 0; background: none; color: var(--muted); font-size: 18px; line-height: 1; width: 28px; height: 28px; cursor: pointer; border-radius: 50%; }
+
+  /* layout editor */
+  .section { margin-top: 14px; }
+  .sechead { display: flex; align-items: center; gap: 8px; padding: 12px 14px 4px; }
+  .sechead input { font-weight: 600; background: transparent; border-color: transparent; padding: 6px 8px; min-height: 36px; }
+  .sechead input:focus { background: var(--soft); }
+  .sechead .label { font-weight: 600; flex: 1; padding: 6px 8px; }
+  .sechead .count { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; padding: 10px 14px 14px; }
+  .app { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px 8px;
+         border-radius: 12px; border: 1px solid var(--line); background: var(--soft); cursor: pointer; font: inherit; color: var(--text); }
+  .app:hover { border-color: var(--accent); }
+  .app .art { width: 96px; height: 54px; border-radius: 8px; background: #26262c center/cover no-repeat; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .app .art img { max-width: 100%; max-height: 100%; }
+  .app .art.square img { height: 54px; width: 54px; object-fit: contain; }
+  .app .nm { font-size: 13px; text-align: center; line-height: 1.25; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .app .badge { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 1px 6px; border-radius: 999px;
+                background: var(--accent); color: var(--accent-text); font-weight: 600; }
+  .empty { color: var(--muted); font-size: 14px; padding: 4px 4px 8px; grid-column: 1 / -1; }
+
+  /* sheet */
+  .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 20; display: none; }
+  .sheet { position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); width: min(560px, 100%); z-index: 21; display: none;
+           background: var(--card); border-radius: 20px 20px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+           box-shadow: 0 -8px 30px rgba(0,0,0,.25); max-height: 88vh; overflow: auto; }
+  .sheet.open, .scrim.open { display: block; }
+  .sheet h3 { margin: 0 0 4px; font-size: 19px; }
+  .sheet label { display: block; font-size: 13px; color: var(--muted); margin: 14px 2px 6px; }
+  .sheet .btns { display: flex; gap: 10px; margin-top: 18px; }
+  .sheet .btns .btn { flex: 1; }
+  .order { display: flex; gap: 10px; }
+  .order .btn { flex: 1; }
+
+  /* save bar, toast, login */
+  .savebar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+             background: var(--card); border-top: 1px solid var(--line); display: none; }
+  .savebar.open { display: block; }
+  .savebar .wrap { display: flex; align-items: center; gap: 10px; }
+  .savebar .grow { flex: 1; font-weight: 600; }
+  .toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 30; padding: 12px 18px; border-radius: 12px;
+           background: var(--text); color: var(--bg); font-size: 15px; max-width: calc(100% - 32px); display: none; }
+  .toast.open { display: block; }
+  .login { max-width: 380px; margin: 12vh auto 0; }
+  .login h1 { margin-bottom: 6px; }
+  .login p { color: var(--muted); margin: 0 0 18px; }
+  .login .btn { width: 100%; margin-top: 12px; }
+  .err { color: var(--bad); font-size: 14px; margin-top: 10px; min-height: 20px; }
+  .places button { display: block; width: 100%; text-align: left; font: inherit; color: var(--text); background: none;
+                   border: 0; border-top: 1px solid var(--line); padding: 12px 16px; cursor: pointer; }
+  .hidden { display: none !important; }
+
+  /* wallpaper */
+  .preview { position: relative; aspect-ratio: 16 / 9; border-radius: 16px; overflow: hidden; background: #222 center/cover no-repeat; }
+  .preview .cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 28px 14px 12px; color: #fff; font-size: 13px;
+                  background: linear-gradient(transparent, rgba(0,0,0,.7)); }
+  .preview .cap b { display: block; font-size: 15px; }
+  .sources { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .sources button { font: inherit; text-align: left; padding: 14px; border-radius: 14px; border: 1px solid var(--line);
+                    background: var(--card); color: var(--text); cursor: pointer; min-height: 64px; }
+  .sources button small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .sources button.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .photos { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); padding: 14px; }
+  .photo { position: relative; border-radius: 12px; overflow: hidden; border: 2px solid transparent; background: var(--soft); }
+  .photo.pinned { border-color: var(--accent); }
+  .photo img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+  .photo .bar { display: flex; }
+  .photo .bar button { flex: 1; font: inherit; font-size: 13px; padding: 8px 4px; border: 0; background: none; color: var(--text); cursor: pointer; }
+  .photo .bar button.del { color: var(--bad); flex: none; padding: 8px 10px; }
+
+  /* drag and drop */
+  .app { touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .app.ghost { opacity: .3; }
+  .dragging-clone { position: fixed; z-index: 40; pointer-events: none; transform: translate(-50%, -50%) scale(1.06);
+                    box-shadow: 0 12px 30px rgba(0,0,0,.35); border-color: var(--accent) !important; background: var(--card) !important; }
+  .apps.drop { background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 0 0 16px 16px; }
+  .app.before { box-shadow: -4px 0 0 0 var(--accent); }
+  .app.after { box-shadow: 4px 0 0 0 var(--accent); }
+  body.dragging { cursor: grabbing; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section id="loginView" class="login hidden">
+    <h1>Home Admin</h1>
+    <p id="loginNote">Sign in to change the TV and Chromecast home screens.</p>
+    <form id="loginForm" class="card pad">
+      <input type="password" id="password" placeholder="Admin password" autocomplete="current-password" required>
+      <button class="btn primary" type="submit">Sign in</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+  </section>
+
+  <section id="appView" class="hidden">
+    <header>
+      <h1>Home Admin</h1>
+      <div class="chips" id="status"></div>
+    </header>
+    <nav id="tabs">
+      <button data-tab="vpn" class="on">VPN</button>
+      <button data-tab="tv">TV</button>
+      <button data-tab="cc">Chromecast</button>
+      <button data-tab="home">Home screen</button>
+      <button data-tab="wall">Wallpaper</button>
+      <button data-tab="system">System</button>
+    </nav>
+
+    <div data-pane="vpn">
+      <h2>Now</h2>
+      <div class="card now"><span class="flag" id="vpnFlag">🌍</span><div class="grow"><div class="big" id="vpnNow">…</div><small id="vpnServer"></small></div></div>
+      <p class="hint">One VPN for both the TV and the Chromecast. Switching takes up to 20 seconds; close and reopen a streaming app to see its catalogue change.</p>
+      <h2>Switch to</h2>
+      <div class="regions" id="regions"></div>
+      <h2>Countries in the Region menu</h2>
+      <div class="card"><div class="tagbox" id="countryTags"></div>
+        <div class="row"><select id="addCountry"></select><button class="btn" id="addCountryBtn">Add</button></div></div>
+      <p class="hint">Saved with the other settings. Any NordVPN country works.</p>
+    </div>
+
+    <div data-pane="tv" class="hidden">
+      <p class="hint">Drag apps between the dock and the rows (on a phone: hold, then drag). Tap an app to rename it, hide it or give it its own VPN country. The dock holds up to 4 apps.</p>
+      <div id="tvEditor"></div>
+      <div class="card pad section" id="tvRemovedBox"></div>
+    </div>
+
+    <div data-pane="cc" class="hidden">
+      <p class="hint" id="ccNote"></p>
+      <div id="ccEditor"></div>
+    </div>
+
+    <div data-pane="home" class="hidden">
+      <h2>Both home screens</h2>
+      <div class="card">
+        <div class="row"><div class="grow">Your name<small>"Good morning, …"</small></div><div style="width:180px"><input type="text" id="greeting" maxlength="40"></div></div>
+        <div class="row"><div class="grow">Update right away<small>Changes from this panel reach the TV and Chromecast within 20 seconds while Home is on screen. Off: the next time Home opens.</small></div><label class="sw"><input type="checkbox" id="liveRefresh"><span></span></label></div>
+        <div class="row"><div class="grow">24-hour clock</div><label class="sw"><input type="checkbox" id="clock24"><span></span></label></div>
+        <div class="row"><div class="grow">Quote of the day</div><label class="sw"><input type="checkbox" id="quotes"><span></span></label></div>
+      </div>
+      <h2>Weather</h2>
+      <div class="card">
+        <div class="row"><div class="grow"><span id="wxCity">Off</span><small>Shown at the top right</small></div><button class="link" id="wxOff">Turn off</button></div>
+        <div class="row"><input type="search" id="wxSearch" placeholder="Search a city"><button class="btn" id="wxFind">Find</button></div>
+        <div class="places" id="wxPlaces"></div>
+      </div>
+      <h2>TV only</h2>
+      <div class="card">
+        <div class="row"><div class="grow">Automatic Home<small>Your launcher instead of VIDAA's home</small></div><label class="sw"><input type="checkbox" id="takeover"><span></span></label></div>
+        <div class="row"><div class="grow">Open Home when the TV turns on</div><label class="sw"><input type="checkbox" id="powerOn"><span></span></label></div>
+        <div class="row"><div class="grow">Wait after turning on<small>Seconds, 0 to 30</small></div><div style="width:90px"><input type="number" id="delay" min="0" max="30"></div></div>
+      </div>
+    </div>
+
+    <div data-pane="wall" class="hidden">
+      <h2>Now on the TV and Chromecast</h2>
+      <div class="preview" id="wallPreview"><div class="cap" id="wallCap"></div></div>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        <button class="btn" id="wallNext" style="flex:1">Show another photo</button>
+      </div>
+      <p class="hint" id="wallNextHint">For today only; tomorrow brings a new one. Home picks it up the next time it opens.</p>
+      <div class="card" style="margin-top:14px">
+        <div class="row"><div class="grow">Wallpaper<small>Off: the calm dark background</small></div><label class="sw"><input type="checkbox" id="wallpaper"><span></span></label></div>
+        <div class="row"><div class="grow">4K<small>Sharper, but the TV moved between tiles with a lag</small></div><label class="sw"><input type="checkbox" id="wall4k"><span></span></label></div>
+      </div>
+      <h2>Source</h2>
+      <div class="sources" id="wallSources"></div>
+      <div id="bingBox">
+        <h2>Bing region</h2>
+        <div class="card"><div class="row"><div class="grow">Photo of the day from<small>Some regions get a different photo</small></div><div style="width:170px"><select id="wallMarket"></select></div></div></div>
+      </div>
+      <div id="nasaBox">
+        <h2>NASA key</h2>
+        <div class="card"><div class="row"><div class="grow">Your own NASA API key<small id="nasaNote"></small></div></div>
+          <div class="row"><input type="password" id="nasaKey" placeholder="Paste the key from api.nasa.gov" autocomplete="off"></div></div>
+        <p class="hint">Without one, NASA's shared demo key often runs out (10 requests an hour for everyone). A key is free at api.nasa.gov; it is kept only on the Mac.</p>
+      </div>
+      <div id="ownBox">
+        <h2>My photos</h2>
+        <div class="card">
+          <div class="row"><div class="grow">Add photos<small>From this phone or computer. Wide (landscape) photos fill the TV best.</small></div>
+            <label class="btn primary" style="display:inline-flex;align-items:center;cursor:pointer">Upload<input type="file" id="wallFile" accept="image/*" multiple hidden></label></div>
+          <div class="row"><div class="grow">Show<small id="pickNote"></small></div>
+            <button class="link" id="pickDaily">One a day</button></div>
+          <div class="photos" id="wallPhotos"></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-pane="system" class="hidden">
+      <h2>Status</h2>
+      <div class="card" id="sysStatus"></div>
+      <h2>Actions</h2>
+      <div class="card">
+        <div class="row"><div class="grow">Open Home on the TV</div><button class="btn" data-act="open_home">Open</button></div>
+        <div class="row"><div class="grow">Restart the helper<small>Takes a few seconds. The VPN keeps running.</small></div><button class="btn" data-act="restart">Restart</button></div>
+        <div class="row"><div class="grow">Sign out of this device</div><button class="btn danger" id="logout">Sign out</button></div>
+      </div>
+      <p class="hint">Every save keeps a copy of the previous settings on the Mac (data/config-backups, the last 20).</p>
+    </div>
+  </section>
+</div>
+
+<div class="savebar" id="saveBar"><div class="wrap"><div class="grow">Unsaved changes</div>
+  <button class="btn" id="discard">Discard</button><button class="btn primary" id="save">Save</button></div></div>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var S = null;          // the server's state
+  var orig = null;       // settings as loaded
+  var draft = null;      // settings being edited
+  var tab = 'vpn';
+  var FLAGS = function (code) {
+    if (!code || code === 'off') return '🏠';
+    return code.toUpperCase().replace(/./g, function (c) { return String.fromCodePoint(127397 + c.charCodeAt(0)); });
+  };
+
+  // ---------- network ----------
+  function api(path, body) {
+    var opt = body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CYT': '1' }, body: JSON.stringify(body) };
+    opt.credentials = 'same-origin';
+    return fetch(path, opt).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (r.status === 401 && path !== '/api/admin/login') { showLogin(j.password_set !== false); throw new Error('signed out'); }
+        if (!r.ok) throw new Error(j.error || ('error ' + r.status));
+        return j;
+      });
+    });
+  }
+  var toastTimer;
+  function toast(msg, ms) {
+    $('toast').textContent = msg; $('toast').classList.add('open');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { $('toast').classList.remove('open'); }, ms || 3500);
+  }
+  function clone(x) { return JSON.parse(JSON.stringify(x)); }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  // ---------- sign in ----------
+  function showLogin(passwordSet) {
+    $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); $('saveBar').classList.remove('open');
+    if (!passwordSet) {
+      $('loginNote').textContent = 'No admin password yet. On the Mac, double-click "Set admin password" in the tv-vpn folder, then reload this page.';
+      $('loginForm').classList.add('hidden');
+    } else { $('loginForm').classList.remove('hidden'); setTimeout(function () { $('password').focus(); }, 50); }
+  }
+  $('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    $('loginErr').textContent = '';
+    api('/api/admin/login', { password: $('password').value }).then(function () { $('password').value = ''; load(); },
+      function (err) { $('loginErr').textContent = err.message === 'wrong password' ? 'Wrong password.' : err.message; });
+  });
+
+  // ---------- load ----------
+  function load() {
+    return api('/api/admin/state').then(function (s) {
+      S = s; orig = clone(s.settings); draft = clone(s.settings);
+      $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
+      renderAll(); dirty();
+    });
+  }
+  function renderAll() { renderStatus(); renderVpn(); renderEditor('tv'); renderEditor('cc'); renderHome(); renderWall(); renderSystem(); }
+
+  function regionName(id) {
+    var r = (S.regions || []).filter(function (x) { return x.id === id; })[0];
+    return r ? r.name : (S.country_names[id] || (id || '').toUpperCase());
+  }
+  function ago(t) {
+    if (!t) return 'never';
+    var m = Math.round((Date.now() / 1000 - t) / 60);
+    return m < 2 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago';
+  }
+  function renderStatus() {
+    var box = $('status'); box.innerHTML = '';
+    var add = function (cls, text) { var c = el('span', 'chip'); c.appendChild(el('span', 'dot ' + cls)); c.appendChild(document.createTextNode(text)); box.appendChild(c); };
+    add(S.tv_on === true ? 'on' : S.tv_on === false ? 'off' : 'idle', S.tv_on === true ? 'TV on' : S.tv_on === false ? 'TV off' : 'TV unknown');
+    add(S.region && S.region !== 'off' ? 'on' : 'idle', 'VPN: ' + (S.region ? regionName(S.region).replace(/\s*\(.*\)$/, '') : 'unavailable'));
+    add(S.cc.seen && Date.now() / 1000 - S.cc.seen < 86400 ? 'on' : 'idle', 'Chromecast ' + ago(S.cc.seen));
+  }
+
+  // ---------- VPN ----------
+  function renderVpn() {
+    $('vpnNow').textContent = S.region ? regionName(S.region) : 'VPN switch not installed';
+    $('vpnFlag').textContent = FLAGS(S.region);
+    $('vpnServer').textContent = S.vpn_server ? 'Server ' + S.vpn_server : (S.region === 'off' ? 'Straight to the internet from home' : '');
+    var box = $('regions'); box.innerHTML = '';
+    (S.regions || []).forEach(function (r) {
+      var b = el('button', r.id === S.region ? 'on' : '');
+      b.appendChild(el('span', 'flag', FLAGS(r.id))); b.appendChild(el('span', '', r.name));
+      b.onclick = function () { switchRegion(r); };
+      box.appendChild(b);
+    });
+    var tags = $('countryTags'); tags.innerHTML = '';
+    draft.vpn_countries.forEach(function (c) {
+      var t = el('span', 'tag'); t.appendChild(document.createTextNode(FLAGS(c) + ' ' + (S.country_names[c] || c.toUpperCase())));
+      var x = el('button', '', '×'); x.title = 'Remove'; x.onclick = function () { draft.vpn_countries = draft.vpn_countries.filter(function (y) { return y !== c; }); renderVpn(); dirty(); };
+      t.appendChild(x); tags.appendChild(t);
+    });
+    if (!draft.vpn_countries.length) tags.appendChild(el('span', 'hint', 'Only Germany (no VPN).'));
+    var sel = $('addCountry'); sel.innerHTML = '';
+    Object.keys(S.country_names).sort(function (a, b) { return S.country_names[a].localeCompare(S.country_names[b]); }).forEach(function (c) {
+      if (draft.vpn_countries.indexOf(c) >= 0 || c === 'de') return;
+      var o = el('option', '', FLAGS(c) + ' ' + S.country_names[c]); o.value = c; sel.appendChild(o);
+    });
+  }
+  $('addCountryBtn').onclick = function () { var c = $('addCountry').value; if (c) { draft.vpn_countries.push(c); renderVpn(); dirty(); } };
+  function switchRegion(r) {
+    if (r.id === S.region) return;
+    var buttons = $('regions').querySelectorAll('button');
+    for (var i = 0; i < buttons.length; i++) buttons[i].disabled = true;
+    toast('Switching the VPN to ' + r.name + '… (up to 20 seconds)', 25000);
+    api('/api/region', { region: r.id }).then(function (res) {
+      if (!res.ok) throw new Error(res.error || 'no answer');
+      return api('/api/admin/state').then(function (s) { S.region = s.region; S.vpn_server = s.vpn_server; });
+    }).then(function () { toast(r.name + ': done.'); }, function (e) { toast('Could not switch: ' + e.message, 6000); })
+      .then(function () { renderVpn(); renderStatus(); });
+  }
+
+  // ---------- layout editor (TV and Chromecast) ----------
+  function appsOf(dev) { return dev === 'tv' ? S.tv_apps : S.cc.apps; }
+  function lay(dev) { return dev === 'tv' ? draft.tv : draft.chromecast; }
+  function appById(dev, id) { return appsOf(dev).filter(function (a) { return a.id === id; })[0] || { id: id, name: id, icon: '' }; }
+  function placeOf(dev, id) {
+    var L = lay(dev);
+    if (L.dock.indexOf(id) >= 0) return 'dock';
+    for (var i = 0; i < L.rows.length; i++) if (L.rows[i].apps.indexOf(id) >= 0) return 'row' + i;
+    if (L.hidden.indexOf(id) >= 0) return 'hidden';
+    return 'more';
+  }
+  function listFor(dev, place) {
+    var L = lay(dev);
+    if (place === 'dock') return L.dock;
+    if (place === 'hidden') return L.hidden;
+    if (place.indexOf('row') === 0) return L.rows[+place.slice(3)].apps;
+    return null;
+  }
+  function takeOut(dev, id) {
+    var L = lay(dev);
+    L.dock = L.dock.filter(function (x) { return x !== id; });
+    L.hidden = L.hidden.filter(function (x) { return x !== id; });
+    L.rows.forEach(function (r) { r.apps = r.apps.filter(function (x) { return x !== id; }); });
+  }
+  function moveTo(dev, id, place) {
+    if (place === 'dock' && lay(dev).dock.length >= 4 && placeOf(dev, id) !== 'dock') { toast('The dock is full (4 apps). Move one out first.'); return false; }
+    if (placeOf(dev, id) === place) return true;
+    takeOut(dev, id);
+    var list = listFor(dev, place);
+    if (list) list.push(id);
+    return true;
+  }
+  function more(dev) {
+    var placed = {};
+    var L = lay(dev);
+    L.dock.concat(L.hidden).forEach(function (x) { placed[x] = 1; });
+    L.rows.forEach(function (r) { r.apps.forEach(function (x) { placed[x] = 1; }); });
+    return appsOf(dev).filter(function (a) { return !placed[a.id]; }).map(function (a) { return a.id; })
+      .sort(function (a, b) { return displayName(dev, a).localeCompare(displayName(dev, b)); });
+  }
+  function displayName(dev, id) { return lay(dev).rename[id] || appById(dev, id).name; }
+  function installed(dev, id) { return appsOf(dev).some(function (a) { return a.id === id; }); }
+
+  function tile(dev, id) {
+    var a = appById(dev, id), b = el('button', 'app');
+    b.setAttribute('data-dev', dev); b.setAttribute('data-id', id);
+    var art = el('div', 'art' + (a.banner ? '' : ' square'));
+    if (a.icon) { var img = new Image(); img.alt = ''; img.loading = 'lazy'; img.src = a.icon; img.onerror = function () { art.textContent = '▢'; }; art.appendChild(img); }
+    b.appendChild(art);
+    b.appendChild(el('span', 'nm', displayName(dev, id) + (installed(dev, id) ? '' : ' (not installed)')));
+    var vpn = lay(dev).app_vpn[id];
+    if (vpn) { var badge = el('span', 'badge', vpn.toUpperCase()); badge.title = 'Own VPN country'; b.appendChild(badge); }
+    b.onclick = function () { openSheet(dev, id); };
+    return b;
+  }
+  function section(dev, place, title, ids, opts) {
+    var card = el('div', 'card section'), head = el('div', 'sechead');
+    if (opts && opts.row != null) {
+      var inp = el('input'); inp.type = 'text'; inp.value = title; inp.maxLength = 40; inp.placeholder = 'Row title';
+      inp.oninput = function () { lay(dev).rows[opts.row].title = inp.value; dirty(); };
+      head.appendChild(inp);
+      var up = el('button', 'link', '↑'); up.title = 'Move row up'; up.disabled = opts.row === 0;
+      up.onclick = function () { var r = lay(dev).rows; r.splice(opts.row - 1, 0, r.splice(opts.row, 1)[0]); renderEditor(dev); dirty(); };
+      var down = el('button', 'link', '↓'); down.title = 'Move row down'; down.disabled = opts.row === lay(dev).rows.length - 1;
+      down.onclick = function () { var r = lay(dev).rows; r.splice(opts.row + 1, 0, r.splice(opts.row, 1)[0]); renderEditor(dev); dirty(); };
+      var del = el('button', 'link', 'Delete'); del.style.color = 'var(--bad)';
+      del.onclick = function () { lay(dev).rows.splice(opts.row, 1); renderEditor(dev); dirty(); };
+      head.appendChild(up); head.appendChild(down); head.appendChild(del);
+    } else {
+      head.appendChild(el('span', 'label', title));
+      head.appendChild(el('span', 'count', place === 'dock' ? ids.length + ' of 4' : ids.length + (ids.length === 1 ? ' app' : ' apps')));
+    }
+    card.appendChild(head);
+    var grid = el('div', 'apps');
+    grid.setAttribute('data-place', place);
+    ids.forEach(function (id) { grid.appendChild(tile(dev, id)); });
+    if (!ids.length) grid.appendChild(el('div', 'empty', opts && opts.empty || 'No apps here.'));
+    card.appendChild(grid);
+    return card;
+  }
+  function renderEditor(dev) {
+    var box = $(dev + 'Editor'); box.innerHTML = '';
+    if (dev === 'cc') {
+      $('ccNote').textContent = S.cc.seen
+        ? 'Apps as the Chromecast reported them ' + ago(S.cc.seen) + '. Tap one to change it. Changes made with the remote are replaced by what you save here.'
+        : 'Press Home on the Chromecast once: it then tells this panel which apps it has.';
+    }
+    var L = lay(dev);
+    box.appendChild(section(dev, 'dock', 'Dock', L.dock, { empty: 'Empty: the first apps fill it.' }));
+    L.rows.forEach(function (r, i) { box.appendChild(section(dev, 'row' + i, r.title, r.apps, { row: i, empty: 'Empty row: it is not shown.' })); });
+    var add = el('button', 'btn', '+ Add a row'); add.style.marginTop = '14px';
+    add.onclick = function () { L.rows.push({ title: 'New row', apps: [] }); renderEditor(dev); dirty(); };
+    box.appendChild(add);
+    box.appendChild(section(dev, 'more', 'More (after the rows)', more(dev), { empty: 'Every app has a place.' }));
+    box.appendChild(section(dev, 'hidden', 'Hidden', L.hidden, { empty: 'Nothing hidden.' }));
+    if (dev === 'tv') {
+      var rm = $('tvRemovedBox'); rm.innerHTML = '';
+      var n = (S.tv_removed || []).length;
+      rm.appendChild(el('div', '', n ? n + (n === 1 ? ' app was' : ' apps were') + ' removed on the TV with the remote (hold OK → Remove).' : 'No apps removed on the TV with the remote.'));
+      if (n) {
+        var b = el('button', 'btn', 'Bring them back'); b.style.marginTop = '10px';
+        b.onclick = function () { api('/api/admin/action', { do: 'restore_tv' }).then(function () { S.tv_removed = []; renderEditor('tv'); toast('Back on the TV\'s Home.'); }); };
+        rm.appendChild(b);
+      }
+    }
+  }
+
+  // ---------- the app sheet ----------
+  function closeSheet() { $('sheet').classList.remove('open'); $('scrim').classList.remove('open'); }
+  $('scrim').onclick = closeSheet;
+  function openSheet(dev, id) {
+    var L = lay(dev), a = appById(dev, id), sh = $('sheet');
+    sh.innerHTML = '';
+    sh.appendChild(el('h3', '', displayName(dev, id)));
+    sh.appendChild(el('small', 'hint', (dev === 'tv' ? 'TV' : 'Chromecast') + ' · ' + a.name + (dev === 'cc' ? ' · ' + id : '')));
+
+    sh.appendChild(el('label', '', 'Name on Home'));
+    var name = el('input'); name.type = 'text'; name.maxLength = 40; name.placeholder = a.name; name.value = L.rename[id] || '';
+    name.oninput = function () { if (name.value.trim()) L.rename[id] = name.value.trim(); else delete L.rename[id]; dirty(); };
+    sh.appendChild(name);
+
+    sh.appendChild(el('label', '', 'Where'));
+    var where = el('select');
+    [['dock', 'Dock']].concat(L.rows.map(function (r, i) { return ['row' + i, 'Row: ' + (r.title || 'untitled')]; }))
+      .concat([['more', 'More (after the rows)'], ['hidden', 'Hidden']]).forEach(function (p) {
+        var o = el('option', '', p[1]); o.value = p[0]; where.appendChild(o);
+      });
+    where.value = placeOf(dev, id);
+    where.onchange = function () { if (moveTo(dev, id, where.value)) { renderEditor(dev); dirty(); } else where.value = placeOf(dev, id); };
+    sh.appendChild(where);
+
+    sh.appendChild(el('label', '', 'Order'));
+    var order = el('div', 'order');
+    var earlier = el('button', 'btn', '← Earlier'), later = el('button', 'btn', 'Later →');
+    var shift = function (d) {
+      var list = listFor(dev, placeOf(dev, id));
+      if (!list) { toast('"More" is in alphabetical order. Put the app in the dock or a row to order it.'); return; }
+      var i = list.indexOf(id), j = i + d;
+      if (j < 0 || j >= list.length) return;
+      list.splice(i, 1); list.splice(j, 0, id); renderEditor(dev); dirty();
+    };
+    earlier.onclick = function () { shift(-1); }; later.onclick = function () { shift(1); };
+    order.appendChild(earlier); order.appendChild(later); sh.appendChild(order);
+
+    sh.appendChild(el('label', '', 'VPN country when this app opens'));
+    var vpn = el('select');
+    var none = el('option', '', 'Keep the current one'); none.value = ''; vpn.appendChild(none);
+    var codes = draft.vpn_countries.slice();
+    if (L.app_vpn[id] && codes.indexOf(L.app_vpn[id]) < 0) codes.push(L.app_vpn[id]);
+    codes.forEach(function (c) { var o = el('option', '', FLAGS(c) + ' ' + (S.country_names[c] || c.toUpperCase())); o.value = c; vpn.appendChild(o); });
+    vpn.value = L.app_vpn[id] || '';
+    vpn.onchange = function () { if (vpn.value) L.app_vpn[id] = vpn.value; else delete L.app_vpn[id]; renderEditor(dev); dirty(); };
+    sh.appendChild(vpn);
+    sh.appendChild(el('small', 'hint', 'Opening another app switches the VPN back.'));
+
+    var btns = el('div', 'btns'), done = el('button', 'btn primary', 'Done');
+    done.onclick = closeSheet; btns.appendChild(done); sh.appendChild(btns);
+    sh.classList.add('open'); $('scrim').classList.add('open');
+  }
+
+  // ---------- home screen ----------
+  function renderHome() {
+    $('greeting').value = draft.greeting_name;
+    $('clock24').checked = draft.clock_24h; $('quotes').checked = draft.quotes; $('liveRefresh').checked = draft.live_refresh;
+    $('takeover').checked = draft.home_takeover; $('powerOn').checked = draft.takeover_on_power_on; $('delay').value = draft.power_on_delay_seconds;
+    $('wxCity').textContent = draft.weather ? draft.weather.city || (draft.weather.lat + ', ' + draft.weather.lon) : 'Off';
+    $('wxOff').classList.toggle('hidden', !draft.weather);
+  }
+  $('greeting').oninput = function () { draft.greeting_name = this.value; dirty(); };
+  $('clock24').onchange = function () { draft.clock_24h = this.checked; dirty(); };
+  $('liveRefresh').onchange = function () { draft.live_refresh = this.checked; dirty(); };
+  $('quotes').onchange = function () { draft.quotes = this.checked; dirty(); };
+  $('takeover').onchange = function () { draft.home_takeover = this.checked; dirty(); };
+  $('powerOn').onchange = function () { draft.takeover_on_power_on = this.checked; dirty(); };
+  $('delay').oninput = function () { var n = parseInt(this.value, 10); if (n >= 0 && n <= 30) { draft.power_on_delay_seconds = n; dirty(); } };
+  $('wxOff').onclick = function () { draft.weather = null; renderHome(); dirty(); };
+  function findPlace() {
+    var q = $('wxSearch').value.trim(); if (!q) return;
+    var box = $('wxPlaces'); box.innerHTML = '';
+    api('/api/admin/geocode?q=' + encodeURIComponent(q)).then(function (r) {
+      if (!r.places.length) { box.appendChild(el('div', 'row hint', 'Nothing found.')); return; }
+      r.places.forEach(function (p) {
+        var b = el('button', '', p.city + (p.admin ? ', ' + p.admin : '') + (p.country ? ', ' + p.country : ''));
+        b.onclick = function () { draft.weather = { city: p.city, lat: p.lat, lon: p.lon }; box.innerHTML = ''; $('wxSearch').value = ''; renderHome(); dirty(); };
+        box.appendChild(b);
+      });
+    }, function (e) { toast('Search failed: ' + e.message); });
+  }
+  $('wxFind').onclick = findPlace;
+  $('wxSearch').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); findPlace(); } };
+
+  // ---------- wallpaper ----------
+  var MARKETS = [['en-US', 'USA'], ['en-GB', 'UK'], ['de-DE', 'Germany'], ['fr-FR', 'France'], ['es-ES', 'Spain'], ['it-IT', 'Italy'],
+                 ['ja-JP', 'Japan'], ['zh-CN', 'China'], ['en-AU', 'Australia'], ['en-CA', 'Canada'], ['en-IN', 'India'], ['pt-BR', 'Brazil']];
+  var SOURCE_NOTES = { bing: 'Landscapes and places, new every day', wikimedia: 'Award-winning photos from Wikimedia Commons',
+                       nasa: 'Space and the night sky', own: 'Your uploads: one a day, or one for good' };
+  function renderWall() {
+    var W = S.wallpaper, now = W.now;
+    $('wallPreview').style.backgroundImage = now ? 'url(/api/admin/wallpaper-preview?v=' + encodeURIComponent(now.image || '') + ')' : 'none';
+    var cap = $('wallCap'); cap.innerHTML = '';
+    if (now && (now.title || now.credit)) { cap.appendChild(el('b', '', now.title || '')); cap.appendChild(document.createTextNode(now.credit && now.credit !== now.title ? now.credit : '')); }
+    else cap.appendChild(document.createTextNode(draft.wallpaper ? (now ? 'Your photo' : 'Getting the photo…') : 'Wallpaper is off'));
+    var pending = draft.wallpaper_source !== W.active.source || draft.wallpaper_market !== W.active.market || draft.wallpaper_pick !== W.active.pick;
+    $('wallNext').disabled = !draft.wallpaper || pending || (draft.wallpaper_source === 'own' && (W.own.length < 2 || draft.wallpaper_pick));
+    $('wallNextHint').textContent = pending ? 'Save first: the preview shows the source that is saved now.' : 'For today only; tomorrow brings a new one. Home picks it up the next time it opens.';
+    $('wallpaper').checked = draft.wallpaper; $('wall4k').checked = draft.wallpaper_size === 'UHD'; $('wall4k').disabled = !draft.wallpaper;
+    var box = $('wallSources'); box.innerHTML = '';
+    Object.keys(W.sources).forEach(function (k) {
+      var b = el('button', k === draft.wallpaper_source ? 'on' : '', W.sources[k]); b.appendChild(el('small', '', SOURCE_NOTES[k]));
+      b.onclick = function () { draft.wallpaper_source = k; renderWall(); dirty(); };
+      box.appendChild(b);
+    });
+    $('bingBox').classList.toggle('hidden', draft.wallpaper_source !== 'bing');
+    $('ownBox').classList.toggle('hidden', draft.wallpaper_source !== 'own');
+    $('nasaBox').classList.toggle('hidden', draft.wallpaper_source !== 'nasa');
+    $('nasaNote').textContent = draft.nasa_key_set ? 'Saved. Paste a new one to replace it.' : 'Not set: using the shared demo key';
+    var m = $('wallMarket');
+    if (!m.options.length) MARKETS.forEach(function (x) { var o = el('option', '', x[1]); o.value = x[0]; m.appendChild(o); });
+    m.value = draft.wallpaper_market;
+    $('pickNote').textContent = draft.wallpaper_pick ? 'Always the photo marked below' : (W.own.length ? 'A different photo each day' : 'No photos yet');
+    $('pickDaily').classList.toggle('hidden', !draft.wallpaper_pick);
+    var grid = $('wallPhotos'); grid.innerHTML = '';
+    W.own.forEach(function (name) {
+      var card = el('div', 'photo' + (draft.wallpaper_pick === name ? ' pinned' : ''));
+      var img = new Image(); img.loading = 'lazy'; img.alt = ''; img.src = '/api/admin/wallpaper-thumb/' + encodeURIComponent(name); card.appendChild(img);
+      var bar = el('div', 'bar');
+      var pin = el('button', '', draft.wallpaper_pick === name ? 'Shown always' : 'Show always');
+      pin.onclick = function () { draft.wallpaper_pick = draft.wallpaper_pick === name ? '' : name; renderWall(); dirty(); };
+      var del = el('button', 'del', 'Delete');
+      del.onclick = function () {
+        if (!confirm('Delete this photo from the Mac?')) return;
+        api('/api/admin/wallpaper-delete', { name: name }).then(function () {
+          W.own = W.own.filter(function (x) { return x !== name; });
+          if (draft.wallpaper_pick === name) { draft.wallpaper_pick = ''; dirty(); }
+          renderWall();
+        });
+      };
+      bar.appendChild(pin); bar.appendChild(del); card.appendChild(bar); grid.appendChild(card);
+    });
+    if (!W.own.length) grid.appendChild(el('div', 'empty', 'No photos yet. Upload some above.'));
+  }
+  $('nasaKey').oninput = function () { if (this.value.trim()) draft.nasa_api_key = this.value.trim(); else delete draft.nasa_api_key; dirty(); };
+  $('wallMarket').onchange = function () { draft.wallpaper_market = this.value; renderWall(); dirty(); };
+  $('pickDaily').onclick = function () { draft.wallpaper_pick = ''; renderWall(); dirty(); };
+  $('wallpaper').onchange = function () { draft.wallpaper = this.checked; renderWall(); dirty(); };
+  $('wall4k').onchange = function () { draft.wallpaper_size = this.checked ? 'UHD' : '1920x1080'; dirty(); };
+  $('wallNext').onclick = function () {
+    var b = this; b.disabled = true; toast('Getting another photo…', 60000);
+    api('/api/admin/wallpaper-next', {}).then(function (r) { S.wallpaper.now = r.now; renderWall(); toast('New photo. Home shows it the next time it opens.'); },
+      function (e) { toast('No other photo: ' + e.message, 6000); renderWall(); });
+  };
+  $('wallFile').onchange = function () {
+    var files = Array.prototype.slice.call(this.files || []); this.value = '';
+    var done = 0, next = function () {
+      if (!files.length) { toast(done ? done + (done === 1 ? ' photo' : ' photos') + ' added.' : 'Nothing added.'); return; }
+      var f = files.shift();
+      toast('Uploading ' + f.name + '…', 60000);
+      fetch('/api/admin/wallpaper-upload?name=' + encodeURIComponent(f.name), { method: 'POST', credentials: 'same-origin',
+            headers: { 'X-CYT': '1', 'Content-Type': f.type || 'application/octet-stream' }, body: f })
+        .then(function (r) { return r.json(); })
+        .then(function (j) { if (!j.ok) throw new Error(j.error || 'failed'); S.wallpaper.own.push(j.name); S.wallpaper.own.sort(); done++; renderWall(); },
+              function (e) { toast(f.name + ': ' + e.message, 5000); })
+        .then(next);
+    };
+    next();
+  };
+
+  // ---------- drag and drop: apps between the dock and the rows, and within them ----------
+  // Mouse: press and move. Touch: hold for a moment, then move (a quick swipe still scrolls the page).
+  var drag = null;
+  function dropTarget(x, y) {
+    var under = document.elementFromPoint(x, y);
+    var grid = under && under.closest('.apps[data-place]');
+    if (!grid) return null;
+    var tiles = Array.prototype.filter.call(grid.querySelectorAll('.app[data-id]'), function (t) { return t.getAttribute('data-id') !== drag.id; });
+    var best = null, bestD = 1e9;
+    tiles.forEach(function (t) {
+      var r = t.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, d = Math.hypot(x - cx, (y - cy) * 1.5);
+      if (d < bestD) { bestD = d; best = { el: t, after: x > cx }; }
+    });
+    return { grid: grid, place: grid.getAttribute('data-place'), near: best };
+  }
+  function clearMarks() {
+    Array.prototype.forEach.call(document.querySelectorAll('.apps.drop, .app.before, .app.after'), function (e) { e.classList.remove('drop', 'before', 'after'); });
+  }
+  function startDrag(d, x, y) {
+    d.active = true;
+    document.body.classList.add('dragging');
+    d.clone = d.el.cloneNode(true); d.clone.classList.add('dragging-clone');
+    d.clone.style.width = d.el.offsetWidth + 'px';
+    document.body.appendChild(d.clone);
+    d.el.classList.add('ghost');
+    if (navigator.vibrate) navigator.vibrate(15);
+    moveDrag(x, y);
+  }
+  function moveDrag(x, y) {
+    drag.clone.style.left = x + 'px'; drag.clone.style.top = y + 'px';
+    clearMarks();
+    var t = dropTarget(x, y); drag.target = t;
+    if (t) { t.grid.classList.add('drop'); if (t.near && t.place !== 'more') t.near.el.classList.add(t.near.after ? 'after' : 'before'); }
+    drag.vy = y < 70 ? -1 : y > window.innerHeight - 90 ? 1 : 0;   // near an edge: scroll
+  }
+  function endDrag(cancel) {
+    var d = drag; drag = null;
+    clearTimeout(d.timer);
+    if (!d.active) return;
+    document.body.classList.remove('dragging');
+    d.clone.remove(); d.el.classList.remove('ghost'); clearMarks();
+    d.suppressClick = true; setTimeout(function () { d.suppressClick = false; }, 50);
+    lastDrag = d;
+    var t = d.target;
+    if (cancel || !t) return;
+    var dev = d.dev, id = d.id, from = placeOf(dev, id);
+    if (t.place === 'dock' && from !== 'dock' && lay(dev).dock.length >= 4) { toast('The dock is full (4 apps). Drag one out first.'); return; }
+    takeOut(dev, id);
+    var list = listFor(dev, t.place);
+    if (list) {
+      var at = list.length;
+      if (t.near) { var j = list.indexOf(t.near.el.getAttribute('data-id')); if (j >= 0) at = j + (t.near.after ? 1 : 0); }
+      list.splice(at, 0, id);
+    }
+    renderEditor(dev); dirty();
+  }
+  var lastDrag = null;
+  function autoScroll() { if (drag && drag.active && drag.vy) window.scrollBy(0, drag.vy * 14); requestAnimationFrame(autoScroll); }
+  requestAnimationFrame(autoScroll);
+  document.addEventListener('pointerdown', function (e) {
+    var t = e.target.closest && e.target.closest('.app[data-id]');
+    if (!t || e.button > 0) return;
+    drag = { el: t, dev: t.getAttribute('data-dev'), id: t.getAttribute('data-id'), x: e.clientX, y: e.clientY,
+             touch: e.pointerType !== 'mouse', active: false, pid: e.pointerId };
+    if (drag.touch) drag.timer = setTimeout(function () { if (drag && !drag.active) startDrag(drag, drag.x, drag.y); }, 380);
+  });
+  document.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    if (!drag.active) {
+      var far = Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 8;
+      if (drag.touch) { if (far) { clearTimeout(drag.timer); drag = null; } return; }   // a swipe: let the page scroll
+      if (far) startDrag(drag, e.clientX, e.clientY); else return;
+    }
+    e.preventDefault();
+    moveDrag(e.clientX, e.clientY);
+  }, { passive: false });
+  document.addEventListener('touchmove', function (e) { if (drag && drag.active) e.preventDefault(); }, { passive: false });
+  document.addEventListener('pointerup', function () { if (drag) endDrag(false); });
+  document.addEventListener('pointercancel', function () { if (drag) endDrag(!drag.active); });
+  document.addEventListener('contextmenu', function (e) { if (e.target.closest && e.target.closest('.app')) e.preventDefault(); });
+  document.addEventListener('click', function (e) {
+    if (lastDrag && lastDrag.suppressClick && e.target.closest && e.target.closest('.app')) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
+
+  // ---------- system ----------
+  function renderSystem() {
+    var box = $('sysStatus'); box.innerHTML = '';
+    var line = function (label, value) { var r = el('div', 'row'); r.appendChild(el('div', 'grow', label)); r.appendChild(el('div', '', value)); box.appendChild(r); };
+    line('TV', S.tv_on === true ? 'On' : S.tv_on === false ? 'Off or standby' : 'Unknown');
+    line('VPN', S.region ? regionName(S.region) + (S.vpn_server ? ' · ' + S.vpn_server : '') : 'Not installed');
+    line('Chromecast', S.cc.seen ? 'Last seen ' + ago(S.cc.seen) + ' · ' + S.cc.apps.length + ' apps' : 'Not seen yet');
+    line('Helper running since', new Date(S.started * 1000).toLocaleString());
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-act]'), function (b) {
+    b.onclick = function () {
+      var act = b.getAttribute('data-act');
+      api('/api/admin/action', { do: act }).then(function () {
+        if (act === 'restart') waitForHelper('Restarted.'); else toast('Opening Home on the TV…');
+      }, function (e) { toast(e.message); });
+    };
+  });
+  $('logout').onclick = function () { api('/api/admin/logout', {}).then(function () { showLogin(true); }); };
+
+  // ---------- tabs ----------
+  Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (b) {
+    b.onclick = function () {
+      tab = b.getAttribute('data-tab');
+      Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (x) { x.classList.toggle('on', x === b); });
+      Array.prototype.forEach.call(document.querySelectorAll('[data-pane]'), function (p) { p.classList.toggle('hidden', p.getAttribute('data-pane') !== tab); });
+      window.scrollTo(0, 0);
+    };
+  });
+
+  // ---------- save ----------
+  function changes() {
+    var out = {};
+    Object.keys(draft).forEach(function (k) { if (JSON.stringify(draft[k]) !== JSON.stringify(orig[k])) out[k] = draft[k]; });
+    return out;
+  }
+  function dirty() { $('saveBar').classList.toggle('open', !!draft && Object.keys(changes()).length > 0); }
+  $('discard').onclick = function () { draft = clone(orig); renderAll(); dirty(); };
+  $('save').onclick = function () {
+    var c = changes(); if (!Object.keys(c).length) return;
+    $('save').disabled = true;
+    api('/api/admin/save', { changes: c }).then(function () {
+      $('saveBar').classList.remove('open');
+      waitForHelper('Saved. The TV and Chromecast show it the next time Home opens.');
+    }, function (e) { toast('Not saved: ' + e.message, 6000); }).then(function () { $('save').disabled = false; });
+  };
+  // The helper restarts after a save; wait for it to answer again, then reload what it has.
+  function waitForHelper(msg) {
+    toast('Saving and restarting the helper…', 20000);
+    var tries = 0;
+    var poll = function () {
+      tries++;
+      fetch('/api/admin/hello', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.json(); })
+        .then(function (h) { if (Date.now() - t0 < 1500) throw 0; return load().then(function () { toast(msg, 5000); }); })
+        .catch(function () { if (tries < 30) setTimeout(poll, 1000); else toast('The helper did not come back. Check the Mac.', 8000); });
+    };
+    var t0 = Date.now();
+    setTimeout(poll, 2000);
+  }
+  window.addEventListener('beforeunload', function (e) { if (draft && Object.keys(changes()).length) { e.preventDefault(); e.returnValue = ''; } });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
+
+  // ---------- start ----------
+  fetch('/api/admin/hello', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (h) {
+    if (h.signed_in) load(); else showLogin(h.password_set);
+  }, function () { toast('Cannot reach the helper on the Mac.', 10000); });
+})();
+</script>
+</body>
+</html>

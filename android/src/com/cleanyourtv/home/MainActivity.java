@@ -1093,9 +1093,35 @@ public class MainActivity extends Activity {
                 if (now - lastWeather > 15 * 60_000) refreshWeather();
                 if (now - lastWallpaper > 60 * 60_000) refreshWallpaper();
             }
+            // "Update right away" in the admin panel; off: changes show when Home opens again.
+            if (cfg.optBoolean("live_refresh", true) && System.currentTimeMillis() - lastRev > 20_000) checkRev();
             if (resumed) ui.postDelayed(this, 1000);
         }
     };
+
+    // Changes from the admin panel, checked every 20 s while Home is on screen: a save restarts the helper
+    // ("started" changes: fetch the settings again), and a new photo changes "wall".
+    long lastRev = 0, revStarted = 0;
+    String revWall = null;
+
+    void checkRev() {
+        lastRev = System.currentTimeMillis();
+        if (!helperUp()) return;
+        io.execute(() -> {
+            try {
+                JSONObject r = new JSONObject(get("/api/rev", 5000));
+                long started = r.optLong("started");
+                String wall = r.optString("wall", "");
+                ui.post(() -> {
+                    boolean first = revStarted == 0;
+                    if (!first && started != revStarted) refreshAll(false);
+                    else if (!first && !wall.equals(revWall)) refreshWallpaper();
+                    revStarted = started;
+                    revWall = wall;
+                });
+            } catch (Exception ignored) { }
+        });
+    }
 
     // =====================================================================================================
     // Data from the helper
@@ -1137,7 +1163,13 @@ public class MainActivity extends Activity {
             helperDownUntil = 0;   // try the Mac again
             try {
                 JSONObject c = new JSONObject(get("/api/cc", 8000));
-                prefs.edit().putString("cfg", c.toString()).apply();
+                // Saved in the admin panel since we last looked: the panel's dock and hidden apps win over
+                // what was moved or removed here with the remote.
+                long rev = c.optLong("rev", 0);
+                SharedPreferences.Editor ed = prefs.edit().putString("cfg", c.toString());
+                if (rev != prefs.getLong("rev", 0)) ed.remove("dock").remove("removed").putLong("rev", rev);
+                ed.apply();
+                reportApps();
                 ui.post(() -> {
                     boolean changed = !c.toString().equals(cfg.toString());
                     cfg = c;
@@ -1155,6 +1187,48 @@ public class MainActivity extends Activity {
     }
 
     final Runnable retryHelper = () -> { if (resumed) refreshAll(false); };
+
+    // Tells the helper which apps are installed here (names and small icons), for the admin panel.
+    // Runs on the io thread; sent again only when the list changes.
+    void reportApps() {
+        try {
+            PackageManager pm = getPackageManager();
+            List<ResolveInfo> found = pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER), 0);
+            StringBuilder key = new StringBuilder();
+            for (ResolveInfo ri : found) {
+                String pkg = ri.activityInfo.packageName;
+                long v = 0;
+                try { v = pm.getPackageInfo(pkg, 0).lastUpdateTime; } catch (Exception ignored) { }
+                key.append(pkg).append(v).append(';');
+            }
+            String sig = Integer.toHexString(key.toString().hashCode());
+            if (sig.equals(prefs.getString("reported", ""))) return;
+            JSONArray list = new JSONArray();
+            Set<String> seen = new HashSet<>();
+            for (ResolveInfo ri : found) {
+                String pkg = ri.activityInfo.packageName;
+                if (pkg.equals(getPackageName()) || !seen.add(pkg)) continue;
+                boolean banner = ri.activityInfo.banner != 0 || ri.activityInfo.applicationInfo.banner != 0;
+                JSONObject o = new JSONObject().put("pkg", pkg).put("name", String.valueOf(ri.loadLabel(pm))).put("banner", banner);
+                Drawable d = null;
+                ComponentName cn = new ComponentName(pkg, ri.activityInfo.name);
+                if (banner) { d = pm.getActivityBanner(cn); if (d == null) d = pm.getApplicationBanner(pkg); }
+                if (d == null) d = pm.getActivityIcon(cn);
+                int w = banner ? 240 : 128, h = banner ? 135 : 128;
+                Bitmap bm = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+                d.setBounds(0, 0, w, h);
+                d.draw(new Canvas(bm));
+                ByteArrayOutputStream png = new ByteArrayOutputStream();
+                bm.compress(Bitmap.CompressFormat.PNG, 100, png);
+                bm.recycle();
+                o.put("icon", android.util.Base64.encodeToString(png.toByteArray(), android.util.Base64.NO_WRAP));
+                list.put(o);
+            }
+            post("/api/cc-apps", new JSONObject().put("apps", list).toString(), 30_000);
+            prefs.edit().putString("reported", sig).apply();
+        } catch (Exception ignored) {
+        }
+    }
 
     void refreshRegion() {
         if (!cfg.optBoolean("region")) { regionNow = null; rebuildPills(); render(); return; }

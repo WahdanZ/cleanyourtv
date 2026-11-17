@@ -8,10 +8,12 @@ Usage: python helper/cyt_helper.py [path/to/config.json]
 """
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import mimetypes
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -41,6 +43,7 @@ sys.path.insert(0, str((CONFIG_PATH.parent / CONFIG.get("sidee_dir", "../sidee")
 from core import client, protocol  # noqa: E402  (Sidee)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import extras  # noqa: E402
+import admin  # noqa: E402
 
 WEB = ROOT / "web"
 DATA = ROOT / "data"
@@ -403,46 +406,213 @@ def _quote_portrait(today: str):
 # launcher opens at once and still has yesterday's photo when offline. 1920 x 1080 by default (about 300 KB): the TV
 # draws the page at that size, and a 4K photo ("wallpaper_size": "UHD", about 3-4 MB) made moving between tiles lag.
 WALLPAPER_ON = CONFIG.get("wallpaper", True)
-WALLPAPER_API = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=" + quote(str(CONFIG.get("wallpaper_market", "en-US")))
+# Where the photo comes from: Bing's photo of the day, Wikipedia's picture of the day, NASA's astronomy picture of the
+# day, or your own photos (uploaded in the admin panel, kept in data/wallpapers, one a day or one chosen for good).
+WALLPAPER_SOURCES = {"bing": "Bing photo of the day", "wikimedia": "Wikipedia picture of the day",
+                     "nasa": "NASA astronomy picture of the day", "own": "My photos"}
+WALLPAPER_SOURCE = str(CONFIG.get("wallpaper_source", "bing"))
+WALLPAPER_MARKET = str(CONFIG.get("wallpaper_market", "en-US"))
 WALLPAPER_SIZE = str(CONFIG.get("wallpaper_size", "1920x1080"))
+WALLPAPER_PICK = str(CONFIG.get("wallpaper_pick") or "")
 WALLPAPER_IMG = DATA / "wallpaper.jpg"
 WALLPAPER_META = DATA / "wallpaper.json"
-_wall = {"busy": False, "tried": 0.0}
+WALLPAPER_STATE = DATA / "wallpaper-state.json"   # {"day": ..., "skip": n}: "Show another photo" for today
+OWN_WALLS = DATA / "wallpapers"
+# NASA's shared DEMO_KEY allows only a few requests an hour for everyone; a free key from api.nasa.gov is reliable.
+NASA_KEY = str(CONFIG.get("nasa_api_key") or "DEMO_KEY")
+WALL_UA = {"User-Agent": "cleanyourtv-home-launcher/1.0 (personal TV home screen)"}
+_wall = {"busy": False, "tried": 0.0, "lock": threading.Lock()}
+
+
+def wall_width() -> int:
+    return 3840 if WALLPAPER_SIZE == "UHD" else 1920
+
+
+def wall_skip() -> int:
+    try:
+        st = json.loads(WALLPAPER_STATE.read_text(encoding="utf-8"))
+        return int(st.get("skip", 0)) if st.get("day") == time.strftime("%Y-%m-%d") else 0
+    except (OSError, ValueError):
+        return 0
+
+
+def wall_key() -> str:
+    pick = WALLPAPER_PICK if WALLPAPER_SOURCE == "own" else ""
+    market = WALLPAPER_MARKET if WALLPAPER_SOURCE == "bing" else ""
+    return f"{WALLPAPER_SOURCE}|{market}|{pick}|{wall_skip()}|{WALLPAPER_SIZE}"
+
+
+def own_wallpapers() -> list:
+    if not OWN_WALLS.exists():
+        return []
+    return sorted(f.name for f in OWN_WALLS.glob("*.jpg") if not f.name.endswith(".thumb.jpg"))
 
 
 def wallpaper_meta() -> dict | None:
-    """What the launcher shows now; starts a download when the photo isn't today's."""
+    """What the launcher shows now; starts a download when the photo isn't today's or the settings changed."""
     if not WALLPAPER_ON:
         return None
     try:
         meta = json.loads(WALLPAPER_META.read_text(encoding="utf-8")) if WALLPAPER_IMG.exists() else None
     except Exception:
         meta = None
-    stale = not meta or meta.get("day") != time.strftime("%Y-%m-%d") or meta.get("size") != WALLPAPER_SIZE
+    stale = not meta or meta.get("day") != time.strftime("%Y-%m-%d") or meta.get("key") != wall_key()
     if stale and not _wall["busy"] and time.time() - _wall["tried"] > 600:
         _wall.update(busy=True, tried=time.time())
         threading.Thread(target=_refresh_wallpaper, daemon=True).start()
     return meta
 
 
-def _refresh_wallpaper():
-    try:
-        img = json.loads(_fetch(WALLPAPER_API))["images"][0]
-        body = _fetch("https://www.bing.com" + img["urlbase"] + "_" + WALLPAPER_SIZE + ".jpg")
-        if len(body) < 20_000 or body[:2] != b"\xff\xd8":   # not a JPEG: keep the old one
-            raise ValueError("no usable image")
-        DATA.mkdir(exist_ok=True)
-        tmp = WALLPAPER_IMG.with_suffix(".tmp")
+def _get(url: str, timeout: float = 30) -> bytes:
+    req = urllib.request.Request(url, headers=WALL_UA)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read()
+
+
+def _sips_size(path: Path) -> tuple[int, int]:
+    out = subprocess.run(["/usr/bin/sips", "-g", "pixelWidth", "-g", "pixelHeight", str(path)],
+                         capture_output=True, text=True, timeout=30).stdout
+    nums = re.findall(r"pixel(?:Width|Height): (\d+)", out)
+    return (int(nums[0]), int(nums[1])) if len(nums) == 2 else (0, 0)
+
+
+def fit_photo(src: Path, dest: Path, width: int, quality: int = 82):
+    """Any photo (JPEG, PNG, HEIC from an iPhone) as a JPEG at most `width` wide, with macOS's own sips."""
+    w, _ = _sips_size(src)
+    cmd = ["/usr/bin/sips", "-s", "format", "jpeg", "-s", "formatOptions", str(quality)]
+    if w > width:
+        cmd += ["--resampleWidth", str(width)]
+    r = subprocess.run(cmd + [str(src), "--out", str(dest)], capture_output=True, text=True, timeout=120)
+    if r.returncode != 0 or not dest.exists():
+        raise ValueError("could not read that photo")
+
+
+def _wall_bing(skip: int) -> tuple[bytes, str, str]:
+    api = ("https://www.bing.com/HPImageArchive.aspx?format=js&n=1&idx=" + str(min(skip, 7)) + "&mkt=" + quote(WALLPAPER_MARKET))
+    img = json.loads(_fetch(api))["images"][0]
+    size = "UHD" if WALLPAPER_SIZE == "UHD" else "1920x1080"
+    return _fetch("https://www.bing.com" + img["urlbase"] + "_" + size + ".jpg"), img.get("title", ""), img.get("copyright", "")
+
+
+def _wide(w: int, h: int) -> bool:
+    return w > 0 and h > 0 and w / h >= 1.3   # a landscape photo, which fills a TV without heavy cropping
+
+
+def _wall_wikimedia(skip: int) -> tuple[bytes, str, str]:
+    day = time.time() - skip * 86400
+    for back in range(12):   # the day's picture may be a tall one: then the day before, and so on
+        d = time.localtime(day - back * 86400)
+        feed = json.loads(_get(time.strftime("https://api.wikimedia.org/feed/v1/wikipedia/en/featured/%Y/%m/%d", d)))
+        img = (feed.get("image") or {})
+        orig = img.get("image") or {}
+        src = str(orig.get("source", "")).split("?")[0]   # the feed adds tracking parameters
+        if not _wide(orig.get("width", 0), orig.get("height", 0)) or not src.lower().endswith((".jpg", ".jpeg", ".png")):
+            continue
+        m = re.match(r"(https://upload\.wikimedia\.org/wikipedia/commons/)(\w/\w\w/)([^/]+)$", src)
+        width = wall_width()
+        body = None
+        if m and orig["width"] > width:   # a ready-made smaller copy, rather than an original of tens of megabytes
+            try:
+                body = _get(f"{m.group(1)}thumb/{m.group(2)}{m.group(3)}/{width}px-{m.group(3)}")
+            except Exception:
+                body = None
+        if body is None and orig["width"] * orig["height"] <= 60_000_000:
+            body = _get(src, timeout=90)
+        if not body:
+            continue
+        desc = html.unescape(re.sub(r"<[^>]+>", "", (img.get("description") or {}).get("text", ""))).strip()
+        artist = html.unescape(re.sub(r"<[^>]+>", "", (img.get("artist") or {}).get("text", ""))).strip()
+        title = desc.split(". ")[0][:120]
+        return body, title, f"{title} — {artist}, Wikimedia Commons" if artist else f"{title}, Wikimedia Commons"
+    raise ValueError("no wide picture in the last days")
+
+
+def _wall_nasa(skip: int) -> tuple[bytes, str, str]:
+    day = time.time() - skip * 86400
+    for back in range(10):   # some days are a video or a tall picture
+        d = time.strftime("%Y-%m-%d", time.localtime(day - back * 86400))
+        apod = json.loads(_get(f"https://api.nasa.gov/planetary/apod?api_key={quote(NASA_KEY)}&date={d}"))
+        if apod.get("media_type") != "image":
+            continue
+        body = _get(apod.get("hdurl") or apod["url"], timeout=90)
+        tmp = DATA / "wallpaper-nasa.tmp"
         tmp.write_bytes(body)
-        tmp.replace(WALLPAPER_IMG)
-        day = time.strftime("%Y-%m-%d")
-        WALLPAPER_META.write_text(json.dumps({"day": day, "title": img.get("title", ""), "credit": img.get("copyright", ""), "size": WALLPAPER_SIZE,
-                                              "image": f"/api/wallpaper.jpg?d={day}-{WALLPAPER_SIZE}"}), encoding="utf-8")
-        log(f"wallpaper of the day: {img.get('title', '')}")
-    except Exception as e:
-        log(f"wallpaper: {e}")
+        w, h = _sips_size(tmp)
+        tmp.unlink(missing_ok=True)
+        if not _wide(w, h):
+            continue
+        who = (apod.get("copyright") or "NASA").replace("\n", " ").strip()
+        return body, apod.get("title", ""), f"{apod.get('title', '')} — {who}, NASA APOD"
+    raise ValueError("no wide picture in the last days")
+
+
+def _wall_own(skip: int) -> tuple[bytes, str, str]:
+    files = own_wallpapers()
+    if not files:
+        raise ValueError("no photos uploaded yet")
+    name = WALLPAPER_PICK if WALLPAPER_PICK in files else files[(int(time.time() // 86400) + skip) % len(files)]
+    return (OWN_WALLS / name).read_bytes(), "", ""
+
+
+def _refresh_wallpaper(raise_errors: bool = False):
+    with _wall["lock"]:
+        try:
+            key, skip = wall_key(), wall_skip()
+            get = {"wikimedia": _wall_wikimedia, "nasa": _wall_nasa, "own": _wall_own}.get(WALLPAPER_SOURCE, _wall_bing)
+            body, title, credit = get(skip)
+            if len(body) < 20_000:
+                raise ValueError("no usable image")
+            DATA.mkdir(exist_ok=True)
+            raw, tmp = WALLPAPER_IMG.with_suffix(".raw"), WALLPAPER_IMG.with_suffix(".tmp.jpg")
+            raw.write_bytes(body)
+            fit_photo(raw, tmp, wall_width())   # the TV moved between tiles with a lag behind a large photo
+            raw.unlink(missing_ok=True)
+            tmp.replace(WALLPAPER_IMG)
+            day = time.strftime("%Y-%m-%d")
+            tag = hashlib.sha1(key.encode()).hexdigest()[:8]
+            WALLPAPER_META.write_text(json.dumps({"day": day, "title": title, "credit": credit, "size": WALLPAPER_SIZE,
+                                                  "key": key, "source": WALLPAPER_SOURCE,
+                                                  "image": f"/api/wallpaper.jpg?d={day}-{tag}"}), encoding="utf-8")
+            log(f"wallpaper ({WALLPAPER_SOURCE}): {title or 'your photo'}")
+        except Exception as e:
+            log(f"wallpaper ({WALLPAPER_SOURCE}): {e}")
+            if raise_errors:
+                raise
+        finally:
+            _wall["busy"] = False
+
+
+def wallpaper_next() -> dict | None:
+    """Another photo for today (the admin panel's "Show another photo"); back to the usual one tomorrow."""
+    DATA.mkdir(exist_ok=True)
+    WALLPAPER_STATE.write_text(json.dumps({"day": time.strftime("%Y-%m-%d"), "skip": wall_skip() + 1}), encoding="utf-8")
+    _wall["busy"] = True
+    _refresh_wallpaper(raise_errors=True)
+    return json.loads(WALLPAPER_META.read_text(encoding="utf-8"))
+
+
+def wallpaper_upload(name: str, body: bytes) -> str:
+    """A photo from the admin panel, kept as a JPEG (4K wide at most) with a small preview beside it."""
+    OWN_WALLS.mkdir(parents=True, exist_ok=True)
+    stem = re.sub(r"[^A-Za-z0-9_-]+", "-", Path(name).stem)[:40].strip("-") or "photo"
+    stem = f"{time.strftime('%Y%m%d-%H%M%S')}-{stem}"
+    raw = OWN_WALLS / f"{stem}.upload"
+    raw.write_bytes(body)
+    try:
+        fit_photo(raw, OWN_WALLS / f"{stem}.jpg", 3840, 85)
+        fit_photo(OWN_WALLS / f"{stem}.jpg", OWN_WALLS / f"{stem}.thumb.jpg", 480, 75)
     finally:
-        _wall["busy"] = False
+        raw.unlink(missing_ok=True)
+    log(f"wallpaper photo added: {stem}.jpg")
+    return f"{stem}.jpg"
+
+
+def wallpaper_delete(name: str) -> bool:
+    if name not in own_wallpapers():
+        return False
+    (OWN_WALLS / name).unlink(missing_ok=True)
+    (OWN_WALLS / name.replace(".jpg", ".thumb.jpg")).unlink(missing_ok=True)
+    return True
 
 
 # Region for the TV: all its internet traffic goes out through NordVPN in a chosen country, or straight out ("off").
@@ -454,6 +624,9 @@ COUNTRY_NAMES = {"us": "USA", "gb": "UK", "ca": "Canada", "eg": "Egypt", "ae": "
                  "ch": "Switzerland", "sa": "Saudi Arabia", "tr": "Turkey", "in": "India", "br": "Brazil"}
 VPN_COUNTRIES = [str(c).lower() for c in CONFIG.get("vpn_countries", ["us", "gb"]) if len(str(c)) == 2 and str(c).isalpha()]
 VPN_HOME_NAME = CONFIG.get("vpn_home_name", "Germany")
+
+
+STARTED = int(time.time())
 
 
 def vpn_available() -> bool:
@@ -501,7 +674,7 @@ _auto_vpn = {"prev": None}   # the region before an app switched it, while that 
 CHROMECAST = CONFIG.get("chromecast") or {}
 _cc_ip = CHROMECAST.get("ip", [])
 CC_IPS = {str(x) for x in (_cc_ip if isinstance(_cc_ip, list) else [_cc_ip]) if x}
-CC_PATHS = {"/", "/index.html", "/quotes.json", "/api/cc", "/api/cc-open", "/api/weather", "/api/quote",
+CC_PATHS = {"/", "/index.html", "/quotes.json", "/api/rev", "/api/cc", "/api/cc-open", "/api/cc-apps", "/api/weather", "/api/quote",
             "/api/quote-image", "/api/wallpaper", "/api/wallpaper.jpg", "/api/region", "/vpn"}
 APP_VPN.update({str(k): str(v).lower() for k, v in (CHROMECAST.get("app_vpn") or {}).items()})
 
@@ -510,7 +683,49 @@ def chromecast_settings() -> dict:
     return {"dock": CHROMECAST.get("dock", []), "rows": CHROMECAST.get("rows", []), "rename": CHROMECAST.get("rename", {}),
             "hidden": CHROMECAST.get("hidden", []), "app_vpn": CHROMECAST.get("app_vpn", {}),
             "greeting_name": CONFIG.get("greeting_name", ""), "quotes": CONFIG.get("quotes", True), "weather": bool(WEATHER),
-            "wallpaper": bool(WALLPAPER_ON), "region": vpn_available(), "clock_24h": CONFIG.get("clock_24h", False)}
+            "wallpaper": bool(WALLPAPER_ON), "region": vpn_available(), "clock_24h": CONFIG.get("clock_24h", False),
+            "rev": CHROMECAST.get("rev", 0), "live_refresh": CONFIG.get("live_refresh", True) is not False}
+
+
+# ---------- admin panel (web/admin.html, helper/admin.py) ----------
+ADMIN = admin.Admin(CONFIG_PATH, DATA, log)
+ADMIN.load_sessions()
+SAFE_ID = re.compile(r"^[A-Za-z0-9_.-]{1,120}$")
+
+
+def restart_soon():
+    """Start this helper again (same command), so every setting is read fresh. The VPN has its own service."""
+    def go():
+        log("restarting for the new settings")
+        os.execv(sys.executable, [sys.executable] + sys.argv)
+    threading.Timer(1.0, go).start()
+
+
+def admin_state() -> dict:
+    cfg = ADMIN.read_config()
+    with APPS.lock:
+        tv = [{"id": str(a["appId"]), "name": a.get("name", "").replace("▶", "").strip()} for a in APPS.apps
+              if not str(a.get("appId")).startswith("cyt")]
+    tv = [{"id": p["appId"], "name": p["name"]} for p in PAGES] + tv
+    for a in tv:
+        a["icon"] = f"/api/admin/icon/tv/{a['id']}"
+    cc = ADMIN.cc_apps()
+    for a in cc["apps"]:
+        a["icon"] = f"/api/admin/icon/cc/{a['id']}"
+    try:
+        server = Path("/var/run/tv-vpn/server").read_text().split()[1]
+    except (OSError, IndexError):
+        server = ""
+    try:
+        now = region_now()
+    except Exception:
+        now = None
+    return {"settings": ADMIN.editable(cfg, takeover_on()), "tv_apps": tv, "tv_removed": APPS.removed(),
+            "cc": cc, "cc_ip": CC_IPS and sorted(CC_IPS)[0] or "", "regions": regions() if vpn_available() else [],
+            "region": now, "vpn_server": server if now not in (None, "off") else "", "country_names": COUNTRY_NAMES,
+            "tv_on": HOME_WATCH.up, "started": STARTED,
+            "wallpaper": {"now": wallpaper_meta(), "sources": WALLPAPER_SOURCES, "own": own_wallpapers(),
+                          "active": {"source": WALLPAPER_SOURCE, "market": WALLPAPER_MARKET, "pick": WALLPAPER_PICK}}}
 
 
 def vpn_for_app(app_id: str):
@@ -736,6 +951,9 @@ class Handler(SimpleHTTPRequestHandler):
         if ip in CONFIG.get("allowed_clients", []) or ip == client.Session.load().host:
             return True
         path = urlsplit(self.path).path
+        if (ip == "127.0.0.1" or ip.rsplit(".", 1)[0] == own_ip().rsplit(".", 1)[0]) and \
+                (path == "/admin" or path.startswith("/api/admin/")):
+            return True
         if ip in CC_IPS and (path in CC_PATHS or path.startswith("/fonts/")):
             return True
         # A phone or computer at home may use the VPN page and its switch, and nothing else.
@@ -769,13 +987,28 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(200, {"apps": APPS.for_launcher(), "dock_size": len(CONFIG.get("dock", [])),
                              "greeting_name": CONFIG.get("greeting_name", ""), "rows": CONFIG.get("rows", []),
                              "quotes": CONFIG.get("quotes", True), "weather": bool(WEATHER), "wallpaper": bool(WALLPAPER_ON),
-                             "region": vpn_available(),
+                             "region": vpn_available(), "live_refresh": CONFIG.get("live_refresh", True) is not False,
                              "clock_24h": CONFIG.get("clock_24h", False), "sources": SOURCES.get(),
                              "removed_count": len(APPS.removed()), "takeover": takeover_on(), "browser": BROWSER,
                              "order_saved": bool(APPS.order())})
             return
         if path == "/api/cc":
             self._json(200, chromecast_settings())
+            return
+        if path == "/api/rev":
+            # Polled by both home screens every 20 s: a save in the admin panel restarts the helper ("started"
+            # changes), and a new photo changes "wall". Cheap: nothing is fetched or computed here.
+            try:
+                wall = json.loads(WALLPAPER_META.read_text(encoding="utf-8")).get("image", "") if WALLPAPER_ON else ""
+            except (OSError, ValueError):
+                wall = ""
+            self._json(200, {"started": STARTED, "wall": wall})
+            return
+        if path == "/admin":
+            self._send((WEB / "admin.html").read_bytes(), "text/html; charset=utf-8")
+            return
+        if path.startswith("/api/admin/"):
+            self._admin_get(path)
             return
         if path == "/vpn":
             body = (WEB / "vpn.html").read_bytes()
@@ -881,6 +1114,139 @@ class Handler(SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
         super().do_GET()
+
+    # ---------- admin panel ----------
+    def _admin_ok(self) -> bool:
+        if ADMIN.signed_in(self.headers.get("Cookie")):
+            return True
+        self._json(401, {"ok": False, "error": "sign in", "password_set": ADMIN.password_set()})
+        return False
+
+    def _admin_get(self, path: str):
+        if path == "/api/admin/hello":   # whether a password exists and this browser is signed in
+            self._json(200, {"password_set": ADMIN.password_set(), "signed_in": ADMIN.signed_in(self.headers.get("Cookie"))})
+            return
+        if not self._admin_ok():
+            return
+        q = parse_qs(urlsplit(self.path).query)
+        if path == "/api/admin/state":
+            self._json(200, admin_state())
+        elif path == "/api/admin/geocode":
+            try:
+                self._json(200, {"places": ADMIN.geocode(q.get("q", [""])[0])})
+            except Exception as e:
+                self._json(502, {"ok": False, "error": str(e)})
+        elif path == "/api/admin/wallpaper-preview" or path.startswith("/api/admin/wallpaper-thumb/"):
+            name = path.rsplit("/", 1)[1]
+            f = WALLPAPER_IMG if path.endswith("preview") else \
+                (OWN_WALLS / name.replace(".jpg", ".thumb.jpg") if name in own_wallpapers() else None)
+            if not f or not f.exists():
+                self.send_error(404)
+                return
+            self._send(f.read_bytes(), "image/jpeg")
+        elif path.startswith("/api/admin/icon/"):
+            kind, _, app_id = path[len("/api/admin/icon/"):].partition("/")
+            got = None
+            if SAFE_ID.match(app_id):
+                if kind == "cc":
+                    body = ADMIN.cc_icon(app_id)
+                    got = (body, "image/png") if body else None
+                elif kind == "tv":
+                    page = next((p for p in PAGES if p["appId"] == app_id), None)
+                    if page:
+                        f = WEB / page["icon"].lstrip("/")
+                        got = (f.read_bytes(), "image/png") if f.exists() else None
+                    else:
+                        try:
+                            got = icon_bytes(app_id)
+                        except Exception:
+                            got = None
+            if not got:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", got[1])
+            self.send_header("Content-Length", str(len(got[0])))
+            self.end_headers()
+            self.wfile.write(got[0])
+        else:
+            self.send_error(404)
+
+    def _wallpaper_upload(self):
+        if self.headers.get("X-CYT") != "1" or not self._admin_ok():
+            if self.headers.get("X-CYT") != "1":
+                self._json(403, {"ok": False})
+            return
+        length = int(self.headers.get("Content-Length", 0))
+        if not 0 < length <= 40_000_000:
+            self._json(413, {"ok": False, "error": "photos up to 40 MB"})
+            return
+        body = self.rfile.read(length)
+        name = parse_qs(urlsplit(self.path).query).get("name", ["photo"])[0]
+        try:
+            self._json(200, {"ok": True, "name": wallpaper_upload(name, body)})
+        except Exception as e:
+            self._json(400, {"ok": False, "error": str(e)})
+
+    def _admin_post(self, path: str, data: dict):
+        # Only the panel's own page sends this header: another website can't make a browser send it here.
+        if self.headers.get("X-CYT") != "1":
+            self._json(403, {"ok": False})
+            return
+        if path == "/api/admin/login":
+            token = ADMIN.password_set() and ADMIN.login(str(data.get("password", "")))
+            if not token:
+                self._json(401, {"ok": False, "error": "wrong password" if ADMIN.password_set() else "no password set"})
+                return
+            body = json.dumps({"ok": True}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Set-Cookie", f"{admin.COOKIE}={token}; Path=/; Max-Age={admin.SESSION_DAYS * 86400}; "
+                                           "HttpOnly; SameSite=Strict")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if not self._admin_ok():
+            return
+        if path == "/api/admin/logout":
+            ADMIN.logout(self.headers.get("Cookie"))
+            self._json(200, {"ok": True})
+        elif path == "/api/admin/save":
+            try:
+                cfg, notes = ADMIN.apply(data.get("changes") or {})
+            except (ValueError, TypeError, KeyError) as e:
+                self._json(400, {"ok": False, "error": str(e)})
+                return
+            ADMIN.save(cfg)
+            if "takeover" in notes:
+                set_takeover(notes["takeover"])
+            if notes.get("tv_dock_changed"):
+                APPS.set_order(None)   # the panel's dock wins over an order arranged on the TV
+            self._json(200, {"ok": True})
+            restart_soon()
+        elif path == "/api/admin/wallpaper-next":
+            try:
+                self._json(200, {"ok": True, "now": wallpaper_next()})
+            except Exception as e:
+                self._json(502, {"ok": False, "error": str(e)})
+        elif path == "/api/admin/wallpaper-delete":
+            self._json(200, {"ok": wallpaper_delete(str(data.get("name", "")))})
+        elif path == "/api/admin/action":
+            what = data.get("do")
+            if what == "restore_tv":
+                APPS.restore_all()
+                self._json(200, {"ok": True})
+            elif what == "open_home":
+                threading.Thread(target=HOME_WATCH.open_launcher, args=("the admin panel",), daemon=True).start()
+                self._json(200, {"ok": True})
+            elif what == "restart":
+                self._json(200, {"ok": True})
+                restart_soon()
+            else:
+                self._json(400, {"ok": False, "error": "unknown action"})
+        else:
+            self.send_error(404)
 
     def _send(self, body: bytes, ctype: str, code: int = 200):
         self.send_response(code)
@@ -1026,6 +1392,9 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
         if not self._allowed():
             return
         path = urlsplit(self.path).path
+        if path == "/api/admin/wallpaper-upload":
+            self._wallpaper_upload()
+            return
         data = self._body()
         try:
             if path == "/api/launch":
@@ -1036,6 +1405,16 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
                 t = time.time()
                 open_app(app)
                 log(f"launched {app.get('name')} in {int((time.time() - t) * 1000)} ms")
+                self._json(200, {"ok": True})
+                return
+            if path.startswith("/api/admin/"):
+                self._admin_post(path, data)
+                return
+            if path == "/api/cc-apps":
+                if self.client_address[0] not in CC_IPS or not isinstance(data.get("apps"), list):
+                    self._json(400, {"ok": False})
+                    return
+                ADMIN.store_cc_apps(data["apps"])
                 self._json(200, {"ok": True})
                 return
             if path == "/api/cc-open":

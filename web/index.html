@@ -652,7 +652,7 @@
     }).concat([{ label: 'Cancel', act: 'cancel' }]));
   }
   function setRegion(id, label) {
-    toast('Switching the TV\'s VPN… (up to 20 seconds)');
+    toast('Switching the VPN… (up to 20 seconds)');
     post('/api/region', { region: id }).then(function (r) {
       if (!r.ok) { toast('Could not switch: ' + (r.error || 'no answer')); return; }
       region.now = r.region; showRegion();
@@ -1060,7 +1060,8 @@
     state.clock24 = !!s.clock_24h; state.greetingName = s.greeting_name || '';
     state.quotes = s.quotes !== false; state.weather = !!s.weather; state.wallpaper = !!s.wallpaper;
     state.region = !!s.region;
-    quoteDay = -1; showQuote(); loadWeather(); loadWallpaper(); loadRegion();
+    state.liveRefresh = s.live_refresh !== false;
+    quoteDay = -1; showQuote(); loadWeather(); loadWallpaper(); loadRegion(); startRevChecks();
     state.sources = s.sources || [];
     state.browserCfg = s.browser || {};
     document.body.classList.toggle('static', state.static);
@@ -1075,6 +1076,26 @@
     lastMinute = -1; tick();
     build(); render();
   }
+  // ---------- changes from the admin panel: a save restarts the helper, a new photo changes its address ----------
+  var rev = { started: 0, wall: '' }, revTimer = 0;
+  function checkRev() {
+    if (state.static) return;
+    load('/api/rev').then(function (r) {
+      var first = !rev.started;
+      if (!first && r.started !== rev.started && focus.area !== 'menu' && focus.area !== 'move' && focus.area !== 'browser') {
+        rev = r; load('/api/state').then(start, function () {});   // new settings: rebuild Home in place
+        return;
+      }
+      if (!first && r.wall !== rev.wall) loadWallpaper();
+      rev = r;
+    }, function () {});
+  }
+  // Off in the admin panel ("Update right away"): changes show the next time Home opens, the photo within the hour.
+  function startRevChecks() {
+    if (state.liveRefresh && !revTimer) { revTimer = setInterval(checkRev, 20000); checkRev(); }
+    else if (!state.liveRefresh && revTimer) { clearInterval(revTimer); revTimer = 0; }
+  }
+
   function startStatic() {
     state.static = true;
     load('apps.json').then(start, function () { toast('Could not load the app list'); });
