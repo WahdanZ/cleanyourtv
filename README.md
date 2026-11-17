@@ -1,27 +1,89 @@
 # Clean Your TV for VIDAA and Chromecast
 
-A clean, Apple TV–style home screen for **Hisense VIDAA** TVs, with a black home, a four-app dock, an ambient glow in the focused app's colour and one glass highlight that springs between tiles. It is a port of the idea behind [CleanYourTV](https://github.com/Gathin23/cleanyourtv) to a TV that does not run Android.
-
-<!-- before/after: add docs/screens/before.jpg (a photo of VIDAA's own home) and it appears on the website too -->
-**Website:** [gilbertmsipha.github.io/cleanyourtv-vidaa](https://gilbertmsipha.github.io/cleanyourtv-vidaa/) · **Challenges:** [docs/CHALLENGES.md](docs/CHALLENGES.md)
+A calm, ad-free Home screen for **Hisense VIDAA** TVs and the **Chromecast with Google TV**, run by one small helper
+on a computer at home. Your apps, a clock, the weather, live football scores, a daily photo, and nothing you didn't
+ask for. Change any of it from your phone, or with the TV remote.
 
 <p align="center">
-  <img src="docs/screens/home.jpg" width="49%" alt="Home: the dock with the focused app's name above it and its colour glowing behind">
-  <img src="docs/screens/grid.jpg" width="49%" alt="Pressing Down slides the grid of all apps up under the clock">
-</p>
-<p align="center">
-  <img src="docs/screens/search.jpg" width="49%" alt="The search screen: an on-screen keyboard for the remote, with suggestions on the right">
-  <img src="docs/screens/search-recent.jpg" width="49%" alt="Recent searches and quick links on the search screen">
-</p>
-<p align="center">
-  <img src="docs/screens/inputs.jpg" width="32%" alt="The Inputs menu lists the TV's own inputs">
-  <img src="docs/screens/menu.jpg" width="32%" alt="Holding OK on a tile opens a menu to remove it from Home">
-  <img src="docs/screens/vidaa-menu.jpg" width="32%" alt="The VIDAA button switches back to VIDAA's own home">
+  <img src="docs/screens/tv-home-layout.jpg" width="49%" alt="The VIDAA TV's Home: clock with the weather, a football scores card, a NASA news card, a quote, and a four-app dock over today's photo">
+  <img src="docs/screens/chromecast-home.jpg" width="49%" alt="The Chromecast's Home drawn by the native launcher: the same layout, clock, cards and dock">
 </p>
 
-CleanYourTV works by talking to Android TVs over ADB: it disables junk apps and installs a new launcher. A VIDAA TV is Linux, with no ADB, no APKs and no way to replace its home screen. This project gets as close as the platform allows, using only what the TV itself offers: its web runtime, its remote-control channel and its casting service. Nothing is installed on the TV except one launcher tile, nothing is rooted or flashed, and you undo it by deleting the tile.
+It started as a port of [CleanYourTV](https://github.com/Gathin23/cleanyourtv) to a TV that does not run Android. A
+VIDAA TV is Linux, with no ADB and no way to replace its home screen, so this uses only what the TV offers: its web
+runtime, its remote-control channel and its casting service. Nothing is installed on the TV except one launcher tile,
+nothing is rooted or flashed, and you undo it by deleting the tile. The Chromecast gets a real launcher app.
+
+**Website:** [gilbertmsipha.github.io/cleanyourtv-vidaa](https://gilbertmsipha.github.io/cleanyourtv-vidaa/) · **Guides:** [helper](docs/setup/helper.md) · [Chromecast](docs/setup/chromecast.md) · [VPN](docs/setup/vpn.md) · [customize](docs/customize.md) · [add-ons](addons/README.md)
 
 **Tested on** a Hisense 50A5FE (VIDAA U9, firmware V0000.09.09A.P0930, browser Chrome 111 "Odin"), October 2026, and a Hisense 55U8Q (VIDAA U9, V0000.09.60I) with a Chromecast with Google TV 4K (Android 14), November 2026. Other VIDAA TVs should behave alike; please report yours.
+
+## What it does
+
+### Home, on the TV and the Chromecast
+
+- **One look on both screens:** a four-app dock (or five, six, or the whole width), titled rows of your apps, and
+  above them the blocks you choose: the clock, the weather, a quote of the day, up to three widget cards, the focused
+  app's name, and what's playing.
+- **The clock your way:** Classic, Bold, Stacked, Tiles, Analog or Words ("ten past nine"), a different one each day
+  if you like, with the temperature on its date line.
+- **A new photo every day:** Bing's, Wikipedia's or NASA's picture of the day, or your own photos.
+- **Widgets:** live football scores, prayer times, news headlines; rows of new YouTube videos or this week's top
+  films; full-screen pages (news reader, photo slideshow). Write your own in a few lines of Python
+  ([addons/README.md](addons/README.md)).
+- **Edit Home with the remote:** the ✎ pill. Arrows choose a block, OK moves, resizes or hides it, Back saves.
+- **On VIDAA:** native apps (Netflix, YouTube, Prime Video), Home when the TV comes on or an app closes, a
+  browser with search, Stremio, YouTube without ads, free live TV ([details below](#what-you-get-on-vidaa-and-what-you-dont)).
+- **On the Chromecast:** a native Google TV launcher (`android/`): your apps only, no ads or "recommended" rows,
+  hold OK to move or remove an app. It keeps working when the helper is off.
+
+<p align="center">
+  <img src="docs/screens/tv-edit-home.jpg" width="49%" alt="Edit Home with the remote: each block outlined, the football card selected, a hint bar to move, change or add blocks">
+  <img src="docs/screens/chromecast-rows.jpg" width="49%" alt="The Chromecast launcher scrolled to the Streaming row: OSN+, Watch It, Apple TV, Tubi, YouTube TV">
+</p>
+
+### The admin panel: change everything from a browser
+
+Open `http://<helper ip>:8765/admin` on a computer or phone at home. Each device's tab shows a picture of its Home:
+tap the clock, a card, the dock or the background to change it, drag blocks and apps around, pick a preset (Classic,
+Dashboard, Calm, Photo frame…), undo. A save shows on the screens within about 3 seconds. ([customize.md](docs/customize.md))
+
+<p align="center">
+  <img src="docs/screens/admin-studio.jpg" width="80%" alt="The admin panel's Chromecast tab: a live picture of the Chromecast's Home with every block outlined, and a side panel listing hidden blocks and widgets to drag onto the screen">
+</p>
+
+### Your phone is the remote
+
+The panel opens on **Home**: a remote for the TV or the Chromecast, every app to open (or a web address), and
+what's playing with play/pause. Add it to your phone's Home screen and it opens full screen like an app. QR codes
+on the TV's Home open it without typing.
+
+<p align="center">
+  <img src="docs/screens/admin-phone-remote.jpg" width="27%" alt="The admin panel on a phone: Now playing strip, TV/Chromecast switch, power, input, menu and a round direction pad">
+  <img src="docs/screens/admin-phone-apps.jpg" width="27%" alt="The Apps part of the Home tab on a phone: a web-address box, a search, and a grid of the TV's apps">
+  <img src="docs/screens/admin-phone-player.jpg" width="27%" alt="The Now playing player on a phone: the app's picture, the title, previous, play/pause, next and volume">
+</p>
+
+On a computer the remote and the apps sit side by side:
+
+<p align="center">
+  <img src="docs/screens/admin-home-desktop.jpg" width="80%" alt="The admin panel's Home tab on a computer: remote on the left, apps grid on the right, Now playing above">
+</p>
+
+### VPN for the TV and the Chromecast only (optional)
+
+Watch another country's catalogue on the TV and the Chromecast while the rest of your home stays on your normal
+connection. Switch the country from the TV's Region button, the panel or your phone, or give an app its own country
+(OSN+ → UAE) and it switches by itself. On a Mac, `vpn/macos/tv-vpn.sh` does it with NordVPN or any WireGuard file,
+your own server included; otherwise use your router. ([vpn.md](docs/setup/vpn.md))
+
+### The original VIDAA launcher screens
+
+<p align="center">
+  <img src="docs/screens/grid.jpg" width="32%" alt="Pressing Down slides the grid of all apps up under the clock">
+  <img src="docs/screens/search.jpg" width="32%" alt="The search screen: an on-screen keyboard for the remote, with suggestions on the right">
+  <img src="docs/screens/inputs.jpg" width="32%" alt="The Inputs menu lists the TV's own inputs">
+</p>
 
 ## Pick your setup
 
@@ -29,7 +91,7 @@ One helper on a computer at home serves both screens; use one or both.
 
 | You have | You get | Start here |
 |---|---|---|
-| **A VIDAA TV** | The launcher below, native apps, Home takeover, Browser, Stremio, YouTube without ads, Live TV | [Set up](#set-up) (this page), then [docs/setup/helper.md](docs/setup/helper.md) |
+| **A VIDAA TV** | The launcher, native apps, Home takeover, Browser, Stremio, YouTube without ads, Live TV | [Set up](#set-up) (this page), then [docs/setup/helper.md](docs/setup/helper.md) |
 | **A Chromecast with Google TV** (or another Google TV / Android TV box) | A native launcher with the same look: your apps only, widgets, no ads on Home | [docs/setup/helper.md](docs/setup/helper.md) with `"vidaa": false`, then [docs/setup/chromecast.md](docs/setup/chromecast.md) |
 | **Both** | Both, with one shared layout, one admin panel and one phone remote | [Set up](#set-up), then [docs/setup/chromecast.md](docs/setup/chromecast.md) |
 
@@ -39,17 +101,68 @@ One helper on a computer at home serves both screens; use one or both.
 | The helper runs on a **Mac** | `vpn/macos/tv-vpn.sh`: only the TV and the Chromecast go through the VPN, switched from the TV, the panel or your phone. NordVPN or any WireGuard file, your own server included. [docs/setup/vpn.md](docs/setup/vpn.md) |
 | **Windows or Linux**, or you'd rather not touch the computer | Your router's VPN with per-device rules, a Linux gateway, or a VPN app on the Chromecast. [docs/setup/vpn.md](docs/setup/vpn.md) |
 
-## Also in this version
+## What you need
 
-- **Chromecast launcher** (`android/`): a native Google TV home screen that draws the same Home, from the same helper. [Guide](docs/setup/chromecast.md)
-- **Admin panel** at `http://<helper ip>:8765/admin`: tap anything on a picture of the TV's or Chromecast's Home to change it; presets, sizes, drag and drop, undo. Saves show on the screens within 3 seconds. [Guide](docs/customize.md)
-- **Your layout:** the clock (six styles, or a different one each day, with the weather), the quote, the weather, three widget blocks, Now playing, the dock's size and width.
-- **Add-ons:** widgets (football scores, prayer times, news), rows (YouTube channels, top movies), full-screen pages (news reader, photo slideshow) and quick actions. Write your own in a few lines of Python: [addons/README.md](addons/README.md)
-- **Edit Home with the remote** (✎ pill), on the TV and the Chromecast.
-- **Your phone as the remote:** add the admin panel to your phone's Home screen; a remote for either device, an app and web-address launcher, and a Now playing player. QR codes on Home open them.
-- **VPN per device, per app:** OSN+ switches to the UAE when it opens, say. [Guide](docs/setup/vpn.md)
+| | VIDAA TV | Chromecast | VPN (Mac) |
+|---|---|---|---|
+| A computer that stays on at home (Mac, Windows, Linux or a Raspberry Pi) with **Python 3.10+** | ✓ | ✓ | ✓ (a Mac) |
+| [Sidee](https://github.com/Empi9245/Sidee), to pair with the TV once (PIN on screen) | ✓ | | |
+| **adb** (Android platform-tools), with Wireless debugging on the Chromecast | | ✓ | |
+| To build the launcher: **JDK 17+** and the Android SDK's `build-tools;35.0.0` and `platforms;android-34` (Android Studio has them) | | ✓ | |
+| [Homebrew](https://brew.sh) with `wireguard-tools` and `wireguard-go` | | | ✓ |
+| A VPN with WireGuard (NordVPN, Mullvad, Proton VPN, Surfshark…) or your own WireGuard server | | | ✓ |
+| A fixed address for each device, with the Mac as its gateway | | | ✓ |
 
-## What you get, and what you don't
+Optional: **ffmpeg** and **Node.js** (YouTube without ads, Stremio's streaming server), [AdGuard Home](https://adguard.com/adguard-home/overview.html)
+(blocks the TV's ads; can send the devices' DNS through the VPN), a static host such as Vercel (the VIDAA launcher
+keeps working with the computer off).
+
+A cloud server can't be the helper: the TV only takes commands from its own network. Check your TV is VIDAA, not
+Android TV: if ports 5555/8008/8009 are closed, 36669 and 38400 are open, and `http://<tv ip>:7000/info` says
+`Linux`, it is VIDAA. If it is Android, use [CleanYourTV](https://github.com/Gathin23/cleanyourtv) instead.
+
+## Quick start
+
+1. **Get the code and a config:** `git clone https://github.com/WahdanZ/cleanyourtv-vidaa.git`, then
+   `cp config.example.json config.json`. Chromecast only: set `"vidaa": false`.
+2. **VIDAA:** pair with Sidee ([step 1 below](#1-pair-with-the-tv-once)) and add the Home tile ([step 4](#4-add-the-home-tile-to-the-tv)).
+3. **Run the helper as a service:** `bash setup/macos/install.sh` (or the [Windows/Linux ones](docs/setup/helper.md#3-run-it-as-a-service)),
+   then set the admin password: `.venv/bin/python helper/set_admin_password.py`.
+4. **Chromecast:** put its address in `config.json`, then `android/cc.sh pair`, `android/build.sh install`,
+   `android/cc.sh home` ([guide](docs/setup/chromecast.md)).
+5. **Make it yours:** open `http://<helper ip>:8765/admin` and add it to your phone's Home screen.
+6. **VPN (optional):** `sudo vpn/macos/tv-vpn.sh install <TV ip> <Chromecast ip>` ([guide](docs/setup/vpn.md)).
+
+## How it works
+
+```mermaid
+flowchart LR
+    P["Phone or computer<br/>admin panel, remote"] -- "http :8765/admin" --> H["Helper<br/>helper/cyt_helper.py :8765<br/>layout, add-ons, wallpaper"]
+    H -- "remote channel (MQTT), DIAL" --> T["VIDAA TV<br/>launcher page"]
+    T -- "/api/*, /go" --> H
+    C["Chromecast<br/>native launcher"] -- "/api/cc, widgets" --> H
+    H -- "adb: remote keys,<br/>what's playing" --> C
+    H -. "sudo -n tv-vpn.sh up/down" .-> V["VPN tunnel<br/>(Mac, optional)"]
+    T -. "gateway = the Mac" .-> V
+    C -. "gateway = the Mac" .-> V
+```
+
+The helper is the only server: it keeps the settings (`config.json`), runs the add-ons, fetches the photo and the
+weather, and both screens ask it every few seconds whether anything changed. The admin panel saves through it; the
+screens redraw within about 3 seconds.
+
+### Limits and what's not done
+
+- The Home button on a VIDAA remote still opens VIDAA's own home; ours comes back when the TV is turned on or
+  Netflix, YouTube or Prime Video closes (VIDAA has no way to replace its home).
+- The helper's computer must stay on and awake; with the VPN, the TV and the Chromecast have no internet without it.
+- The Chromecast's Wireless debugging (for the remote, Now playing and the "Real screen" photo) turns off after its
+  Wi-Fi changes or it restarts: `android/cc.sh connect`.
+- On Android phones the panel opens with an address bar (installing as a full-screen app needs https); iPhones are fine.
+- Not yet tested on hardware: some TV remote keys from the panel (media keys), the Linux VPN recipe.
+- More in [docs/OPEN-PROBLEMS.md](docs/OPEN-PROBLEMS.md).
+
+## What you get on VIDAA, and what you don't
 
 | | Works | How |
 |---|---|---|
@@ -67,7 +180,7 @@ One helper on a computer at home serves both screens; use one or both.
 | Replace VIDAA's home outright | **No** | VIDAA has no setting for it; the Home button still goes to VIDAA's home |
 | Disable or uninstall the TV's own apps, telemetry or ads | **No** | No ADB on VIDAA. Uninstall apps on the TV itself; see [open problems](docs/OPEN-PROBLEMS.md) for ads and tracking |
 
-## How it works
+### How the VIDAA part works
 
 ```mermaid
 flowchart LR
@@ -84,14 +197,6 @@ flowchart LR
 - **Home takeover:** the helper notices the TV coming on (its port 36669 answers again) and native apps closing (DIAL reports their state), then opens the launcher, served by the helper itself with the live app list.
 
 Why it is built this way, and every dead end on the way, is in [docs/FINDINGS.md](docs/FINDINGS.md).
-
-## What you need
-
-- A Hisense (or other) **VIDAA** TV. Check it isn't an Android TV: if port 5555/8008/8009 are closed and 36669 and 38400 are open, and the TV's AirPlay info (`http://<tv ip>:7000/info`) says `Linux`, it is VIDAA. If it is Android, use [CleanYourTV](https://github.com/Gathin23/cleanyourtv) instead; it can do far more.
-- A computer on the same network for setup: Windows, macOS or Linux, with Python 3.10+.
-- For native apps and the Home takeover: a computer that stays on, such as an old laptop, a mini PC or a Raspberry Pi. A cloud server cannot do this job, because the TV only takes commands from its own network.
-- Optional: a free [Vercel](https://vercel.com) account, or any static host, for the always-available page.
-- Optional: a Chromecast with Google TV ([docs/setup/chromecast.md](docs/setup/chromecast.md)), and a VPN ([docs/setup/vpn.md](docs/setup/vpn.md)).
 
 ## Set up
 
