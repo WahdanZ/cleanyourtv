@@ -351,6 +351,17 @@
            font-weight: 600; font-size: 18px; }
   .dk svg { width: 34px; height: 34px; }
   .rm-type { display: flex; gap: 8px; }
+  .rm-row.media { gap: 8px; }
+  .rm-row.media .rm-btn { min-width: 52px; height: 56px; padding: 0 10px; }
+  .rm-row.media .rm-btn.big { min-width: 72px; height: 64px; background: var(--accent); color: var(--accent-text); border-color: transparent; }
+  .np { display: flex; align-items: center; gap: 12px; padding: 12px; box-shadow: none; }
+  .np img { width: 52px; height: 52px; border-radius: 12px; object-fit: cover; background: var(--soft); flex: none; }
+  .np-text { flex: 1; min-width: 0; }
+  .np-app { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .np-title { font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .np-sub { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .np-time { font-size: 13px; color: var(--muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .np.idle .np-title { font-weight: 400; color: var(--muted); }
   .rm-type input { flex: 1; }
 
 
@@ -384,6 +395,54 @@
     body.unsaved .fab { bottom: calc(146px + env(safe-area-inset-bottom)); }
     .stagearea { top: env(safe-area-inset-top) !important; }
     .rsheet { z-index: 45; }
+  }
+
+
+  /* the player's button sits above the remote's; while something plays on the Chromecast, its bars move */
+  .fab.npfab { bottom: calc(90px + env(safe-area-inset-bottom)); width: 52px; height: 52px; right: 22px; background: var(--card); color: var(--text);
+               border: 1px solid var(--line); }
+  body.unsaved .fab.npfab { bottom: calc(160px + env(safe-area-inset-bottom)); }
+  .npfab .eq { display: none; height: 20px; align-items: flex-end; gap: 3px; }
+  .npfab .eq i { width: 4px; background: var(--accent); border-radius: 2px; animation: eq 1s ease-in-out infinite; }
+  .npfab .eq i:nth-child(2) { animation-delay: -.35s; } .npfab .eq i:nth-child(3) { animation-delay: -.7s; }
+  @keyframes eq { 0%, 100% { height: 5px; } 50% { height: 20px; } }
+  .npfab.live .eq { display: flex; } .npfab.live .note { display: none; }
+  .npfab.live { border-color: var(--accent); }
+  /* the player: calm, three controls */
+  .devchip { font: inherit; font-size: 14px; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px 6px 14px; border-radius: 999px;
+             border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
+  .devchip svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .pl-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 14px 8px 4px; }
+  .pl-cover { width: 224px; height: 126px; border-radius: 24px; background: var(--card); border: 1px solid var(--line); overflow: hidden; margin-bottom: 14px;
+              display: flex; align-items: center; justify-content: center; box-shadow: 0 14px 34px rgba(0,0,0,.28); }
+  .pl-cover img { width: 100%; height: 100%; object-fit: cover; }
+  .pl-cover .pl-tv { display: none; width: 56px; height: 56px; fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linecap: round; }
+  .pl-hero.noimg .pl-cover img { display: none; } .pl-hero.noimg .pl-tv { display: block; }
+  .pl-title { font-size: 19px; font-weight: 650; line-height: 1.25; max-width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .pl-sub { color: var(--muted); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pl-meta { margin-top: 4px; font-size: 12px; color: var(--muted); letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+  .pl-meta span:empty { display: none; }
+  .pl-meta span + span::before { content: "·"; margin: 0 6px; }
+  .pl-hero.idle .pl-title { font-weight: 500; color: var(--muted); }
+  .pl-ctl { display: flex; align-items: center; justify-content: center; gap: 30px; margin: 20px 0 10px; }
+  .ctl { border: 0; background: none; color: var(--text); width: 58px; height: 58px; border-radius: 50%; display: flex; align-items: center;
+         justify-content: center; cursor: pointer; touch-action: manipulation; }
+  .remote .ctl svg { width: 32px; height: 32px; fill: currentColor; stroke: none; }
+  .ctl.main { width: 80px; height: 80px; background: var(--text); color: var(--bg); }
+  .remote .ctl.main svg { width: 36px; height: 36px; }
+  .pl-vol { display: flex; justify-content: center; gap: 36px; margin: 8px 0 6px; }
+  .vol { border: 0; background: none; color: var(--muted); width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center;
+         justify-content: center; cursor: pointer; touch-action: manipulation; }
+  .remote .vol svg { width: 24px; height: 24px; }
+  .ctl:active, .vol:active { transform: scale(.9); }
+  .player .np img { width: 64px; height: 64px; }
+  .player .np-title { font-size: 17px; }
+  .player .rm-row.media .rm-btn { height: 64px; min-width: 56px; }
+  .player .rm-row.media .rm-btn.big { height: 76px; min-width: 84px; border-radius: 28px; }
+  .rsheet { overscroll-behavior: contain; }
+  @media (max-width: 900px) {
+    .fab.npfab { bottom: calc(152px + env(safe-area-inset-bottom)); }
+    body.unsaved .fab.npfab { bottom: calc(220px + env(safe-area-inset-bottom)); }
   }
 
   /* drag and drop */
@@ -520,6 +579,34 @@
       </div></div>
     </div>
 
+    <button class="fab npfab" id="npFab" aria-label="Now playing"><svg class="note" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><span class="eq"><i></i><i></i><i></i></span></button>
+    <div class="rsheet player-sheet" id="mediaSheet" role="dialog" aria-label="Now playing">
+      <div class="rsheet-head">
+        <button class="devchip" id="mdDevChip" aria-label="Switch between the TV and the Chromecast"><span id="mdDevName">Chromecast</span><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg></button>
+        <span style="flex:1"></span>
+        <button class="link" id="mdClose" aria-label="Close the player">✕</button>
+      </div>
+      <div class="remote cc player" id="media">
+        <div class="pl-hero" id="npCard">
+          <div class="pl-cover"><img id="npIcon" alt=""><svg class="pl-tv" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg></div>
+          <div class="pl-title" id="npTitle"></div>
+          <div class="pl-sub" id="npSub"></div>
+          <div class="pl-meta"><span id="npApp"></span><span id="npTime"></span></div>
+        </div>
+        <div class="pl-ctl">
+          <button class="ctl" data-k="prev" data-only="cc" aria-label="Previous"><svg viewBox="0 0 24 24"><path d="M6 5h2.2v14H6zM19 5.5v13L9.5 12z"/></svg></button>
+          <button class="ctl" data-k="rew" data-only="tv" aria-label="Rewind"><svg viewBox="0 0 24 24"><path d="M11.5 6v12L3 12zM21 6v12l-8.5-6z"/></svg></button>
+          <button class="ctl main" data-k="playpause" id="plMain" aria-label="Play or pause"><svg viewBox="0 0 24 24"><path id="plIcon" d="M8 5v14l11-7z"/></svg></button>
+          <button class="ctl" data-k="next" data-only="cc" aria-label="Next"><svg viewBox="0 0 24 24"><path d="M15.8 5H18v14h-2.2zM5 5.5v13l9.5-6.5z"/></svg></button>
+          <button class="ctl" data-k="ff" data-only="tv" aria-label="Fast forward"><svg viewBox="0 0 24 24"><path d="M12.5 6v12l8.5-6zM3 6v12l8.5-6z"/></svg></button>
+        </div>
+        <div class="pl-vol">
+          <button class="vol" data-k="voldown" data-repeat aria-label="Volume down"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM17 12h4"/></svg></button>
+          <button class="vol" data-k="mute" aria-label="Mute"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM17 9l4 6M21 9l-4 6"/></svg></button>
+          <button class="vol" data-k="volup" data-repeat aria-label="Volume up"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM17 12h4M19 10v4"/></svg></button>
+        </div>
+      </div>
+    </div>
     <button class="fab" id="rmFab" aria-label="Remote"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="2.2"/><path d="M10 13h4M10 16h4"/></svg></button>
     <div class="rscrim" id="rmScrim"></div>
     <div class="rsheet" id="remoteSheet" role="dialog" aria-label="Remote">
@@ -548,7 +635,6 @@
           <button class="rm-btn" data-k="voldown" data-repeat aria-label="Volume down"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
           <button class="rm-btn" data-k="mute" aria-label="Mute"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM17 9l4 6M21 9l-4 6"/></svg></button>
           <button class="rm-btn" data-k="volup" data-repeat aria-label="Volume up"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
-          <button class="rm-btn" data-k="play" aria-label="Play or pause"><svg viewBox="0 0 24 24"><path d="M4 6v12l7-6-7-6zM15 6v12M20 6v12"/></svg></button>
         </div>
         <div class="rm-type" data-only="cc">
           <input type="text" id="rmText" placeholder="Type into the Chromecast" autocomplete="off" enterkeyhint="send">
@@ -659,6 +745,7 @@
       S = s; orig = clone(s.settings); draft = clone(s.settings);
       $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
       renderAll(); snapReset(); dirty();
+      setTimeout(npRefresh, 800);
     });
   }
   function renderAll() { renderLayout(); renderStatus(); renderVpn(); renderEditor('tv'); renderEditor('cc'); renderAddons(); renderHome(); renderWall(); renderSystem(); }
@@ -1910,12 +1997,56 @@
 
   // ---------- the remote: the TV's keys go over its remote channel, the Chromecast's over its debugging link ----------
   var rmDev = 'tv', rmTimer = 0, rmRepeat = 0;
-  function rmSend(key, text) {
+  function rmSend(key, text) { return sendKey(rmDev, key, text); }
+  function sendKey(dev, key, text) {
     if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
-    return api('/api/admin/remote', text != null ? { device: rmDev, text: text } : { device: rmDev, key: key })
+    return api('/api/admin/remote', text != null ? { device: dev, text: text } : { device: dev, key: key })
       .then(function (r) { if (r && r.ok === false) toast(r.error || 'It didn\'t take it.'); return r; },
             function (e) { toast(e.message, 5000); });
   }
+  // Now playing (Chromecast): what its media sessions say; the time ticks along here between checks.
+  var np = { timer: 0, tick: 0, pos: 0, at: 0, playing: false };
+  function fmtTime(sec) {
+    sec = Math.max(0, Math.floor(sec));
+    var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), x = ('0' + sec % 60).slice(-2);
+    return h ? h + ':' + ('0' + m).slice(-2) + ':' + x : m + ':' + x;
+  }
+  var PLAY = 'M8 5v14l11-7z', PAUSE = 'M7 5h3.6v14H7zM13.4 5H17v14h-3.6z', tvPlaying = false;
+  function setMainIcon(playing) { $('plIcon').setAttribute('d', playing ? PAUSE : PLAY); }
+  function npPaintTime() {
+    if (mdDev !== 'cc') return;
+    if (!np.at) { $('npTime').textContent = ''; setMainIcon(false); return; }
+    var t = np.pos + (np.playing ? (Date.now() - np.at) / 1000 : 0);
+    $('npTime').textContent = (np.playing ? 'Playing' : 'Paused') + ' · ' + fmtTime(t);
+    setMainIcon(np.playing);
+  }
+  var mdDev = 'cc';
+  function npRefresh() {
+    if (!S || !S.cc_ip) return;
+    api('/api/admin/now-playing').then(function (r) {
+      var card = $('npCard'), p = r && r.playing;
+      $('npFab').classList.toggle('live', !!(p && p.state === 'playing'));
+      if (mdDev !== 'cc' || !$('mediaSheet').classList.contains('open')) return;
+      card.classList.toggle('idle', !p);
+      card.classList.toggle('noimg', !p);
+      if (!r || !r.ok) { $('npApp').textContent = ''; $('npTitle').textContent = (r && r.error) || 'Can\'t see what\'s playing.'; $('npSub').textContent = ''; np.at = 0; npPaintTime(); return; }
+      if (!p) { $('npApp').textContent = ''; $('npTitle').textContent = 'Nothing is playing'; $('npSub').textContent = 'Start something on the Chromecast'; np.at = 0; npPaintTime(); return; }
+      if ($('npIcon').getAttribute('src') !== p.icon) $('npIcon').src = p.icon;
+      $('npApp').textContent = p.name;
+      $('npTitle').textContent = p.title || p.name;
+      $('npSub').textContent = p.subtitle || '';
+      np.pos = p.position || 0; np.at = Date.now(); np.playing = p.state === 'playing';
+      npPaintTime();
+    }, function () {});
+  }
+  function npStart() {
+    clearInterval(np.timer); clearInterval(np.tick);
+    if (mdDev !== 'cc') return;
+    npRefresh();
+    np.timer = setInterval(npRefresh, 5000);
+    np.tick = setInterval(npPaintTime, 1000);
+  }
+  function npStop() { clearInterval(np.timer); clearInterval(np.tick); np.timer = np.tick = 0; }
   function rmShowStatus() {
     $('remote').className = 'remote ' + rmDev;
     Array.prototype.forEach.call(document.querySelectorAll('#rmSwitch button'), function (b) { b.classList.toggle('on', b.getAttribute('data-dev') === rmDev); });
@@ -1951,15 +2082,71 @@
   function openRemote() {
     $('remoteSheet').classList.add('open'); $('rmScrim').classList.add('open'); document.body.classList.add('remote-open');
     rmShowStatus(); clearInterval(rmTimer); rmTimer = setInterval(rmShowStatus, 15000);
+    lockScroll(true);
   }
   function closeRemote() {
     $('remoteSheet').classList.remove('open'); $('rmScrim').classList.remove('open'); document.body.classList.remove('remote-open');
     clearInterval(rmTimer); rmTimer = 0; rmStop();
+    lockScroll(false);
   }
+  // While a sheet is open the page behind it stays still (iPhone too: the page is pinned where it was, then put back).
+  var lockedAt = null;
+  function lockScroll(on) {
+    var b = document.body;
+    if (on && lockedAt === null) {
+      lockedAt = window.scrollY;
+      b.style.position = 'fixed'; b.style.top = -lockedAt + 'px'; b.style.left = '0'; b.style.right = '0'; b.style.overflow = 'hidden';
+    } else if (!on && lockedAt !== null) {
+      b.style.position = b.style.top = b.style.left = b.style.right = b.style.overflow = '';
+      window.scrollTo(0, lockedAt); lockedAt = null;
+    }
+  }
+  // The player: what's playing, and its buttons, for the Chromecast or the TV.
+  function openMedia() {
+    $('mediaSheet').classList.add('open'); $('rmScrim').classList.add('open'); document.body.classList.add('remote-open');
+    lockScroll(true); mdShow(); npStart();
+  }
+  function closeMedia() {
+    $('mediaSheet').classList.remove('open'); $('rmScrim').classList.remove('open'); document.body.classList.remove('remote-open');
+    npStop(); rmStop(); lockScroll(false);
+  }
+  function mdShow() {
+    $('media').className = 'remote player ' + mdDev;
+    $('mdDevName').textContent = mdDev === 'tv' ? 'TV' : 'Chromecast';
+    if (mdDev === 'tv') {   // the TV doesn't say what's playing: a plain face, and the last play/pause pressed here
+      $('npCard').classList.add('noimg'); $('npCard').classList.remove('idle');
+      $('npTitle').textContent = 'TV'; $('npSub').textContent = 'Controls whatever is playing on the TV';
+      $('npApp').textContent = ''; $('npTime').textContent = '';
+      setMainIcon(tvPlaying);
+    }
+  }
+  $('mdDevChip').onclick = function () { mdDev = mdDev === 'cc' ? 'tv' : 'cc'; mdShow(); npStart(); };
+  $('media').addEventListener('pointerdown', function (e) {
+    var b = e.target.closest('[data-k]'); if (!b) return;
+    e.preventDefault();
+    var k = b.getAttribute('data-k');
+    if (k === 'playpause') {   // one button: the Chromecast toggles itself; the TV gets play or pause, in turn
+      if (mdDev === 'cc') {
+        k = 'play';
+        if (np.at) { np.pos += np.playing ? (Date.now() - np.at) / 1000 : 0; np.at = Date.now(); }   // freeze or restart the clock where it is
+        np.playing = !np.playing; npPaintTime();
+      }
+      else { k = tvPlaying ? 'pause' : 'play'; tvPlaying = !tvPlaying; setMainIcon(tvPlaying); }
+    }
+    sendKey(mdDev, k);
+    if (mdDev === 'cc' && ['play', 'prev', 'next'].indexOf(k) >= 0) setTimeout(npRefresh, 900);
+    if (b.hasAttribute('data-repeat')) rmRepeat = setTimeout(function () { rmRepeat = setInterval(function () { sendKey(mdDev, k); }, 220); }, 450);
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { $('media').addEventListener(ev, rmStop); });
+  function closeSheets() { if ($('mediaSheet').classList.contains('open')) closeMedia(); else closeRemote(); }
+  $('npFab').onclick = openMedia;
+  $('mdClose').onclick = closeMedia;
   $('rmFab').onclick = openRemote;
   $('rmClose').onclick = closeRemote;
-  $('rmScrim').onclick = closeRemote;
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.body.classList.contains('remote-open')) closeRemote(); });
+  $('rmScrim').onclick = closeSheets;
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.body.classList.contains('remote-open')) closeSheets(); });
+  // In the background, a look every 20 s whether the Chromecast is playing: the player's button shows it.
+  setInterval(function () { if (!document.hidden && S && !document.body.classList.contains('remote-open')) npRefresh(); }, 20000);
 
   // ---------- like an app: full screen in the browser, or added to the home screen ----------
   var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;

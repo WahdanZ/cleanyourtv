@@ -927,10 +927,63 @@ def _cc_serial() -> tuple[str | None, str | None, str]:
 # ---------- the remote (admin panel): the TV's keys over its remote channel, the Chromecast's over its debugging link ----------
 TV_KEYS = {"up": "KEY_UP", "down": "KEY_DOWN", "left": "KEY_LEFT", "right": "KEY_RIGHT", "ok": "KEY_OK", "back": "KEY_RETURNS",
            "home": "KEY_HOME", "menu": "KEY_MENU", "volup": "KEY_VOLUMEUP", "voldown": "KEY_VOLUMEDOWN", "mute": "KEY_MUTE",
-           "play": "KEY_PLAY", "pause": "KEY_PAUSE", "power": "KEY_POWER", "input": "KEY_INPUT", "exit": "KEY_EXIT"}
+           "play": "KEY_PLAY", "pause": "KEY_PAUSE", "power": "KEY_POWER", "input": "KEY_INPUT", "exit": "KEY_EXIT",
+           "rew": "KEY_BACKS", "ff": "KEY_FORWARDS", "stop": "KEY_STOP"}
 CC_KEYS = {"up": "DPAD_UP", "down": "DPAD_DOWN", "left": "DPAD_LEFT", "right": "DPAD_RIGHT", "ok": "DPAD_CENTER",
            "back": "BACK", "home": "HOME", "menu": "MENU", "volup": "VOLUME_UP", "voldown": "VOLUME_DOWN", "mute": "VOLUME_MUTE",
-           "play": "MEDIA_PLAY_PAUSE", "pause": "MEDIA_PLAY_PAUSE", "power": "SLEEP", "wake": "WAKEUP", "settings": "SETTINGS"}
+           "play": "MEDIA_PLAY_PAUSE", "pause": "MEDIA_PLAY_PAUSE", "power": "SLEEP", "wake": "WAKEUP", "settings": "SETTINGS",
+           "prev": "MEDIA_PREVIOUS", "next": "MEDIA_NEXT", "rew": "MEDIA_REWIND", "ff": "MEDIA_FAST_FORWARD", "stop": "MEDIA_STOP"}
+
+
+def cc_now_playing() -> dict:
+    """What the Chromecast is playing, from its media sessions: the app, title, artist or channel, playing or paused,
+    and how far in. The session the media buttons go to wins; else the first one playing."""
+    adb, serial, why = _cc_serial()
+    if not serial:
+        return {"ok": False, "error": why}
+    out = subprocess.run([adb, "-s", serial, "shell", "dumpsys media_session; echo ---; cat /proc/uptime"],
+                         capture_output=True, text=True, timeout=10).stdout
+    dump, _, up = out.partition("\n---\n")
+    try:
+        now_ms = float(up.split()[0]) * 1000
+    except (ValueError, IndexError):
+        now_ms = 0
+    m = re.search(r"Media button session is ([\w.]+)/", dump)
+    button_pkg = m.group(1) if m else ""
+    sessions, cur = [], None
+    for line in dump.splitlines():
+        line = line.strip()
+        if line.startswith("package="):
+            cur = {"app": line[8:]}
+            sessions.append(cur)
+        elif cur is not None and line.startswith("active="):
+            cur["active"] = line.endswith("true")
+        elif cur is not None and line.startswith("state=PlaybackState"):
+            st = re.search(r"state=([A-Z_]+)\(", line[19:])
+            pos = re.search(r"position=(\d+)", line)
+            spd = re.search(r"speed=([\d.]+)", line)
+            upd = re.search(r"updated=(\d+)", line)
+            cur["state"] = st.group(1).lower() if st else ""
+            p = int(pos.group(1)) if pos else 0
+            if cur["state"] == "playing" and upd and spd and now_ms:
+                p += max(0, now_ms - int(upd.group(1))) * float(spd.group(1))
+            cur["position"] = int(p / 1000)
+        elif cur is not None and line.startswith("metadata: size="):
+            d = line.partition("description=")[2]
+            parts = d.rsplit(", ", 2) if d else []
+            clean = lambda x: "" if x in ("null", "") else x
+            cur["title"] = clean(parts[0]) if parts else ""
+            cur["subtitle"] = clean(parts[1]) if len(parts) > 1 else ""
+    usable = [x for x in sessions if x.get("title") or x.get("state") in ("playing", "paused")]
+    pick = next((x for x in usable if x["app"] == button_pkg and x.get("state") in ("playing", "paused")), None) \
+        or next((x for x in usable if x.get("state") == "playing"), None) \
+        or next((x for x in usable if x.get("active") and x.get("state") == "paused"), None)
+    if not pick:
+        return {"ok": True, "playing": None}
+    names = {a["id"]: a.get("name", a["id"]) for a in ADMIN.cc_apps().get("apps", [])}
+    pick["name"] = names.get(pick["app"], pick["app"].rsplit(".", 1)[-1])
+    pick["icon"] = f"/api/admin/icon/cc/{pick['app']}"
+    return {"ok": True, "playing": pick}
 
 
 def remote_press(device: str, key: str = "", text: str = "") -> dict:
@@ -1455,6 +1508,11 @@ class Handler(SimpleHTTPRequestHandler):
                 self.send_error(404)
                 return
             self._send(f.read_bytes(), "image/jpeg")
+        elif path == "/api/admin/now-playing":
+            try:
+                self._json(200, cc_now_playing())
+            except subprocess.TimeoutExpired:
+                self._json(200, {"ok": False, "error": "The Chromecast didn't answer in time."})
         elif path == "/api/admin/remote-status":
             self._json(200, remote_status())
         elif path == "/api/admin/cc-screen":
