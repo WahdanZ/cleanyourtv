@@ -7,8 +7,9 @@ the buttons and the photo credit. Saved in config.json as "home_layout"; the Chr
 own dock), the admin panel's Chromecast tab edits it. The same presets and sizes are used by both, from here.
 
 There are three widget blocks. Each shows the widget add-ons picked for it ("addons"; none picked: every widget no
-other block has picked). They can be any size from MIN_WIDGET up to the whole grid ("resize"), not only their listed
-sizes; a card fills its block and shows as much as fits, and a block of four rows or more stacks cards (one per two rows).
+other block has picked); a card fills its block and shows as much as fits, and a block of four rows or more stacks cards
+(one per two rows). Every block can be any size from its "resize" minimum up to the whole grid; its "sizes" are quick
+picks. The screens shrink a block's content to fit when it's bigger than its block (a big clock in a small block).
 """
 import re
 COLS, ROWS = 12, 6
@@ -24,14 +25,14 @@ WIDGET_BLOCKS = ("widgets", "widgets2", "widgets3")
 TILE_SIZES = {"big": ["Big", 4], "normal": ["Normal", 5], "small": ["Small", 6]}   # tiles across the screen
 
 BLOCKS = {
-    "clock":   {"name": "Clock", "emoji": "🕒", "sizes": [[6, 2, "Normal"], [3, 1, "Small"], [7, 3, "Big"]]},
-    "quote":   {"name": "Quote", "emoji": "❝", "sizes": [[8, 2, "Wide"], [6, 2, "Normal"], [5, 2, "Narrow"]]},
-    "weather": {"name": "Weather", "emoji": "⛅", "sizes": [[3, 2, "Normal"], [2, 1, "Small"]]},
+    "clock":   {"name": "Clock", "emoji": "🕒", "sizes": [[6, 2, "Normal"], [3, 1, "Small"], [7, 3, "Big"]], "resize": {"min": [3, 1]}},
+    "quote":   {"name": "Quote", "emoji": "❝", "sizes": [[8, 2, "Wide"], [6, 2, "Normal"], [5, 2, "Narrow"]], "resize": {"min": [3, 1]}},
+    "weather": {"name": "Weather", "emoji": "⛅", "sizes": [[3, 2, "Normal"], [2, 1, "Small"]], "resize": {"min": [2, 1]}},
     "widgets": {"name": "Widgets", "emoji": "🧩", "sizes": WIDGET_SIZES, "resize": {"min": MIN_WIDGET}},
     "widgets2": {"name": "Widgets 2", "emoji": "🧩", "sizes": WIDGET_SIZES, "resize": {"min": MIN_WIDGET}},
     "widgets3": {"name": "Widgets 3", "emoji": "🧩", "sizes": WIDGET_SIZES, "resize": {"min": MIN_WIDGET}},
-    "hero":    {"name": "App name", "emoji": "🔤", "sizes": [[7, 2, "Normal"], [5, 2, "Narrow"]]},
-    "nowplaying": {"name": "Now playing", "emoji": "🎵", "sizes": [[5, 2, "Normal"], [4, 1, "Small"], [6, 2, "Wide"]]},
+    "hero":    {"name": "App name", "emoji": "🔤", "sizes": [[7, 2, "Normal"], [5, 2, "Narrow"]], "resize": {"min": [3, 1]}},
+    "nowplaying": {"name": "Now playing", "emoji": "🎵", "sizes": [[5, 2, "Normal"], [4, 1, "Small"], [6, 2, "Wide"]], "resize": {"min": [3, 1]}},
 }
 
 

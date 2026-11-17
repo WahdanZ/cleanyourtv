@@ -506,7 +506,7 @@ public class MainActivity extends Activity {
         clockConf = c;
         lastMinute = -1;   // the next tick draws the clock's style
         greeting.setVisibility(ch >= 2 ? View.VISIBLE : View.GONE);
-        clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, ch >= 3 ? 210 : ch == 2 ? 104 : 64);
+        clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, ch >= 3 ? 70 * ch : ch == 2 ? 104 : 64);   // any height: bigger with more rows
         clock.setTypeface(font(ch == 1 ? 400 : 300));   // a light weight only where it is big
         ampm.setTextSize(TypedValue.COMPLEX_UNIT_PX, ch >= 3 ? 44 : ch == 2 ? 30 : 22);
         date.setTextSize(TypedValue.COMPLEX_UNIT_PX, ch >= 3 ? 34 : ch == 2 ? 28 : 22);
@@ -541,6 +541,14 @@ public class MainActivity extends Activity {
         npRows = npb == null ? 2 : npb.optInt("h", 2);
         if (npb != null) place(npBox, npb, false);
         renderNp();
+        fits.clear();
+        fits.add(new Object[]{clockBlock, c, false, true});
+        fits.add(new Object[]{quoteBox, q, false, false});
+        fits.add(new Object[]{weatherBox, wx, true, true});
+        fits.add(new Object[]{hero, h, false, false});
+        if (npb != null) fits.add(new Object[]{npBox, npb, false, false});
+        ui.post(this::fitBlocks);
+        if (!fitting) { fitting = true; ui.postDelayed(fitTick, 2000); }
         // Widget blocks: a four-row block shows two cards stacked.
         for (Slot s : slots) {
             JSONObject w = s.id.equals("widgets") ? block(blocks, s.id) : blocks.optJSONObject(s.id);
@@ -554,6 +562,30 @@ public class MainActivity extends Activity {
             place(s.box, w, true);
         }
         renderWidgets();
+    }
+
+    // Any block size: what is bigger than its block (a big clock in a small one) shrinks to fit, from its top left
+    // (the weather from its top right). Checked again every 2 s: the quote, the weather and the clock's style load later.
+    final List<Object[]> fits = new ArrayList<>();   // {view, block, right-aligned, may be wider than its block}
+    boolean fitting = false;
+    final Runnable fitTick = new Runnable() { @Override public void run() { fitBlocks(); ui.postDelayed(this, 2000); } };
+
+    void fitBlocks() {
+        for (Object[] f : fits) {
+            View v = (View) f[0]; JSONObject b = (JSONObject) f[1];
+            boolean right = (Boolean) f[2], wide = (Boolean) f[3];
+            if (v == null || v.getVisibility() != View.VISIBLE || !(v.getLayoutParams() instanceof FrameLayout.LayoutParams)) continue;
+            int W = b.optInt("w", 4) * CW, H = b.optInt("h", 2) * RH, left = GX + b.optInt("x") * CW;
+            v.measure(wide ? View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED) : View.MeasureSpec.makeMeasureSpec(W, View.MeasureSpec.EXACTLY),
+                      View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            int mw = Math.max(1, v.getMeasuredWidth()), mh = Math.max(1, v.getMeasuredHeight());
+            float k = Math.max(0.4f, Math.min(1f, Math.min(H / (float) mh, wide ? W / (float) mw : 1f)));
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) v.getLayoutParams();
+            int width = wide ? Math.max(W, mw) : W, lm = right ? left + W - width : left;   // too wide: room for it all, then scaled
+            if (lp.width != width || lp.leftMargin != lm) { lp.width = width; lp.leftMargin = lm; v.setLayoutParams(lp); }
+            v.setPivotX(right ? width : 0); v.setPivotY(0);
+            v.setScaleX(k); v.setScaleY(k);
+        }
     }
 
     /** A block at its grid place, or gone. */

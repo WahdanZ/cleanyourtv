@@ -1481,7 +1481,7 @@ class Handler(SimpleHTTPRequestHandler):
                 wall = json.loads(WALLPAPER_META.read_text(encoding="utf-8")).get("image", "") if WALLPAPER_ON else ""
             except (OSError, ValueError):
                 wall = ""
-            self._json(200, {"started": STARTED, "wall": wall, "saved": SAVED["at"]})
+            self._json(200, {"started": STARTED, "wall": wall, "saved": SAVED["at"], "code": page_code("index.html")})
             return
         if path == "/admin":
             self._send((WEB / "admin.html").read_bytes(), "text/html; charset=utf-8")
@@ -1624,7 +1624,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _admin_get(self, path: str):
         if path == "/api/admin/hello":   # whether a password exists and this browser is signed in
-            self._json(200, {"password_set": ADMIN.password_set(), "signed_in": ADMIN.signed_in(self.headers.get("Cookie"))})
+            self._json(200, {"password_set": ADMIN.password_set(), "signed_in": ADMIN.signed_in(self.headers.get("Cookie")),
+                             "code": page_code("admin.html")})
             return
         if path.startswith("/api/admin/app/"):   # the panel as a phone app: its manifest and icons (asked for without the sign-in)
             name = path.rsplit("/", 1)[1]
@@ -2052,6 +2053,14 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
             self._json(502, {"ok": False, "error": str(e)})
             return
         self.send_error(404)
+
+
+def page_code(name: str) -> int:
+    """The version of a page's code (when its file last changed): a screen that has an older one reloads itself."""
+    try:
+        return int((WEB / name).stat().st_mtime)
+    except OSError:
+        return 0
 
 
 def own_ip() -> str:

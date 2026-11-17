@@ -1184,6 +1184,21 @@
       place(d, b.x, b.y, b.w, b.h);
       cv.appendChild(d);
     });
+    requestAnimationFrame(fitPreview);
+  }
+  // Like the screens: what is bigger than its block shrinks to fit (widget cards already show only what fits).
+  function fitPreview() {
+    Array.prototype.forEach.call(document.querySelectorAll('#canvas .blk.pv'), function (d) {
+      var id = d.getAttribute('data-id'), c = d.querySelector('.pvc');
+      if (!c || isWidgetBlock(id)) return;
+      c.style.transform = ''; c.style.width = ''; c.style.height = '';
+      var W = d.clientWidth, H = d.clientHeight, k = Math.max(0.4, Math.min(1, W / Math.max(1, c.scrollWidth), H / Math.max(1, c.scrollHeight)));
+      if (k > 0.995) return;
+      c.style.transformOrigin = id === 'weather' ? 'top right' : 'top left';
+      c.style.transform = 'scale(' + k.toFixed(3) + ')';
+      c.style.width = (100 / k) + '%'; c.style.height = (100 / k) + '%';
+      if (id === 'weather') c.style.marginLeft = (100 - 100 / k) + '%';
+    });
   }
   $('presetSel').onchange = function () {
     var k = this.value; if (!k) return;
@@ -2510,9 +2525,22 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
 
   // ---------- start ----------
+  var pageCode = 0, toldNew = false;
   fetch('/api/admin/hello', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (h) {
+    pageCode = h.code || 0;
     if (h.signed_in) load(); else showLogin(h.password_set);
   }, function () { toast('Cannot reach the helper.', 10000); });
+  // A panel left open (or kept as an app on a phone) picks up a new version of itself: reloads when nothing is unsaved.
+  function checkCode() {
+    if (document.hidden || !pageCode) return;
+    fetch('/api/admin/hello', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (h) {
+      if (!h.code || h.code === pageCode) return;
+      if (!draft || !Object.keys(changes()).length) location.reload();
+      else if (!toldNew) { toldNew = true; toast('A new version of this panel is ready: save or discard, then it reloads.', 8000); }
+    }, function () {});
+  }
+  setInterval(checkCode, 60000);
+  document.addEventListener('visibilitychange', checkCode);
 })();
 </script>
 </body>

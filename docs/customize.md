@@ -26,8 +26,9 @@ stays free for the buttons.
 
 - **Start from a preset:** Classic, Widgets left, Big clock, Dashboard, Calm (just the clock, the weather and one
   card) or Photo frame (almost nothing over the photo).
-- **Move:** drag a block on the picture. **Resize:** tap it and pick a size; each block has a few sizes its text
-  always fits in. Blocks can't overlap.
+- **Move:** drag a block on the picture. **Resize:** drag its corner (it snaps to the grid), use its Width and Height
+  buttons, or pick one of its quick sizes. Any size works; what is bigger than its block (a big clock in a small
+  one) shrinks to fit. Blocks can't overlap.
 - **Hide or show:** tap a block > Hide; hidden ones are listed under *Not on the screen*.
 - **Dock and rows:** big, normal or small tiles (4, 5 or 6 across), and *Dock across the whole width*.
 
@@ -43,8 +44,7 @@ Tap the clock on the picture:
 
 ## Widgets and add-ons
 
-Widgets are cards on Home, in three widget blocks. A widget block can be any size from 3 columns by 1 row up: drag
-its corner on the picture, use its Width and Height buttons, or **Resize** in Edit Home on the TV. The card fills its
+Widgets are cards on Home, in three widget blocks, which resize like any other block. The card fills its
 block and shows what fits: one line when it is one row tall, no pictures when it is narrow, more games or headlines
 and a bigger picture when it is tall. A block of four rows or more stacks cards (one per two rows). A block shows the
 widgets you drop on it, in turn; one with none picked shows every widget no other block has.
@@ -79,8 +79,8 @@ in the panel; one a day, or always the same). *Show another photo* changes today
 
 On the TV or the Chromecast, open the **✎** pill at the top right:
 
-1. Arrows choose a block; **OK** opens its menu: Move, Resize (widget blocks: ◀ ▶ width, ▲ ▼ height), its sizes,
-   the widgets it shows, Hide.
+1. Arrows choose a block; **OK** opens its menu: Move, Resize (◀ ▶ width, ▲ ▼ height), its quick sizes, the
+   widgets it shows, Hide.
 2. **+ Add to Home** brings back a hidden block or a widget.
 3. **Back** saves (the admin panel shows it at once).
 

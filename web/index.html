@@ -615,7 +615,7 @@
     state.clockBlock = c;
     $('greeting').style.display = c.h >= 2 ? '' : 'none';
     $('greeting').style.fontSize = (c.h >= 3 ? 30 : 24) + 'px';
-    $('clock').style.fontSize = (c.h >= 3 ? 210 : c.h === 2 ? 104 : 64) + 'px';
+    $('clock').style.fontSize = (c.h >= 3 ? 70 * c.h : c.h === 2 ? 104 : 64) + 'px';   // any height: bigger with more rows
     $('ampm').style.fontSize = (c.h >= 3 ? 44 : c.h === 2 ? 30 : 24) + 'px';
     $('date').style.fontSize = (c.h >= 3 ? 34 : c.h === 2 ? 28 : 24) + 'px';
     // Quote: as wide as its block.
@@ -638,6 +638,7 @@
     state.npBlock = npb; blockOn.nowplaying = !!npb && npb.on !== false;
     if (npb) placeBlock($('npBlock'), npb);
     npPaint();
+    fitBlocks.blocks = blocks; setTimeout(fitBlocks, 0);
     // Widget blocks: a four-row one shows two cards stacked.
     SLOT_IDS.forEach(function (id) {
       var s = slotOf(id), b = blocks[id];
@@ -651,6 +652,22 @@
     showQuote(); loadWeather();
     renderSlots();
   }
+
+  // ---------- any block size: what is bigger than its block (a big clock in a small one) shrinks to fit ----------
+  var FIT = [['clock', 'left'], ['quote', 'quote'], ['weather', 'weather', true], ['hero', 'hero'], ['nowplaying', 'npBlock']];
+  function fitBlocks() {
+    var blocks = fitBlocks.blocks; if (!blocks) return;
+    FIT.forEach(function (f) {
+      var b = blocks[f[0]], el = $(f[1]);
+      if (!b || !el || b.on === false || el.style.display === 'none') return;
+      var W = b.w * CW, H = b.h * RH, cw = Math.max(el.scrollWidth, el.offsetWidth), ch = el.scrollHeight || el.offsetHeight;
+      if (!cw || !ch) return;
+      var k = Math.max(0.4, Math.min(1, W / cw, H / ch));
+      el.style.transformOrigin = f[2] ? 'top right' : 'top left';   // the weather is right-aligned in its block
+      el.style.transform = k < 0.995 ? 'scale(' + k.toFixed(3) + ')' : '';
+    });
+  }
+  setInterval(fitBlocks, 1500);   // the quote, the weather and the clock's style change their size as they load
 
   // ---------- widget cards (add-ons): the helper fetches their data; one card at a time per block, or two stacked ----------
   var SLOT_IDS = ['widgets', 'widgets2', 'widgets3'], slots = {}, addonHome = { widgets: [] }, widgetTimer = 0;
@@ -1849,6 +1866,8 @@
     if (state.static) return;
     load('/api/rev').then(function (r) {
       var first = !rev.started;
+      var calm = focus.area !== 'menu' && focus.area !== 'move' && focus.area !== 'browser' && focus.area !== 'admin' && focus.area !== 'edit';
+      if (rev.code && r.code && r.code !== rev.code && calm) { location.reload(); return; }   // the launcher itself was updated
       if (!first && (r.started !== rev.started || r.saved !== rev.saved) && focus.area !== 'menu' && focus.area !== 'move' && focus.area !== 'browser' && focus.area !== 'admin') {
         rev = r; load('/api/state').then(start, function () {});   // new settings: rebuild Home in place
         return;
