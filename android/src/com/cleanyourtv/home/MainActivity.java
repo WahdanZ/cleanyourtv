@@ -87,7 +87,9 @@ public class MainActivity extends Activity {
     FrameLayout glass;
     View glassSheen;
     TextView greeting, clock, ampm, date, heroName, quoteText, quoteBy, quoteSrc, wxTemp, wxInfo, credit, toast;
-    LinearLayout pills, quoteBox, weatherBox, menuBox;
+    LinearLayout pills, quoteBox, weatherBox, menuBox, adminBox;
+    ImageView adminQr;
+    TextView adminUrl;
     final List<View> sectionViews = new ArrayList<>();
 
     // ---------- apps and layout ----------
@@ -167,6 +169,7 @@ public class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         // Home pressed while Home is open: close what is open and go back to the first tile.
+        if (area.equals("admin")) closeAdmin();
         if (area.equals("menu")) closeMenu();
         if (area.equals("move")) endMove(false);
         area = "dock"; index = 0; lastDock = 0;
@@ -237,6 +240,7 @@ public class MainActivity extends Activity {
 
     void buildStage() {
         stage = new FrameLayout(this);
+        stage.setClipChildren(false);   // focused buttons and tiles grow a little past their own area
         // A calm background: dark, a little lighter at the top left.
         GradientDrawable bg = new GradientDrawable();
         bg.setGradientType(GradientDrawable.RADIAL_GRADIENT);
@@ -338,6 +342,8 @@ public class MainActivity extends Activity {
         menuBox.setVisibility(View.GONE);
         stage.addView(menuBox, new FrameLayout.LayoutParams(920, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
 
+        buildAdminBox();
+
         toast = text(28, 400, Color.WHITE, 0, false);
         toast.setPadding(40, 22, 40, 22);
         GradientDrawable tb = new GradientDrawable();
@@ -364,6 +370,7 @@ public class MainActivity extends Activity {
     void buildHeader() {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setClipChildren(false);   // a focused button grows a little past its row
         header.setGravity(Gravity.BOTTOM);
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
@@ -396,6 +403,8 @@ public class MainActivity extends Activity {
 
         pills = new LinearLayout(this);
         pills.setOrientation(LinearLayout.HORIZONTAL);
+        pills.setClipChildren(false);
+        pills.setClipToPadding(false);
         LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         pl.bottomMargin = 8;
         header.addView(pills, pl);
@@ -477,6 +486,7 @@ public class MainActivity extends Activity {
         pills.removeAllViews();
         pillViews.clear(); pillActions.clear();
         if (cfg.optBoolean("region") && regionNow != null) addPill(R.drawable.ic_globe, regionLabel(), "region");
+        addPill(R.drawable.ic_qr, "Admin", "admin");
         addPill(R.drawable.ic_settings, "Settings", "settings");
         if (pill >= pillViews.size()) pill = pillViews.size() - 1;
     }
@@ -723,7 +733,7 @@ public class MainActivity extends Activity {
     // =====================================================================================================
     // Focus
     // =====================================================================================================
-    boolean onTop() { return area.equals("pills") || (area.equals("menu") && !menuKind.equals("tile")); }
+    boolean onTop() { return area.equals("pills") || area.equals("admin") || (area.equals("menu") && !menuKind.equals("tile")); }
     App focused() { return onTop() || index >= apps.size() ? null : apps.get(index); }
     final DecelerateInterpolator decel = new DecelerateInterpolator(2f);
 
@@ -841,6 +851,7 @@ public class MainActivity extends Activity {
     }
 
     void arrow(int dx, int dy) {
+        if (area.equals("admin")) return;
         if (area.equals("menu")) {
             if (dy != 0) { menuIndex = Math.max(0, Math.min(menuItems.size() - 1, menuIndex + dy)); renderMenu(); }
             return;
@@ -850,6 +861,7 @@ public class MainActivity extends Activity {
     }
 
     void back() {
+        if (area.equals("admin")) { closeAdmin(); return; }
         if (area.equals("menu")) { closeMenu(); return; }
         if (area.equals("move")) { endMove(false); return; }
         if (area.equals("pills") || index >= dockSize) {
@@ -860,11 +872,13 @@ public class MainActivity extends Activity {
     }
 
     void activate() {
+        if (area.equals("admin")) { closeAdmin(); return; }
         if (area.equals("menu")) { menuChoose(); return; }
         if (area.equals("move")) { endMove(true); return; }
         if (area.equals("pills")) {
             String a = pillActions.get(pill);
             if (a.equals("region")) openRegionMenu();
+            else if (a.equals("admin")) openAdmin();
             else startSafely(new Intent(Settings.ACTION_SETTINGS));
             return;
         }
@@ -912,6 +926,79 @@ public class MainActivity extends Activity {
     // =====================================================================================================
     // Menus: the tile menu and the Region menu, a glass panel in the middle
     // =====================================================================================================
+    // ---------- Admin: the admin panel's address as a QR code, for a phone camera ----------
+    void buildAdminBox() {
+        adminBox = new LinearLayout(this);
+        adminBox.setOrientation(LinearLayout.VERTICAL);
+        adminBox.setGravity(Gravity.CENTER_HORIZONTAL);
+        adminBox.setPadding(56, 48, 56, 48);
+        GradientDrawable bg = vertical(new int[]{0xFF2A2A2E, 0xFF161618}, 40);
+        bg.setStroke(2, white(.2));
+        adminBox.setBackground(bg);
+        TextView t = text(26, 500, white(.55), .14f, true);
+        t.setText("Admin panel");
+        t.setGravity(Gravity.CENTER_HORIZONTAL);
+        adminBox.addView(t);
+        adminQr = new ImageView(this);
+        round(adminQr, 20);
+        LinearLayout.LayoutParams ql = new LinearLayout.LayoutParams(440, 440);
+        ql.setMargins(0, 30, 0, 26);
+        adminBox.addView(adminQr, ql);
+        adminUrl = text(34, 500, Color.WHITE, 0, false);
+        adminUrl.setGravity(Gravity.CENTER_HORIZONTAL);
+        adminBox.addView(adminUrl);
+        TextView hint = text(26, 400, white(.55), 0, false);
+        hint.setText("Scan with your phone's camera, or type the address. Back closes this.");
+        hint.setSingleLine(false);
+        hint.setMaxLines(2);
+        hint.setGravity(Gravity.CENTER_HORIZONTAL);
+        LinearLayout.LayoutParams hl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        hl.topMargin = 14;
+        adminBox.addView(hint, hl);
+        adminBox.setVisibility(View.GONE);
+        stage.addView(adminBox, new FrameLayout.LayoutParams(820, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+    }
+
+    void openAdmin() {
+        io.execute(() -> {
+            try {
+                JSONObject a = new JSONObject(get("/api/admin-link", 8000));
+                JSONArray rows = a.getJSONArray("qr");
+                int n = rows.length(), q = 4, full = n + 2 * q;
+                Bitmap small = Bitmap.createBitmap(full, full, Bitmap.Config.ARGB_8888);
+                small.eraseColor(Color.WHITE);
+                for (int y = 0; y < n; y++) {
+                    String row = rows.getString(y);
+                    for (int x = 0; x < n; x++) if (row.charAt(x) == '1') small.setPixel(x + q, y + q, Color.BLACK);
+                }
+                int cell = Math.max(1, 440 / full);
+                Bitmap big = Bitmap.createScaledBitmap(small, cell * full, cell * full, false);   // sharp squares
+                small.recycle();
+                String url = a.getString("url").replaceFirst("^https?://", "");
+                ui.post(() -> {
+                    adminQr.setImageBitmap(big);
+                    adminUrl.setText(url);
+                    area = "admin";
+                    scrim.setVisibility(View.VISIBLE);
+                    scrim.animate().alpha(1f).setDuration(200).start();
+                    adminBox.setVisibility(View.VISIBLE);
+                    adminBox.setAlpha(0f);
+                    adminBox.animate().alpha(1f).setDuration(200).start();
+                    render();
+                });
+            } catch (Exception e) {
+                ui.post(() -> toast("Cannot reach the Mac, so the admin panel can't be shown"));
+            }
+        });
+    }
+
+    void closeAdmin() {
+        adminBox.setVisibility(View.GONE);
+        scrim.animate().alpha(0f).setDuration(200).withEndAction(() -> scrim.setVisibility(View.GONE)).start();
+        area = "pills";
+        render();
+    }
+
     void showMenu(String title, List<Item> items) {
         menuItems.clear(); menuItems.addAll(items);
         menuRows.clear();
@@ -1245,7 +1332,7 @@ public class MainActivity extends Activity {
             ui.post(() -> {
                 boolean same = fn == null ? regionNow == null : fn.equals(regionNow);
                 regionNow = fn; regionList = fl;
-                if (!same || pillViews.size() != (fn != null ? 2 : 1)) { rebuildPills(); render(); }
+                if (!same || pillViews.size() != (fn != null ? 3 : 2)) { rebuildPills(); render(); }
             });
         });
     }

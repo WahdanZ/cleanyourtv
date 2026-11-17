@@ -44,6 +44,7 @@ from core import client, protocol  # noqa: E402  (Sidee)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import extras  # noqa: E402
 import admin  # noqa: E402
+import qr  # noqa: E402
 
 WEB = ROOT / "web"
 DATA = ROOT / "data"
@@ -439,7 +440,8 @@ def wall_skip() -> int:
 def wall_key() -> str:
     pick = WALLPAPER_PICK if WALLPAPER_SOURCE == "own" else ""
     market = WALLPAPER_MARKET if WALLPAPER_SOURCE == "bing" else ""
-    return f"{WALLPAPER_SOURCE}|{market}|{pick}|{wall_skip()}|{WALLPAPER_SIZE}"
+    # The last part changes when the way photos are prepared changes (v2: tall photos framed), so they're made again.
+    return f"{WALLPAPER_SOURCE}|{market}|{pick}|{wall_skip()}|{WALLPAPER_SIZE}|v2"
 
 
 def own_wallpapers() -> list:
@@ -485,6 +487,27 @@ def fit_photo(src: Path, dest: Path, width: int, quality: int = 82):
     r = subprocess.run(cmd + [str(src), "--out", str(dest)], capture_output=True, text=True, timeout=120)
     if r.returncode != 0 or not dest.exists():
         raise ValueError("could not read that photo")
+
+
+def frame_photo(path: Path, width: int):
+    """A tall photo, whole, in the middle of a 16:9 picture; the sides take a dark tint of the photo's own colour.
+    (Filling the screen with it would zoom into a thin strip.) Only sips and the standard library."""
+    height = width * 9 // 16
+    tmp = path.with_suffix(".frame.jpg")
+    subprocess.run(["/usr/bin/sips", "--resampleHeight", str(height), str(path), "--out", str(tmp)],
+                   capture_output=True, timeout=60, check=True)
+    # The photo's average colour: shrink it to one pixel as a BMP and read that pixel (BGR, after the header).
+    bmp = path.with_suffix(".px.bmp")
+    subprocess.run(["/usr/bin/sips", "-s", "format", "bmp", "--resampleHeightWidth", "1", "1", str(path), "--out", str(bmp)],
+                   capture_output=True, timeout=60, check=True)
+    raw = bmp.read_bytes()
+    bmp.unlink(missing_ok=True)
+    off = int.from_bytes(raw[10:14], "little")
+    b, g, r = raw[off], raw[off + 1], raw[off + 2]
+    pad = "%02X%02X%02X" % (int(r * .22), int(g * .22), int(b * .22))
+    subprocess.run(["/usr/bin/sips", "--padToHeightWidth", str(height), str(width), "--padColor", pad, str(tmp), "--out", str(path)],
+                   capture_output=True, timeout=60, check=True)
+    tmp.unlink(missing_ok=True)
 
 
 def _wall_bing(skip: int) -> tuple[bytes, str, str]:
@@ -567,6 +590,9 @@ def _refresh_wallpaper(raise_errors: bool = False):
             raw.write_bytes(body)
             fit_photo(raw, tmp, wall_width())   # the TV moved between tiles with a lag behind a large photo
             raw.unlink(missing_ok=True)
+            w, h = _sips_size(tmp)
+            if w and h and w / h < 1.3:   # tall or square: framed, not cropped
+                frame_photo(tmp, wall_width())
             tmp.replace(WALLPAPER_IMG)
             day = time.strftime("%Y-%m-%d")
             tag = hashlib.sha1(key.encode()).hexdigest()[:8]
@@ -674,7 +700,7 @@ _auto_vpn = {"prev": None}   # the region before an app switched it, while that 
 CHROMECAST = CONFIG.get("chromecast") or {}
 _cc_ip = CHROMECAST.get("ip", [])
 CC_IPS = {str(x) for x in (_cc_ip if isinstance(_cc_ip, list) else [_cc_ip]) if x}
-CC_PATHS = {"/", "/index.html", "/quotes.json", "/api/rev", "/api/cc", "/api/cc-open", "/api/cc-apps", "/api/weather", "/api/quote",
+CC_PATHS = {"/", "/index.html", "/quotes.json", "/api/rev", "/api/admin-link", "/api/cc", "/api/cc-open", "/api/cc-apps", "/api/weather", "/api/quote",
             "/api/quote-image", "/api/wallpaper", "/api/wallpaper.jpg", "/api/region", "/vpn"}
 APP_VPN.update({str(k): str(v).lower() for k, v in (CHROMECAST.get("app_vpn") or {}).items()})
 
@@ -995,6 +1021,11 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/cc":
             self._json(200, chromecast_settings())
             return
+        if path == "/api/admin-link":
+            # The TV launcher's QR button: the admin panel's address, and its QR code for a phone camera.
+            url = f"http://{own_ip()}:{CONFIG.get('port', 8765)}/admin"
+            self._json(200, {"url": url, "qr": qr.matrix(url)})
+            return
         if path == "/api/rev":
             # Polled by both home screens every 20 s: a save in the admin panel restarts the helper ("started"
             # changes), and a new photo changes "wall". Cheap: nothing is fetched or computed here.
@@ -1186,6 +1217,7 @@ class Handler(SimpleHTTPRequestHandler):
         try:
             self._json(200, {"ok": True, "name": wallpaper_upload(name, body)})
         except Exception as e:
+            log(f"wallpaper upload {name!r} ({length} bytes, {self.headers.get('Content-Type')}): {e}")
             self._json(400, {"ok": False, "error": str(e)})
 
     def _admin_post(self, path: str, data: dict):
