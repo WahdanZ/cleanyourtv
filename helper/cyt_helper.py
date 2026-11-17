@@ -41,8 +41,15 @@ CONFIG_PATH = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "config.json"
 if not CONFIG_PATH.exists():
     sys.exit(f"{CONFIG_PATH} is missing: copy config.example.json to config.json and fill it in (see README.md)")
 CONFIG = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+# "vidaa": false is a Chromecast-only home: no VIDAA TV, so no Sidee pairing is needed (nor Sidee itself).
+VIDAA = CONFIG.get("vidaa", True) is not False
 sys.path.insert(0, str((CONFIG_PATH.parent / CONFIG.get("sidee_dir", "../sidee")).resolve()))
-from core import client, protocol  # noqa: E402  (Sidee)
+try:
+    from core import client, protocol  # noqa: E402  (Sidee)
+except ImportError:
+    if VIDAA:
+        raise
+    client = protocol = None
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import extras  # noqa: E402
 import admin  # noqa: E402
@@ -183,6 +190,16 @@ class TvLink:
         if not apps:
             raise ConnectionError("the TV did not send its app list")
         return apps
+
+
+def tv_host() -> str:
+    """The TV's address from the pairing, or "" with no TV (Chromecast only) or no pairing yet."""
+    if not VIDAA:
+        return ""
+    try:
+        return client.Session.load().host
+    except Exception:
+        return ""
 
 
 def rediscover_tv() -> bool:
@@ -651,15 +668,15 @@ def wallpaper_delete(name: str) -> bool:
     return True
 
 
-# Region for the TV: all its internet traffic goes out through NordVPN in a chosen country, or straight out ("off").
-# The VPN is tv-vpn/tv-vpn.sh, installed root-owned in /usr/local/libexec; a sudoers rule lets this user run only its
+# Region for the TV: all its internet traffic goes out through a VPN in a chosen country, or straight out ("off").
+# The VPN is vpn/macos/tv-vpn.sh (NordVPN, or your own WireGuard files), installed root-owned in /usr/local/libexec; a sudoers rule lets this user run only its
 # "up <country>" and "down" without a password. Without the script installed, the Region button is hidden.
 VPN_SCRIPT = "/usr/local/libexec/tv-vpn.sh"
 COUNTRY_NAMES = {"us": "USA", "gb": "UK", "ca": "Canada", "eg": "Egypt", "ae": "UAE", "fr": "France", "jp": "Japan",
                  "de": "Germany", "nl": "Netherlands", "it": "Italy", "es": "Spain", "au": "Australia", "se": "Sweden",
                  "ch": "Switzerland", "sa": "Saudi Arabia", "tr": "Turkey", "in": "India", "br": "Brazil"}
 VPN_COUNTRIES = [str(c).lower() for c in CONFIG.get("vpn_countries", ["us", "gb"]) if len(str(c)) == 2 and str(c).isalpha()]
-VPN_HOME_NAME = CONFIG.get("vpn_home_name", "Germany")
+VPN_HOME_NAME = CONFIG.get("vpn_home_name", "Home")
 
 
 STARTED = int(time.time())
@@ -675,14 +692,18 @@ def regions() -> list:
 
 
 def region_now() -> str | None:
-    """The country the VPN was started with, while its tunnel (NordLynx's 10.5.0.2) is up; both readable without root."""
+    """The country the VPN was started with, while its tunnel interface is up; both readable without root."""
     if not vpn_available():
         return None
     try:
         code = Path("/Library/Application Support/tv-vpn/country").read_text().strip().lower()
     except OSError:
         return "off"
-    up = " 10.5.0.2 " in subprocess.run(["/sbin/ifconfig"], capture_output=True, text=True, timeout=10).stdout
+    try:
+        iface = Path("/var/run/tv-vpn/iface").read_text().strip()
+    except OSError:
+        iface = ""
+    up = bool(iface) and iface in subprocess.run(["/sbin/ifconfig", "-l"], capture_output=True, text=True, timeout=10).stdout.split()
     return code if code and up else "off"
 
 
@@ -861,7 +882,8 @@ def admin_state() -> dict:
     return {"settings": ADMIN.editable(cfg, takeover_on()), "tv_apps": tv, "tv_removed": APPS.removed(),
             "cc": cc, "cc_ip": CC_IPS and sorted(CC_IPS)[0] or "", "regions": regions() if vpn_available() else [],
             "region": now, "vpn_server": server if now not in (None, "off") else "", "country_names": COUNTRY_NAMES,
-            "tv_on": HOME_WATCH.up, "started": STARTED, "addons": ADDONS.status(), "addons_broken": ADDONS.broken,
+            "tv_on": HOME_WATCH.up, "started": STARTED,
+            "devices": {"tv": VIDAA, "cc": bool(CC_IPS), "vpn": vpn_available()}, "addons": ADDONS.status(), "addons_broken": ADDONS.broken,
             "layout_spec": layout.spec(), "preview": layout_preview(),
             "wallpaper": {"now": wallpaper_meta(), "sources": WALLPAPER_SOURCES, "own": own_wallpapers(),
                           "active": {"source": WALLPAPER_SOURCE, "market": WALLPAPER_MARKET, "pick": WALLPAPER_PICK}}}
@@ -914,13 +936,13 @@ def _cc_serial() -> tuple[str | None, str | None, str]:
     """(adb, the Chromecast's debugging serial, why not): the link the screenshot and the remote use."""
     adb = _adb()
     if not adb:
-        return None, None, "adb isn't on the Mac."
+        return None, None, "adb isn't installed on this computer."
     out = subprocess.run([adb, "devices"], capture_output=True, text=True, timeout=10).stdout
     ips = [CC_IPS] if isinstance(CC_IPS, str) else list(CC_IPS or [])
     serial = next((ln.split()[0] for ln in out.splitlines()[1:]
                    if ln.split()[-1:] == ["device"] and any(ln.startswith(ip + ":") for ip in ips)), None)
     if not serial:
-        return adb, None, "The Chromecast isn't connected: on the Mac, double-click Connect Chromecast."
+        return adb, None, "The Chromecast isn't connected: run android/cc.sh connect."
     return adb, serial, ""
 
 
@@ -1090,14 +1112,14 @@ def cc_screenshot() -> tuple[bytes | None, str]:
     """A picture of the Chromecast's screen right now, over wireless debugging. Never wakes it."""
     adb = _adb()
     if not adb:
-        return None, "adb isn't on the Mac."
+        return None, "adb isn't installed on this computer."
     try:
         out = subprocess.run([adb, "devices"], capture_output=True, text=True, timeout=10).stdout
         ips = [CC_IPS] if isinstance(CC_IPS, str) else list(CC_IPS or [])
         serial = next((ln.split()[0] for ln in out.splitlines()[1:]
                        if ln.split()[-1:] == ["device"] and any(ln.startswith(ip + ":") for ip in ips)), None)
         if not serial:
-            return None, "The Chromecast isn't connected for debugging: run Connect Chromecast on the Mac."
+            return None, "The Chromecast isn't connected for debugging: run android/cc.sh connect."
         power = subprocess.run([adb, "-s", serial, "shell", "dumpsys power | grep -m1 mWakefulness"],
                                capture_output=True, text=True, timeout=10).stdout
         if "Awake" not in power:
@@ -1330,7 +1352,7 @@ class Handler(SimpleHTTPRequestHandler):
     def _allowed(self) -> bool:
         # The TV is allowed at whatever address it has now (the pairing follows it), as are the listed clients.
         ip = self.client_address[0]
-        if ip in CONFIG.get("allowed_clients", []) or ip == client.Session.load().host:
+        if ip in CONFIG.get("allowed_clients", []) or (VIDAA and ip == tv_host()):
             return True
         path = urlsplit(self.path).path
         if (ip == "127.0.0.1" or ip.rsplit(".", 1)[0] == own_ip().rsplit(".", 1)[0]) and \
@@ -1990,7 +2012,8 @@ def own_ip() -> str:
     """This computer's address on the TV's network."""
     probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        probe.connect((client.Session.load().host, 9))
+        # Towards the TV, or with none, the Chromecast; a UDP "connect" sends nothing, it only picks the way out.
+        probe.connect((tv_host() or (sorted(CC_IPS) or ["192.168.1.1"])[0], 9))
         return probe.getsockname()[0]
     finally:
         probe.close()
@@ -2209,15 +2232,18 @@ def keep_ytdlp_fresh():
 
 
 def main():
-    try:
-        APPS.refresh()
-    except Exception as e:
-        log(f"could not reach the TV yet ({e}); using the cached app list ({len(APPS.apps)} apps)")
-    try:
-        check_own_address()
-    except Exception as e:
-        log(f"address check failed: {e}")
-    HOME_WATCH.start()
+    if VIDAA:
+        try:
+            APPS.refresh()
+        except Exception as e:
+            log(f"could not reach the TV yet ({e}); using the cached app list ({len(APPS.apps)} apps)")
+        try:
+            check_own_address()
+        except Exception as e:
+            log(f"address check failed: {e}")
+        HOME_WATCH.start()
+    else:
+        log("no VIDAA TV (\"vidaa\": false): serving the Chromecast and the admin panel only")
     if STREMIO.get("server", True) and STREMIO_APP:
         StremioServer().start()
     threading.Thread(target=LIVETV.sweeper, daemon=True).start()

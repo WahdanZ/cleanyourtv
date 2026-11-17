@@ -514,13 +514,13 @@
     <div data-pane="vpn">
       <h2>Now</h2>
       <div class="card now"><span class="flag" id="vpnFlag">🌍</span><div class="grow"><div class="big" id="vpnNow">…</div><small id="vpnServer"></small></div></div>
-      <p class="hint">One VPN for both the TV and the Chromecast. Switching takes up to 20 seconds; close and reopen a streaming app to see its catalogue change.</p>
+      <p class="hint">One VPN for the TV and the Chromecast. Switching takes up to 20 seconds; close and reopen a streaming app to see its catalogue change.</p>
       <h2>Switch to</h2>
       <div class="regions" id="regions"></div>
       <h2>Countries in the Region menu</h2>
       <div class="card"><div class="tagbox" id="countryTags"></div>
         <div class="row"><select id="addCountry"></select><button class="btn" id="addCountryBtn">Add</button></div></div>
-      <p class="hint">Saved with the other settings. Any NordVPN country works.</p>
+      <p class="hint">Saved with the other settings. Any country your VPN has a server in works.</p>
     </div>
 
     <div data-pane="tv" class="hidden" id="pane_tv"></div>
@@ -558,7 +558,7 @@
         <div style="width:110px;display:flex;align-items:center;gap:6px"><input type="number" id="widgetSecs" min="4" max="120"> s</div></div></div>
       <div id="addonList"></div>
       <div class="card pad section" style="margin-top:14px">
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:200px">Your own add-ons<small class="hint" style="margin:2px 0 0">Put a folder in data/addons on the Mac (format: addons/README.md), then reload.</small></div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:200px">Your own add-ons<small class="hint" style="margin:2px 0 0">Put a folder in data/addons on the helper's computer (format: addons/README.md), then reload.</small></div>
         <button class="btn" id="addonsReload">Reload add-ons</button></div>
         <div id="addonsBroken"></div>
       </div>
@@ -585,7 +585,7 @@
         <h2>NASA key</h2>
         <div class="card"><div class="row"><div class="grow">Your own NASA API key<small id="nasaNote"></small></div></div>
           <div class="row"><input type="password" id="nasaKey" placeholder="Paste the key from api.nasa.gov" autocomplete="off"></div></div>
-        <p class="hint">Without one, NASA's shared demo key often runs out (10 requests an hour for everyone). A key is free at api.nasa.gov; it is kept only on the Mac.</p>
+        <p class="hint">Without one, NASA's shared demo key often runs out (10 requests an hour for everyone). A key is free at api.nasa.gov; it is kept only on the helper's computer.</p>
       </div>
       <div id="ownBox">
         <h2>My photos</h2>
@@ -700,7 +700,7 @@
         <div class="row"><div class="grow">Restart the helper<small>Takes a few seconds. The VPN keeps running.</small></div><button class="btn" data-act="restart">Restart</button></div>
         <div class="row"><div class="grow">Sign out of this device</div><button class="btn danger" id="logout">Sign out</button></div>
       </div>
-      <p class="hint">Every save keeps a copy of the previous settings on the Mac (data/config-backups, the last 20).</p>
+      <p class="hint">Every save keeps a copy of the previous settings (data/config-backups, the last 20).</p>
     </div>
   </section>
 </div>
@@ -748,7 +748,7 @@
   function showLogin(passwordSet) {
     $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); $('saveBar').classList.remove('open');
     if (!passwordSet) {
-      $('loginNote').textContent = 'No admin password yet. On the Mac, double-click "Set admin password" in the tv-vpn folder, then reload this page.';
+      $('loginNote').textContent = 'No admin password yet. On the helper\'s computer, run: python helper/set_admin_password.py, then reload this page.';
       $('loginForm').classList.add('hidden');
     } else { $('loginForm').classList.remove('hidden'); setTimeout(function () { $('password').focus(); }, 50); }
   }
@@ -775,6 +775,7 @@
       });
       S = s; orig = clone(s.settings); draft = clone(s.settings);
       $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
+      showDevices(s.devices || { tv: true, cc: true, vpn: true });
       renderAll(); snapReset(); dirty();
       setTimeout(npRefresh, 800);
       var want = location.hash;   // #remote or #player: from a QR code on the TV
@@ -784,6 +785,22 @@
         sheetOpened();
       }
     });
+  }
+  // Only what this home has: no VIDAA TV ("vidaa": false), no Chromecast (no "chromecast" ip), no VPN script.
+  function showDevices(d) {
+    [['tv', d.tv], ['cc', d.cc], ['vpn', d.vpn]].forEach(function (p) {
+      var b = document.querySelector('#tabs button[data-tab="' + p[0] + '"]');
+      if (b) b.hidden = !p[1];
+      var r = document.querySelector('#rmSwitch button[data-dev="' + p[0] + '"]');
+      if (r) r.hidden = !p[1];
+    });
+    $('rmSwitch').hidden = !(d.tv && d.cc);
+    if (!d.tv && d.cc) rmDev = 'cc';
+    var cur = document.querySelector('#tabs button.on');
+    if (cur && cur.hidden) {
+      var first = document.querySelector('#tabs button:not([hidden])');
+      if (first) first.click();
+    }
   }
   function renderAll() { renderLayout(); renderStatus(); renderVpn(); renderEditor('tv'); renderEditor('cc'); renderAddons(); renderHome(); renderWall(); renderSystem(); }
 
@@ -799,9 +816,10 @@
   function renderStatus() {
     var box = $('status'); box.innerHTML = '';
     var add = function (cls, text) { var c = el('span', 'chip'); c.appendChild(el('span', 'dot ' + cls)); c.appendChild(document.createTextNode(text)); box.appendChild(c); };
-    add(S.tv_on === true ? 'on' : S.tv_on === false ? 'off' : 'idle', S.tv_on === true ? 'TV on' : S.tv_on === false ? 'TV off' : 'TV unknown');
-    add(S.region && S.region !== 'off' ? 'on' : 'idle', 'VPN: ' + (S.region ? regionName(S.region).replace(/\s*\(.*\)$/, '') : 'unavailable'));
-    add(S.cc.seen && Date.now() / 1000 - S.cc.seen < 86400 ? 'on' : 'idle', 'Chromecast ' + ago(S.cc.seen));
+    var d = S.devices || { tv: true, cc: true, vpn: true };
+    if (d.tv) add(S.tv_on === true ? 'on' : S.tv_on === false ? 'off' : 'idle', S.tv_on === true ? 'TV on' : S.tv_on === false ? 'TV off' : 'TV unknown');
+    if (d.vpn) add(S.region && S.region !== 'off' ? 'on' : 'idle', 'VPN: ' + (S.region ? regionName(S.region).replace(/\s*\(.*\)$/, '') : 'unavailable'));
+    if (d.cc) add(S.cc.seen && Date.now() / 1000 - S.cc.seen < 86400 ? 'on' : 'idle', 'Chromecast ' + ago(S.cc.seen));
   }
 
   // ---------- VPN ----------
@@ -822,10 +840,10 @@
       var x = el('button', '', '×'); x.title = 'Remove'; x.onclick = function () { draft.vpn_countries = draft.vpn_countries.filter(function (y) { return y !== c; }); renderVpn(); dirty(); };
       t.appendChild(x); tags.appendChild(t);
     });
-    if (!draft.vpn_countries.length) tags.appendChild(el('span', 'hint', 'Only Germany (no VPN).'));
+    if (!draft.vpn_countries.length) tags.appendChild(el('span', 'hint', 'Only ' + regionName('off') + '.'));
     var sel = $('addCountry'); sel.innerHTML = '';
     Object.keys(S.country_names).sort(function (a, b) { return S.country_names[a].localeCompare(S.country_names[b]); }).forEach(function (c) {
-      if (draft.vpn_countries.indexOf(c) >= 0 || c === 'de') return;
+      if (draft.vpn_countries.indexOf(c) >= 0) return;
       var o = el('option', '', FLAGS(c) + ' ' + S.country_names[c]); o.value = c; sel.appendChild(o);
     });
   }
@@ -1644,7 +1662,7 @@
         label = 'Hide the picture';
       });
       return r.json().then(function (j) { box.innerHTML = ''; box.appendChild(el('p', 'hint', j.error || 'No picture.')); });
-    }).catch(function () { box.innerHTML = ''; box.appendChild(el('p', 'hint', 'No picture: the Mac didn\'t answer.')); })
+    }).catch(function () { box.innerHTML = ''; box.appendChild(el('p', 'hint', 'No picture: the helper didn\'t answer.')); })
       .then(function () { btn.disabled = false; btn.textContent = label; });
   };
   function setShown(id, on) {
@@ -1904,7 +1922,7 @@
       pin.onclick = function () { draft.wallpaper_pick = draft.wallpaper_pick === name ? '' : name; renderWall(); dirty(); };
       var del = el('button', 'del', 'Delete');
       del.onclick = function () {
-        if (!confirm('Delete this photo from the Mac?')) return;
+        if (!confirm('Delete this photo?')) return;
         api('/api/admin/wallpaper-delete', { name: name }).then(function () {
           W.own = W.own.filter(function (x) { return x !== name; });
           if (draft.wallpaper_pick === name) { draft.wallpaper_pick = ''; dirty(); }
@@ -2342,7 +2360,7 @@
       tries++;
       fetch('/api/admin/hello', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.json(); })
         .then(function (h) { if (Date.now() - t0 < 1500) throw 0; return load().then(function () { toast(msg, 5000); }); })
-        .catch(function () { if (tries < 30) setTimeout(poll, 1000); else toast('The helper did not come back. Check the Mac.', 8000); });
+        .catch(function () { if (tries < 30) setTimeout(poll, 1000); else toast('The helper did not come back. Check its computer.', 8000); });
     };
     var t0 = Date.now();
     setTimeout(poll, 2000);
@@ -2353,7 +2371,7 @@
   // ---------- start ----------
   fetch('/api/admin/hello', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (h) {
     if (h.signed_in) load(); else showLogin(h.password_set);
-  }, function () { toast('Cannot reach the helper on the Mac.', 10000); });
+  }, function () { toast('Cannot reach the helper.', 10000); });
 })();
 </script>
 </body>

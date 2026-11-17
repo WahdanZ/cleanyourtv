@@ -43,7 +43,7 @@
   function nameOf(id) { var r = state.list.filter(function (x) { return x.id === id; })[0]; return r ? r.name : id; }
 
   function render() {
-    $('now').innerHTML = state.now === null ? 'The VPN is not set up on the Mac.'
+    $('now').innerHTML = state.now === null ? 'The VPN switch is not set up (docs/setup/vpn.md).'
       : 'The TV is in <b></b>' + (state.now === 'off' ? '' : ' through NordVPN') + '.';
     if (state.now !== null) $('now').querySelector('b').textContent = nameOf(state.now);
     var box = $('list');
@@ -62,7 +62,7 @@
   function load() {
     return fetch('/api/region', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
       state.now = d.region; state.list = d.regions || []; render();
-    }, function () { say('Cannot reach the Mac. Is it on, and is this phone on the home Wi-Fi?', true); });
+    }, function () { say('Cannot reach the helper. Is its computer on, and is this phone on the home Wi-Fi?', true); });
   }
   function choose(id) {
     if (state.busy || id === state.now) return;
@@ -74,7 +74,7 @@
         if (d.ok) { state.now = d.region; say('Done: the TV is in ' + nameOf(d.region) + '.'); }
         else say('Could not switch: ' + (d.error || 'no answer'), true);
         render();
-      }, function () { state.busy = false; render(); say('Cannot reach the Mac.', true); });
+      }, function () { state.busy = false; render(); say('Cannot reach the helper.', true); });
   }
   load();
 })();

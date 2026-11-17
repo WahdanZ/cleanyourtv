@@ -9,13 +9,18 @@ cd "$(dirname "$0")"
 SDK="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 BT="$SDK/build-tools/35.0.0"
 JAR="$SDK/platforms/android-34/android.jar"
-export JAVA_HOME="${JAVA_HOME_17:-$HOME/Library/Java/JavaVirtualMachines/jbrsdk_jcef-17.0.14/Contents/Home}"
+# A JDK 17 or newer: JAVA_HOME_17, else JAVA_HOME, else macOS's own pick of an installed one.
+export JAVA_HOME="${JAVA_HOME_17:-${JAVA_HOME:-$(/usr/libexec/java_home -v 17+ 2>/dev/null || true)}}"
 export PATH="$JAVA_HOME/bin:$PATH"
 KEYSTORE="$HOME/.android/debug.keystore"   # the same key every build, so an update installs over the old one
-ADB=/opt/homebrew/bin/adb
+ADB="${ADB:-$([ -x /opt/homebrew/bin/adb ] && echo /opt/homebrew/bin/adb || command -v adb || true)}"
 VERSION_CODE=$(date +%s | cut -c1-9)
-# Where the app finds the helper: this Mac's address on the home network, unless HELPER is given.
-HELPER="${HELPER:-http://$(ipconfig getifaddr en0 || ipconfig getifaddr en1):8765}"
+# Where the app finds the helper: this computer's address on the home network, unless HELPER is given
+# (HELPER=http://192.168.1.20:8765 ./build.sh when the helper runs on another computer).
+if [ -z "${HELPER:-}" ]; then
+  ip=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')
+  HELPER="http://$ip:8765"
+fi
 
 rm -rf build; mkdir -p build/classes build/assets/fonts build/dex build/gen
 cp ../web/quotes.json build/assets/
@@ -36,8 +41,8 @@ echo "built $(pwd)/build/home.apk ($(du -h build/home.apk | cut -f1))"
 
 if [ "${1:-}" = install ]; then
   # The Chromecast's address comes from config.json ("chromecast": {"ip": ...}), or CHROMECAST=...
-  cc="${CHROMECAST:-$(/usr/bin/python3 -c 'import json; print(json.load(open("../config.json")).get("chromecast", {}).get("ip", ""))')}"
+  cc="${CHROMECAST:-$(/usr/bin/python3 -c 'import json; c = json.load(open("../config.json")).get("chromecast", {}).get("ip", ""); print(c[0] if isinstance(c, list) else c)')}"
   dev=$("$ADB" devices | awk -v ip="$cc" 'index($1, ip ":") == 1 && $2 == "device" {print $1; exit}')
-  [ -n "$dev" ] || { echo "The Chromecast is not connected: double-click 'Connect Chromecast'."; exit 1; }
+  [ -n "$dev" ] || { echo "The Chromecast is not connected: ./cc.sh connect"; exit 1; }
   "$ADB" -s "$dev" install -r build/home.apk
 fi

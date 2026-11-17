@@ -48,7 +48,7 @@ def fetch(settings, ctx):
     return {"title": "News", "lines": [{"text": i["title"], "sub": ""} for i in items]}
 ```
 
-It runs on the Mac, in the helper, in the background; whatever it returns is what the home screens get.
+It runs in the helper, on its computer, in the background; whatever it returns is what the home screens get.
 `ctx.place` is the weather's city (`{"city", "lat", "lon"}`). An error is shown in the admin panel and the add-on
 tries again 5 minutes later.
 
@@ -66,4 +66,4 @@ An `action` (on a row item or a list item) is one step or a list of steps, as fo
 A full-screen add-on can serve its own files (photos, say): `def file(name, settings)` returns `(bytes, type)`,
 and `ctx.file_url(name)` is their address.
 
-Add-ons are Python running on your Mac with your user's rights: only add ones you have read.
+Add-ons are Python running in the helper with your user's rights: only add ones you have read.

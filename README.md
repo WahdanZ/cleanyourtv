@@ -1,4 +1,4 @@
-# Clean Your TV for VIDAA
+# Clean Your TV for VIDAA and Chromecast
 
 A clean, Apple TV–style home screen for **Hisense VIDAA** TVs, with a black home, a four-app dock, an ambient glow in the focused app's colour and one glass highlight that springs between tiles. It is a port of the idea behind [CleanYourTV](https://github.com/Gathin23/cleanyourtv) to a TV that does not run Android.
 
@@ -21,7 +21,33 @@ A clean, Apple TV–style home screen for **Hisense VIDAA** TVs, with a black ho
 
 CleanYourTV works by talking to Android TVs over ADB: it disables junk apps and installs a new launcher. A VIDAA TV is Linux, with no ADB, no APKs and no way to replace its home screen. This project gets as close as the platform allows, using only what the TV itself offers: its web runtime, its remote-control channel and its casting service. Nothing is installed on the TV except one launcher tile, nothing is rooted or flashed, and you undo it by deleting the tile.
 
-**Tested on** a Hisense 50A5FE (VIDAA U9, firmware V0000.09.09A.P0930, browser Chrome 111 "Odin"), October 2026. Other VIDAA TVs should behave alike, but every finding here comes from that one set; please report yours.
+**Tested on** a Hisense 50A5FE (VIDAA U9, firmware V0000.09.09A.P0930, browser Chrome 111 "Odin"), October 2026, and a Hisense 55U8Q (VIDAA U9, V0000.09.60I) with a Chromecast with Google TV 4K (Android 14), November 2026. Other VIDAA TVs should behave alike; please report yours.
+
+## Pick your setup
+
+One helper on a computer at home serves both screens; use one or both.
+
+| You have | You get | Start here |
+|---|---|---|
+| **A VIDAA TV** | The launcher below, native apps, Home takeover, Browser, Stremio, YouTube without ads, Live TV | [Set up](#set-up) (this page), then [docs/setup/helper.md](docs/setup/helper.md) |
+| **A Chromecast with Google TV** (or another Google TV / Android TV box) | A native launcher with the same look: your apps only, widgets, no ads on Home | [docs/setup/helper.md](docs/setup/helper.md) with `"vidaa": false`, then [docs/setup/chromecast.md](docs/setup/chromecast.md) |
+| **Both** | Both, with one shared layout, one admin panel and one phone remote | [Set up](#set-up), then [docs/setup/chromecast.md](docs/setup/chromecast.md) |
+
+| And for a VPN | |
+|---|---|
+| None | Nothing to do: the VPN parts stay hidden |
+| The helper runs on a **Mac** | `vpn/macos/tv-vpn.sh`: only the TV and the Chromecast go through the VPN, switched from the TV, the panel or your phone. NordVPN or any WireGuard file, your own server included. [docs/setup/vpn.md](docs/setup/vpn.md) |
+| **Windows or Linux**, or you'd rather not touch the computer | Your router's VPN with per-device rules, a Linux gateway, or a VPN app on the Chromecast. [docs/setup/vpn.md](docs/setup/vpn.md) |
+
+## Also in this version
+
+- **Chromecast launcher** (`android/`): a native Google TV home screen that draws the same Home, from the same helper. [Guide](docs/setup/chromecast.md)
+- **Admin panel** at `http://<helper ip>:8765/admin`: tap anything on a picture of the TV's or Chromecast's Home to change it; presets, sizes, drag and drop, undo. Saves show on the screens within 3 seconds. [Guide](docs/customize.md)
+- **Your layout:** the clock (six styles, or a different one each day, with the weather), the quote, the weather, three widget blocks, Now playing, the dock's size and width.
+- **Add-ons:** widgets (football scores, prayer times, news), rows (YouTube channels, top movies), full-screen pages (news reader, photo slideshow) and quick actions. Write your own in a few lines of Python: [addons/README.md](addons/README.md)
+- **Edit Home with the remote** (✎ pill), on the TV and the Chromecast.
+- **Your phone as the remote:** add the admin panel to your phone's Home screen; a remote for either device, an app and web-address launcher, and a Now playing player. QR codes on Home open them.
+- **VPN per device, per app:** OSN+ switches to the UAE when it opens, say. [Guide](docs/setup/vpn.md)
 
 ## What you get, and what you don't
 
@@ -65,6 +91,7 @@ Why it is built this way, and every dead end on the way, is in [docs/FINDINGS.md
 - A computer on the same network for setup: Windows, macOS or Linux, with Python 3.10+.
 - For native apps and the Home takeover: a computer that stays on, such as an old laptop, a mini PC or a Raspberry Pi. A cloud server cannot do this job, because the TV only takes commands from its own network.
 - Optional: a free [Vercel](https://vercel.com) account, or any static host, for the always-available page.
+- Optional: a Chromecast with Google TV ([docs/setup/chromecast.md](docs/setup/chromecast.md)), and a VPN ([docs/setup/vpn.md](docs/setup/vpn.md)).
 
 ## Set up
 
@@ -131,6 +158,7 @@ A tile can't be changed once added (adding the same id again is ignored), so get
 
 - **Windows, on a spare PC:** unpack the kit from `setup/pack.py` and run `powershell -ExecutionPolicy Bypass -File cyt-vidaa\setup\windows\setup-kit.ps1`. It installs Python, yt-dlp, Node.js and ffmpeg, moves the pairing into place, opens the firewall ports, turns off sleep (lid included) and adds the logon task. If the PC's name is the same as your account's, rename the PC first: Windows then can't tell them apart.
 - **Windows, this PC:** `powershell -ExecutionPolicy Bypass -File setup\windows\install.ps1` adds a logon task that runs it hidden and restarts it if it stops. Make sure the PC doesn't sleep.
+- **macOS:** `bash setup/macos/install.sh` adds a login agent that starts the helper, restarts it if it stops and keeps the Mac awake while it runs. Keep the Mac on power.
 - **Linux (systemd):** `bash setup/linux/install.sh` installs a user service that starts at boot, opens port 8765 in ufw and disables sleep, including on lid close. To move a working setup to another computer, `python setup/pack.py` makes a zip with the code, Sidee's core and the pairing. Keep that zip private.
 
 ### Browser
@@ -231,6 +259,8 @@ Removed apps are stored by the helper (`data/hidden.json`), or in the TV browser
 | No suggestions while typing | The helper (or, on the hosted page, the Vercel function) can't reach DuckDuckGo. Searching still works. |
 | A website can't be clicked | It opened in the launcher instead of the TV Browser, which happens only without a helper. Open it from the search screen with the helper running. |
 | `the TV refused the connection` | The pairing was revoked (e.g. after a factory reset): pair again with Sidee. |
+| The admin panel says there is no password | Run `python helper/set_admin_password.py` on the helper's computer. |
+| Chromecast, VPN or admin panel problems | See the guides: [Chromecast](docs/setup/chromecast.md#troubleshooting), [VPN](docs/setup/vpn.md#checking-it), [helper](docs/setup/helper.md). |
 | Holding OK opens the app instead of the menu | Your remote may not repeat or release keys like ours; open an issue with what `web/probes/probe.html` records. |
 
 The probe pages in `web/probes/` are how everything here was found. Open one on the TV with `python tools/tile.py launch cytprobe "Probe" "http://<pc ip>:8765/probes/probe.html"`; their reports land in `reports/`.
@@ -258,7 +288,9 @@ Read [docs/GUIDELINES.md](docs/GUIDELINES.md) first, and [docs/CHALLENGES.md](do
 - [iptv-org/iptv](https://github.com/iptv-org/iptv) (Unlicense): the free channel lists
 - [hls.js](https://github.com/video-dev/hls.js) (Apache-2.0, `web/vendor/hls.min.js`): HLS playback
 - [Outfit](https://github.com/Outfitio/Outfit-Fonts) font (SIL Open Font License, `web/fonts/OFL.txt`)
+- [WireGuard](https://www.wireguard.com/) (`wireguard-go`, `wireguard-tools`): the VPN tunnel, installed separately
+- Data for Home: [Open-Meteo](https://open-meteo.com/) (weather), [ZenQuotes](https://zenquotes.io/) (quotes), Bing, Wikimedia Commons and NASA APOD (wallpapers), ESPN (football), [AlAdhan](https://aladhan.com/) (prayer times), Apple's RSS charts (top movies)
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Not affiliated with Hisense or VIDAA; their names and app logos belong to their owners. Use it on TVs you own.
+MIT, see [LICENSE](LICENSE). Not affiliated with Hisense, VIDAA, Google or any VPN provider; their names and app logos belong to their owners. Use it on TVs you own.

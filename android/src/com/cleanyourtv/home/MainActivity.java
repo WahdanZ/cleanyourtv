@@ -1528,7 +1528,7 @@ public class MainActivity extends Activity {
                 runSteps(r.optJSONArray("steps"));
             } catch (Exception e) {
                 done[0] = true;
-                ui.post(() -> toast("Cannot reach the Mac, so " + name + " did not run"));
+                ui.post(() -> toast("Cannot reach the helper, so " + name + " did not run"));
             }
         });
     }
@@ -1669,7 +1669,7 @@ public class MainActivity extends Activity {
                 JSONObject page = new JSONObject(get("/api/addons/" + addonId + "/screen", 30_000));
                 ui.post(() -> showScreen(page));
             } catch (Exception e) {
-                ui.post(() -> toast("Cannot reach the Mac, so that page can't open"));
+                ui.post(() -> toast("Cannot reach the helper, so that page can't open"));
             }
         });
     }
@@ -1889,7 +1889,7 @@ public class MainActivity extends Activity {
                     render();
                 });
             } catch (Exception e) {
-                ui.post(() -> toast("Cannot reach the Mac, so the admin panel can't be shown"));
+                ui.post(() -> toast("Cannot reach the helper, so the admin panel can't be shown"));
             }
         });
     }
@@ -1961,7 +1961,7 @@ public class MainActivity extends Activity {
                     render();
                     drawEdit();
                 });
-            } catch (Exception e) { ui.post(() -> toast("Cannot reach the Mac")); }
+            } catch (Exception e) { ui.post(() -> toast("Cannot reach the helper")); }
         });
     }
 
@@ -2001,7 +2001,7 @@ public class MainActivity extends Activity {
                     toast("Saved. The TV shows it too." + (added ? " New widgets appear in a few seconds." : ""));
                     ui.postDelayed(() -> io.execute(this::refreshAddons), 4000);
                 });
-            } catch (Exception e) { ui.post(() -> { toast("Cannot reach the Mac: not saved"); restoreLayout(); }); }
+            } catch (Exception e) { ui.post(() -> { toast("Cannot reach the helper: not saved"); restoreLayout(); }); }
         });
     }
 
@@ -2458,7 +2458,7 @@ public class MainActivity extends Activity {
                     msg = name.replaceAll("\\s*\\(.*\\)$", "") + ": done. Close and reopen Netflix or Disney+ to see it.";
                 } else msg = "Could not switch: " + r.optString("error", "no answer");
             } catch (Exception e) {
-                msg = "Cannot reach the Mac, so the VPN did not change";
+                msg = "Cannot reach the helper, so the VPN did not change";
             }
             final String m = msg;
             ui.post(() -> { rebuildPills(); render(); toast(m); });
