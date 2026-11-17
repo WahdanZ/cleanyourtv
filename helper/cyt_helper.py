@@ -495,6 +495,23 @@ APP_BROWSER = {str(k): str(v) for k, v in (CONFIG.get("app_browser") or {}).item
 APP_VPN = {str(k): str(v).lower() for k, v in (CONFIG.get("app_vpn") or {}).items()}
 _auto_vpn = {"prev": None}   # the region before an app switched it, while that switch stands
 
+# The Chromecast's own launcher (android/, an app that shows this same page) gets its apps from Android and only reads
+# its settings, the weather, quote and wallpaper here, plus the VPN switch, which it shares with the TV. Its per-app
+# countries ("app_vpn", by Android package name) join the TV's: package names and VIDAA ids never clash.
+CHROMECAST = CONFIG.get("chromecast") or {}
+_cc_ip = CHROMECAST.get("ip", [])
+CC_IPS = {str(x) for x in (_cc_ip if isinstance(_cc_ip, list) else [_cc_ip]) if x}
+CC_PATHS = {"/", "/index.html", "/quotes.json", "/api/cc", "/api/cc-open", "/api/weather", "/api/quote",
+            "/api/quote-image", "/api/wallpaper", "/api/wallpaper.jpg", "/api/region", "/vpn"}
+APP_VPN.update({str(k): str(v).lower() for k, v in (CHROMECAST.get("app_vpn") or {}).items()})
+
+
+def chromecast_settings() -> dict:
+    return {"dock": CHROMECAST.get("dock", []), "rows": CHROMECAST.get("rows", []), "rename": CHROMECAST.get("rename", {}),
+            "hidden": CHROMECAST.get("hidden", []), "app_vpn": CHROMECAST.get("app_vpn", {}),
+            "greeting_name": CONFIG.get("greeting_name", ""), "quotes": CONFIG.get("quotes", True), "weather": bool(WEATHER),
+            "wallpaper": bool(WALLPAPER_ON), "region": vpn_available(), "clock_24h": CONFIG.get("clock_24h", False)}
+
 
 def vpn_for_app(app_id: str):
     if not vpn_available():
@@ -718,6 +735,9 @@ class Handler(SimpleHTTPRequestHandler):
         ip = self.client_address[0]
         if ip in CONFIG.get("allowed_clients", []) or ip == client.Session.load().host:
             return True
+        path = urlsplit(self.path).path
+        if ip in CC_IPS and (path in CC_PATHS or path.startswith("/fonts/")):
+            return True
         # A phone or computer at home may use the VPN page and its switch, and nothing else.
         if urlsplit(self.path).path in ("/vpn", "/api/region") and ip.rsplit(".", 1)[0] == own_ip().rsplit(".", 1)[0]:
             return True
@@ -753,6 +773,9 @@ class Handler(SimpleHTTPRequestHandler):
                              "clock_24h": CONFIG.get("clock_24h", False), "sources": SOURCES.get(),
                              "removed_count": len(APPS.removed()), "takeover": takeover_on(), "browser": BROWSER,
                              "order_saved": bool(APPS.order())})
+            return
+        if path == "/api/cc":
+            self._json(200, chromecast_settings())
             return
         if path == "/vpn":
             body = (WEB / "vpn.html").read_bytes()
@@ -1013,6 +1036,11 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
                 t = time.time()
                 open_app(app)
                 log(f"launched {app.get('name')} in {int((time.time() - t) * 1000)} ms")
+                self._json(200, {"ok": True})
+                return
+            if path == "/api/cc-open":
+                # The Chromecast is about to open an app: switch the VPN first if that app has a country (or back).
+                vpn_for_app(str(data.get("appId", "")))
                 self._json(200, {"ok": True})
                 return
             if path == "/api/browse":

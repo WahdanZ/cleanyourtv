@@ -34,5 +34,13 @@
   "home_takeover": true,
   "takeover_on_power_on": true,
   "power_on_delay_seconds": 5,
-  "app_list_refresh_minutes": 5
+  "app_list_refresh_minutes": 5,
+  "chromecast": {
+    "ip": "192.168.1.60",
+    "dock": ["com.netflix.ninja", "com.google.android.youtube.tv", "com.amazon.amazonvideo.livingroom", "com.disney.disneyplus"],
+    "rows": [{"title": "Streaming", "apps": ["com.osn.go", "net.mbc.shahidTV"]}],
+    "rename": {"com.osn.go": "OSN+"},
+    "hidden": ["com.google.android.videos"],
+    "app_vpn": {"com.osn.go": "ae"}
+  }
 }
