@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Home Admin</title>
+<meta name="theme-color" content="#0e0e11" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f4f6" media="(prefers-color-scheme: light)">
+<link rel="manifest" href="/api/admin/app/manifest.webmanifest">
+<link rel="icon" href="/api/admin/app/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/api/admin/app/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Home">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
   :root {
     --bg: #f4f4f6; --card: #ffffff; --text: #16161a; --muted: #6b6b75; --line: #e3e3e8; --soft: #f0f0f3;
@@ -117,7 +126,7 @@
   .savebar.open { display: block; }
   .savebar .wrap { display: flex; align-items: center; gap: 10px; }
   .savebar .grow { flex: 1; font-weight: 600; }
-  .toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 30; padding: 12px 18px; border-radius: 12px;
+  .toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 60; padding: 12px 18px; border-radius: 12px;
            background: var(--text); color: var(--bg); font-size: 15px; max-width: calc(100% - 32px); display: none; }
   .toast.open { display: block; }
   .login { max-width: 380px; margin: 12vh auto 0; }
@@ -297,6 +306,86 @@
     .insp-head { position: sticky; top: 0; background: var(--card); z-index: 1; }
   }
 
+  /* the remote: phone-first, one hand */
+  .fab { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 25; width: 60px; height: 60px; border-radius: 50%;
+         border: 0; background: var(--accent); color: var(--accent-text); box-shadow: 0 8px 24px rgba(0,0,0,.35); cursor: pointer;
+         display: flex; align-items: center; justify-content: center; transition: bottom .2s ease, transform .15s ease; }
+  .fab svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .fab:active { transform: scale(.94); }
+  body.unsaved .fab { bottom: calc(92px + env(safe-area-inset-bottom)); }
+  body.remote-open .fab { display: none; }
+  .rscrim { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 44; opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+  .rscrim.open { opacity: 1; pointer-events: auto; }
+  .rsheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; max-height: 92vh; overflow: auto; background: var(--bg);
+            border-radius: 22px 22px 0 0; border: 1px solid var(--line); padding: 6px 16px calc(16px + env(safe-area-inset-bottom));
+            transform: translateY(105%); transition: transform .25s ease; box-shadow: 0 -12px 40px rgba(0,0,0,.4); }
+  .rsheet.open { transform: none; }
+  .rsheet-head { display: flex; align-items: center; padding: 10px 2px 0; position: sticky; top: 0; background: var(--bg); z-index: 1; }
+  .rsheet-head b { flex: 1; font-size: 17px; }
+  .rsheet-head .link { font-size: 22px; padding: 6px 10px; }
+  @media (min-width: 700px) {
+    .rsheet { left: auto; right: 24px; bottom: 24px; width: 420px; max-height: calc(100vh - 48px); border-radius: 24px; transform: translateY(calc(100% + 40px)); }
+  }
+  .rm-switch { display: flex; gap: 6px; padding: 4px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); width: max-content; margin: 8px auto 0; }
+  .rm-switch button { font: inherit; border: 0; background: none; color: var(--text); padding: 10px 22px; border-radius: 999px; cursor: pointer; }
+  .rm-switch button.on { background: var(--text); color: var(--bg); }
+  .rm-status { text-align: center; min-height: 20px; margin: 10px 0 4px; }
+  .remote { max-width: 360px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; padding-bottom: 20px; user-select: none; -webkit-user-select: none; }
+  .remote [data-only] { }
+  .remote.tv [data-only="cc"], .remote.cc [data-only="tv"] { display: none; }
+  .rm-row { display: flex; gap: 12px; justify-content: center; }
+  .rm-btn { font: inherit; min-width: 64px; height: 64px; border-radius: 22px; border: 1px solid var(--line); background: var(--card); color: var(--text);
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 0 16px; touch-action: manipulation; }
+  .rm-btn.wide { flex: 1; }
+  .rm-btn.power { color: var(--bad); }
+  .remote svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .rm-btn:active, .dk:active { transform: scale(.94); background: var(--soft); }
+  .dpad { position: relative; width: 270px; height: 270px; margin: 0 auto; border-radius: 50%; background: var(--card); border: 1px solid var(--line); }
+  .dk { position: absolute; border: 0; background: none; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center;
+        font: inherit; touch-action: manipulation; border-radius: 50%; }
+  .dk.up { top: 6px; left: 50%; width: 84px; height: 84px; margin-left: -42px; }
+  .dk.down { bottom: 6px; left: 50%; width: 84px; height: 84px; margin-left: -42px; }
+  .dk.left { left: 6px; top: 50%; width: 84px; height: 84px; margin-top: -42px; }
+  .dk.right { right: 6px; top: 50%; width: 84px; height: 84px; margin-top: -42px; }
+  .dk.ok { left: 50%; top: 50%; width: 104px; height: 104px; margin: -52px 0 0 -52px; background: var(--soft); border: 1px solid var(--line);
+           font-weight: 600; font-size: 18px; }
+  .dk svg { width: 34px; height: 34px; }
+  .rm-type { display: flex; gap: 8px; }
+  .rm-type input { flex: 1; }
+
+
+  /* ---------- an app on the phone: no tap flashes or zoom bounce; room for the notch and the home bar ---------- */
+  [hidden] { display: none !important; }
+  html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+  body { overscroll-behavior-y: none; }
+  button, .app, .chipa, .rm-btn, .dk { touch-action: manipulation; }
+  header { padding-top: calc(20px + env(safe-area-inset-top)); }
+  .hbtn { border: 1px solid var(--line); background: var(--card); color: var(--text); width: 40px; height: 40px; border-radius: 12px; cursor: pointer;
+          display: inline-flex; align-items: center; justify-content: center; }
+  .hbtn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .apptip { position: relative; margin: 6px 0 4px; display: flex; flex-direction: column; gap: 6px; }
+  .apptip .x { position: absolute; right: 6px; top: 6px; font-size: 18px; color: var(--muted); }
+  .apptip .btn { align-self: flex-start; margin-top: 4px; }
+  nav button svg { display: none; }
+  @media (max-width: 900px) {
+    /* the tabs become a bar along the bottom, as in an app */
+    nav { position: fixed; top: auto; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0;
+          padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--line); overflow: visible; }
+    nav button { border: 0; background: none; border-radius: 12px; padding: 6px 2px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+                 font-size: 11px; color: var(--muted); min-width: 0; }
+    nav button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    nav button svg { display: block; width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    nav button.on { background: none; color: var(--accent); border: 0; }
+    body { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+    header { padding-bottom: 4px; }
+    h1 { font-size: 20px; }
+    .savebar { bottom: calc(62px + env(safe-area-inset-bottom)); padding-bottom: 12px; }
+    .fab { bottom: calc(78px + env(safe-area-inset-bottom)); }
+    body.unsaved .fab { bottom: calc(146px + env(safe-area-inset-bottom)); }
+    .stagearea { top: env(safe-area-inset-top) !important; }
+    .rsheet { z-index: 45; }
+  }
+
   /* drag and drop */
   .app { touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .app.ghost { opacity: .3; }
@@ -324,14 +413,21 @@
   <section id="appView" class="hidden">
     <header>
       <h1>Home Admin</h1>
+      <button class="hbtn" id="fsBtn" aria-label="Full screen" hidden><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       <div class="chips" id="status"></div>
     </header>
+    <div class="card pad apptip" id="appTip" hidden>
+      <button class="link x" id="appTipX" aria-label="Hide this tip">✕</button>
+      <b>Use it like an app</b>
+      <div id="appTipText" class="hint"></div>
+      <button class="btn primary" id="installBtn" hidden>Install</button>
+    </div>
     <nav id="tabs">
-      <button data-tab="vpn" class="on">VPN</button>
-      <button data-tab="tv">TV</button>
-      <button data-tab="cc">Chromecast</button>
-      <button data-tab="home">Home screen</button>
-      <button data-tab="system">System</button>
+      <button data-tab="vpn" class="on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg><span>VPN</span></button>
+      <button data-tab="tv"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg><span>TV</span></button>
+      <button data-tab="cc"><svg viewBox="0 0 24 24"><path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-6M3 13a6 6 0 0 1 6 6M3 17a2 2 0 0 1 2 2"/></svg><span>Chromecast</span></button>
+      <button data-tab="home"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>Settings</span></button>
+      <button data-tab="system"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5"/></svg><span>System</span></button>
     </nav>
 
     <div data-pane="vpn">
@@ -422,6 +518,44 @@
       </div>
     
       </div></div>
+    </div>
+
+    <button class="fab" id="rmFab" aria-label="Remote"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="2.2"/><path d="M10 13h4M10 16h4"/></svg></button>
+    <div class="rscrim" id="rmScrim"></div>
+    <div class="rsheet" id="remoteSheet" role="dialog" aria-label="Remote">
+      <div class="rsheet-head"><b>Remote</b><button class="link" id="rmClose" aria-label="Close the remote">✕</button></div>
+      <div class="rm-switch" id="rmSwitch"><button data-dev="tv" class="on">TV</button><button data-dev="cc">Chromecast</button></div>
+      <p class="hint rm-status" id="rmStatus">…</p>
+      <div class="remote" id="remote">
+        <div class="rm-row">
+          <button class="rm-btn power" data-k="power" aria-label="Power"><svg viewBox="0 0 24 24"><path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button>
+          <button class="rm-btn" data-k="wake" data-only="cc">Wake</button>
+          <button class="rm-btn" data-k="input" data-only="tv">Input</button>
+          <button class="rm-btn" data-k="menu" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+        </div>
+        <div class="dpad">
+          <button class="dk up" data-k="up" data-repeat aria-label="Up"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+          <button class="dk left" data-k="left" data-repeat aria-label="Left"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+          <button class="dk ok" data-k="ok">OK</button>
+          <button class="dk right" data-k="right" data-repeat aria-label="Right"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+          <button class="dk down" data-k="down" data-repeat aria-label="Down"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+        </div>
+        <div class="rm-row">
+          <button class="rm-btn wide" data-k="back"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></svg>Back</button>
+          <button class="rm-btn wide" data-k="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7M5 10v10h14V10"/></svg>Home</button>
+        </div>
+        <div class="rm-row">
+          <button class="rm-btn" data-k="voldown" data-repeat aria-label="Volume down"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+          <button class="rm-btn" data-k="mute" aria-label="Mute"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM17 9l4 6M21 9l-4 6"/></svg></button>
+          <button class="rm-btn" data-k="volup" data-repeat aria-label="Volume up"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+          <button class="rm-btn" data-k="play" aria-label="Play or pause"><svg viewBox="0 0 24 24"><path d="M4 6v12l7-6-7-6zM15 6v12M20 6v12"/></svg></button>
+        </div>
+        <div class="rm-type" data-only="cc">
+          <input type="text" id="rmText" placeholder="Type into the Chromecast" autocomplete="off" enterkeyhint="send">
+          <button class="btn primary" id="rmSend">Send</button>
+        </div>
+        <p class="hint" data-only="cc" style="text-align:center">Typing goes into the search box that's open on the Chromecast (YouTube, Netflix…).</p>
+      </div>
     </div>
 
     <div data-pane="home" class="hidden">
@@ -1774,12 +1908,92 @@
   });
   $('logout').onclick = function () { api('/api/admin/logout', {}).then(function () { showLogin(true); }); };
 
+  // ---------- the remote: the TV's keys go over its remote channel, the Chromecast's over its debugging link ----------
+  var rmDev = 'tv', rmTimer = 0, rmRepeat = 0;
+  function rmSend(key, text) {
+    if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
+    return api('/api/admin/remote', text != null ? { device: rmDev, text: text } : { device: rmDev, key: key })
+      .then(function (r) { if (r && r.ok === false) toast(r.error || 'It didn\'t take it.'); return r; },
+            function (e) { toast(e.message, 5000); });
+  }
+  function rmShowStatus() {
+    $('remote').className = 'remote ' + rmDev;
+    Array.prototype.forEach.call(document.querySelectorAll('#rmSwitch button'), function (b) { b.classList.toggle('on', b.getAttribute('data-dev') === rmDev); });
+    api('/api/admin/remote-status').then(function (st) {
+      var t;
+      if (rmDev === 'tv') t = st.tv.on === true ? 'The TV is on.' : st.tv.on === false ? 'The TV looks off: it may not answer until it\'s on.' : 'Can\'t tell whether the TV is on.';
+      else t = !st.cc.linked ? st.cc.why : st.cc.awake ? 'The Chromecast is on.' : 'The Chromecast is asleep: Wake turns it on (the TV may switch to it).';
+      $('rmStatus').textContent = t;
+    }, function () { $('rmStatus').textContent = ''; });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#rmSwitch button'), function (b) {
+    b.onclick = function () { rmDev = b.getAttribute('data-dev'); rmShowStatus(); };
+  });
+  // A press sends the key; held, the arrows and the volume repeat.
+  function rmStop() { clearTimeout(rmRepeat); clearInterval(rmRepeat); rmRepeat = 0; }
+  $('remote').addEventListener('pointerdown', function (e) {
+    var b = e.target.closest('[data-k]'); if (!b) return;
+    e.preventDefault();
+    var k = b.getAttribute('data-k');
+    if (k === 'power') {
+      if (!confirm(rmDev === 'tv' ? 'Turn the TV off?' : 'Put the Chromecast to sleep?')) return;
+    }
+    rmSend(k);
+    if (b.hasAttribute('data-repeat')) rmRepeat = setTimeout(function () { rmRepeat = setInterval(function () { rmSend(k); }, 220); }, 450);
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { $('remote').addEventListener(ev, rmStop); });
+  $('rmSend').onclick = function () {
+    var v = $('rmText').value; if (!v.trim()) return;
+    rmSend(null, v).then(function (r) { if (r && r.ok) { $('rmText').value = ''; toast('Sent.'); } });
+  };
+  $('rmText').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); $('rmSend').onclick(); } };
+  // A floating button opens the remote over any page; ✕, a tap outside it or Esc closes it.
+  function openRemote() {
+    $('remoteSheet').classList.add('open'); $('rmScrim').classList.add('open'); document.body.classList.add('remote-open');
+    rmShowStatus(); clearInterval(rmTimer); rmTimer = setInterval(rmShowStatus, 15000);
+  }
+  function closeRemote() {
+    $('remoteSheet').classList.remove('open'); $('rmScrim').classList.remove('open'); document.body.classList.remove('remote-open');
+    clearInterval(rmTimer); rmTimer = 0; rmStop();
+  }
+  $('rmFab').onclick = openRemote;
+  $('rmClose').onclick = closeRemote;
+  $('rmScrim').onclick = closeRemote;
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.body.classList.contains('remote-open')) closeRemote(); });
+
+  // ---------- like an app: full screen in the browser, or added to the home screen ----------
+  var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  var isPhone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (!standalone && document.fullscreenEnabled && isPhone) {
+    $('fsBtn').hidden = false;
+    $('fsBtn').onclick = function () {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen().catch(function () { toast('Full screen isn\'t allowed here.'); });
+    };
+  }
+  var installEvent = null;
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installEvent = e; $('installBtn').hidden = false; showTip(true); });
+  $('installBtn').onclick = function () { if (installEvent) { installEvent.prompt(); installEvent = null; $('installBtn').hidden = true; } };
+  function showTip(force) {
+    var seen = false;
+    try { seen = localStorage.getItem('cyt-apptip') === 'hidden'; } catch (e) {}
+    if (standalone || (!isPhone && !force) || (seen && !force)) return;
+    var ios = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    $('appTipText').textContent = ios
+      ? 'Tap Share (the square with an arrow), then "Add to Home Screen". It then opens full screen, like an app.'
+      : 'Tap the ⋮ menu, then "Add to Home screen" (or "Install app"). Opened from there, tap ⤢ at the top for full screen.';
+    $('appTip').hidden = false;
+  }
+  $('appTipX').onclick = function () { $('appTip').hidden = true; try { localStorage.setItem('cyt-apptip', 'hidden'); } catch (e) {} };
+  showTip(false);
+
   // ---------- tabs ----------
   Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (b) {
     b.onclick = function () {
       tab = b.getAttribute('data-tab');
       document.body.classList.toggle('wide', tab === 'cc' || tab === 'tv');
       if (tab === 'cc' || tab === 'tv') showStudio(tab);
+
       Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (x) { x.classList.toggle('on', x === b); });
       Array.prototype.forEach.call(document.querySelectorAll('[data-pane]'), function (p) { p.classList.toggle('hidden', p.getAttribute('data-pane') !== tab); });
       window.scrollTo(0, 0);
@@ -1792,7 +2006,12 @@
     Object.keys(draft).forEach(function (k) { if (JSON.stringify(draft[k]) !== JSON.stringify(orig[k])) out[k] = draft[k]; });
     return out;
   }
-  function dirty() { remember(); $('saveBar').classList.toggle('open', !!draft && Object.keys(changes()).length > 0); }
+  function dirty() {
+    remember();
+    var open = !!draft && Object.keys(changes()).length > 0;
+    $('saveBar').classList.toggle('open', open);
+    document.body.classList.toggle('unsaved', open);
+  }
   $('discard').onclick = function () { draft = clone(orig); renderAll(); snapReset(); dirty(); };
   $('save').onclick = function () {
     var c = changes(); if (!Object.keys(c).length) return;

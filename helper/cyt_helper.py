@@ -14,6 +14,7 @@ import json
 import mimetypes
 import os
 import re
+import shlex
 import shutil
 import socket
 import subprocess
@@ -909,6 +910,68 @@ def _adb() -> str | None:
     return None
 
 
+def _cc_serial() -> tuple[str | None, str | None, str]:
+    """(adb, the Chromecast's debugging serial, why not): the link the screenshot and the remote use."""
+    adb = _adb()
+    if not adb:
+        return None, None, "adb isn't on the Mac."
+    out = subprocess.run([adb, "devices"], capture_output=True, text=True, timeout=10).stdout
+    ips = [CC_IPS] if isinstance(CC_IPS, str) else list(CC_IPS or [])
+    serial = next((ln.split()[0] for ln in out.splitlines()[1:]
+                   if ln.split()[-1:] == ["device"] and any(ln.startswith(ip + ":") for ip in ips)), None)
+    if not serial:
+        return adb, None, "The Chromecast isn't connected: on the Mac, double-click Connect Chromecast."
+    return adb, serial, ""
+
+
+# ---------- the remote (admin panel): the TV's keys over its remote channel, the Chromecast's over its debugging link ----------
+TV_KEYS = {"up": "KEY_UP", "down": "KEY_DOWN", "left": "KEY_LEFT", "right": "KEY_RIGHT", "ok": "KEY_OK", "back": "KEY_RETURNS",
+           "home": "KEY_HOME", "menu": "KEY_MENU", "volup": "KEY_VOLUMEUP", "voldown": "KEY_VOLUMEDOWN", "mute": "KEY_MUTE",
+           "play": "KEY_PLAY", "pause": "KEY_PAUSE", "power": "KEY_POWER", "input": "KEY_INPUT", "exit": "KEY_EXIT"}
+CC_KEYS = {"up": "DPAD_UP", "down": "DPAD_DOWN", "left": "DPAD_LEFT", "right": "DPAD_RIGHT", "ok": "DPAD_CENTER",
+           "back": "BACK", "home": "HOME", "menu": "MENU", "volup": "VOLUME_UP", "voldown": "VOLUME_DOWN", "mute": "VOLUME_MUTE",
+           "play": "MEDIA_PLAY_PAUSE", "pause": "MEDIA_PLAY_PAUSE", "power": "SLEEP", "wake": "WAKEUP", "settings": "SETTINGS"}
+
+
+def remote_press(device: str, key: str = "", text: str = "") -> dict:
+    if device == "tv":
+        if key == "home":   # your Home (this launcher), not VIDAA's
+            threading.Thread(target=HOME_WATCH.open_launcher, args=("the remote", True), daemon=True).start()
+            return {"ok": True}
+        if key not in TV_KEYS:
+            raise ValueError("the TV has no such key here")
+        TV.send_key(TV_KEYS[key])
+        return {"ok": True}
+    if device != "cc":
+        raise ValueError("unknown device")
+    adb, serial, why = _cc_serial()
+    if not serial:
+        return {"ok": False, "error": why}
+    if text:   # typed on the phone, into whatever box has focus on the Chromecast
+        clean = "".join(ch for ch in str(text)[:200] if ch.isprintable()).replace(" ", "%s")
+        cmd = ["shell", "input", "text", shlex.quote(clean)]
+    elif key in CC_KEYS:
+        cmd = ["shell", "input", "keyevent", "KEYCODE_" + CC_KEYS[key]]
+    else:
+        raise ValueError("the Chromecast has no such key here")
+    r = subprocess.run([adb, "-s", serial] + cmd, capture_output=True, text=True, timeout=10)
+    return {"ok": r.returncode == 0, "error": "" if r.returncode == 0 else "The Chromecast didn't take it."}
+
+
+def remote_status() -> dict:
+    out = {"tv": {"on": HOME_WATCH.up}, "cc": {"linked": False, "awake": None, "why": ""}}
+    try:
+        adb, serial, why = _cc_serial()
+        out["cc"]["why"] = why
+        if serial:
+            power = subprocess.run([adb, "-s", serial, "shell", "dumpsys power | grep -m1 mWakefulness"],
+                                   capture_output=True, text=True, timeout=10).stdout
+            out["cc"].update(linked=True, awake="Awake" in power)
+    except subprocess.TimeoutExpired:
+        out["cc"]["why"] = "The Chromecast didn't answer in time."
+    return out
+
+
 def cc_screenshot() -> tuple[bytes | None, str]:
     """A picture of the Chromecast's screen right now, over wireless debugging. Never wakes it."""
     adb = _adb()
@@ -1365,6 +1428,15 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/admin/hello":   # whether a password exists and this browser is signed in
             self._json(200, {"password_set": ADMIN.password_set(), "signed_in": ADMIN.signed_in(self.headers.get("Cookie"))})
             return
+        if path.startswith("/api/admin/app/"):   # the panel as a phone app: its manifest and icons (asked for without the sign-in)
+            name = path.rsplit("/", 1)[1]
+            f = WEB / "app" / name
+            if not re.match(r"^[a-z0-9-]+\.(png|svg|webmanifest)$", name) or not f.exists():
+                self.send_error(404)
+                return
+            ctype = {"png": "image/png", "svg": "image/svg+xml", "webmanifest": "application/manifest+json"}[name.rsplit(".", 1)[1]]
+            self._send(f.read_bytes(), ctype)
+            return
         if not self._admin_ok():
             return
         q = parse_qs(urlsplit(self.path).query)
@@ -1383,6 +1455,8 @@ class Handler(SimpleHTTPRequestHandler):
                 self.send_error(404)
                 return
             self._send(f.read_bytes(), "image/jpeg")
+        elif path == "/api/admin/remote-status":
+            self._json(200, remote_status())
         elif path == "/api/admin/cc-screen":
             png, why = cc_screenshot()
             if png:
@@ -1475,6 +1549,13 @@ class Handler(SimpleHTTPRequestHandler):
             else:
                 self._json(200, {"ok": True})
                 restart_soon()
+        elif path == "/api/admin/remote":
+            try:
+                self._json(200, remote_press(str(data.get("device", "")), str(data.get("key", "")), str(data.get("text", ""))))
+            except ValueError as e:
+                self._json(400, {"ok": False, "error": str(e)})
+            except (ConnectionError, OSError, subprocess.TimeoutExpired) as e:
+                self._json(502, {"ok": False, "error": "Couldn't reach it: " + str(e)})
         elif path == "/api/admin/wallpaper-next":
             try:
                 self._json(200, {"ok": True, "now": wallpaper_next()})
@@ -1888,8 +1969,8 @@ class HomeWatch(threading.Thread):
             pass
 
     @staticmethod
-    def open_launcher(why: str):
-        if not takeover_on():
+    def open_launcher(why: str, always: bool = False):
+        if not always and not takeover_on():   # (the remote's Home opens it even with the automatic Home off)
             return
         state_path = DATA / "helper_state.json"
         state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
