@@ -320,11 +320,15 @@
             border-radius: 22px 22px 0 0; border: 1px solid var(--line); padding: 6px 16px calc(16px + env(safe-area-inset-bottom));
             transform: translateY(105%); transition: transform .25s ease; box-shadow: 0 -12px 40px rgba(0,0,0,.4); }
   .rsheet.open { transform: none; }
-  .rsheet-head { display: flex; align-items: center; padding: 10px 2px 0; position: sticky; top: 0; background: var(--bg); z-index: 1; }
+  .rsheet { max-height: calc(100dvh - env(safe-area-inset-top) - 32px); }
+  .rsheet-head { display: flex; align-items: center; padding: 20px 2px 4px; position: sticky; top: 0; background: var(--bg); z-index: 1; touch-action: none; }
+  .rsheet-head::before { content: ""; position: absolute; top: 7px; left: 50%; width: 42px; height: 5px; margin-left: -21px; border-radius: 3px;
+                         background: var(--muted); opacity: .45; }   /* the handle: swipe down to close */
+  .rsheet.dragging { transition: none; }
   .rsheet-head b { flex: 1; font-size: 17px; }
-  .rsheet-head .link { font-size: 22px; padding: 6px 10px; }
+  .rsheet-head .link { font-size: 22px; min-width: 44px; min-height: 44px; padding: 6px 10px; }
   @media (min-width: 700px) {
-    .rsheet { left: auto; right: 24px; bottom: 24px; width: 420px; max-height: calc(100vh - 48px); border-radius: 24px; transform: translateY(calc(100% + 40px)); }
+    .rsheet { left: auto; right: 24px; bottom: 24px; width: 420px; max-height: calc(100dvh - 48px); border-radius: 24px; transform: translateY(calc(100% + 40px)); }
   }
   .rm-switch { display: flex; gap: 6px; padding: 4px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); width: max-content; margin: 8px auto 0; }
   .rm-switch button { font: inherit; border: 0; background: none; color: var(--text); padding: 10px 22px; border-radius: 999px; cursor: pointer; }
@@ -408,6 +412,24 @@
   @keyframes eq { 0%, 100% { height: 5px; } 50% { height: 20px; } }
   .npfab.live .eq { display: flex; } .npfab.live .note { display: none; }
   .npfab.live { border-color: var(--accent); }
+  /* the remote's Apps view: a link box, a search, and the device's apps to open */
+  .seg { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); }
+  .seg button { font: inherit; font-size: 14px; border: 0; background: none; color: var(--muted); padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+  .seg button.on { background: var(--text); color: var(--bg); }
+  .rm-apps { display: flex; flex-direction: column; gap: 12px; max-width: 420px; margin: 4px auto 16px; }
+  .rm-link { display: flex; gap: 8px; }
+  .rm-link input { flex: 1; min-width: 0; }
+  .rm-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; }
+  .rm-app { border: 0; background: none; color: var(--text); font: inherit; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 6px;
+            cursor: pointer; padding: 0; touch-action: manipulation; min-width: 0; }
+  .rm-app .art { width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; background: var(--card); border: 1px solid var(--line); overflow: hidden;
+                 display: flex; align-items: center; justify-content: center; }
+  .rm-app .art img { height: 72%; }
+  .rm-app .art.banner img { width: 100%; height: 100%; object-fit: cover; }
+  .rm-app .art.emoji { font-size: 26px; }
+  .rm-app .nm { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rm-app:active .art { transform: scale(.95); }
+
   /* the player: calm, three controls */
   .devchip { font: inherit; font-size: 14px; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px 6px 14px; border-radius: 999px;
              border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
@@ -610,9 +632,18 @@
     <button class="fab" id="rmFab" aria-label="Remote"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="2.2"/><path d="M10 13h4M10 16h4"/></svg></button>
     <div class="rscrim" id="rmScrim"></div>
     <div class="rsheet" id="remoteSheet" role="dialog" aria-label="Remote">
-      <div class="rsheet-head"><b>Remote</b><button class="link" id="rmClose" aria-label="Close the remote">✕</button></div>
+      <div class="rsheet-head">
+        <div class="seg" id="rmViews"><button data-view="remote" class="on">Remote</button><button data-view="apps">Apps</button></div>
+        <span style="flex:1"></span>
+        <button class="link" id="rmClose" aria-label="Close the remote">✕</button>
+      </div>
       <div class="rm-switch" id="rmSwitch"><button data-dev="tv" class="on">TV</button><button data-dev="cc">Chromecast</button></div>
       <p class="hint rm-status" id="rmStatus">…</p>
+      <div class="rm-apps" id="rmApps" hidden>
+        <div class="rm-link"><input type="url" id="rmUrl" placeholder="Open a web address" inputmode="url" autocomplete="off" autocapitalize="off" enterkeyhint="go"><button class="btn primary" id="rmUrlGo">Open</button></div>
+        <input type="search" id="rmFind" placeholder="Find an app" autocomplete="off">
+        <div class="rm-grid" id="rmGrid"></div>
+      </div>
       <div class="remote" id="remote">
         <div class="rm-row">
           <button class="rm-btn power" data-k="power" aria-label="Power"><svg viewBox="0 0 24 24"><path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button>
@@ -2058,8 +2089,53 @@
     }, function () { $('rmStatus').textContent = ''; });
   }
   Array.prototype.forEach.call(document.querySelectorAll('#rmSwitch button'), function (b) {
-    b.onclick = function () { rmDev = b.getAttribute('data-dev'); rmShowStatus(); };
+    b.onclick = function () { rmDev = b.getAttribute('data-dev'); rmShowStatus(); if (rmView === 'apps') renderRmApps(); };
   });
+  // Apps: open one of the device's apps, or a web address (on the Chromecast a YouTube or Netflix link opens in its app).
+  var rmView = 'remote';
+  function rmSetView(v) {
+    rmView = v;
+    $('remote').hidden = v !== 'remote'; $('rmApps').hidden = v !== 'apps';
+    Array.prototype.forEach.call(document.querySelectorAll('#rmViews button'), function (b) { b.classList.toggle('on', b.getAttribute('data-view') === v); });
+    if (v === 'apps') renderRmApps();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#rmViews button'), function (b) { b.onclick = function () { rmSetView(b.getAttribute('data-view')); }; });
+  function rmAppList() {
+    var dev = rmDev, dock = (lay(dev).dock || []).slice(), hidden = lay(dev).hidden || [];
+    var all = appsOf(dev).filter(function (a) { return a.id.indexOf('addon:') !== 0 && hidden.indexOf(a.id) < 0; });
+    return all.sort(function (a, b) {
+      var da = dock.indexOf(a.id), db = dock.indexOf(b.id);
+      if (da >= 0 || db >= 0) return (da < 0 ? 99 : da) - (db < 0 ? 99 : db);
+      return displayName(dev, a.id).localeCompare(displayName(dev, b.id));
+    });
+  }
+  function renderRmApps() {
+    var grid = $('rmGrid'), q = $('rmFind').value.trim().toLowerCase();
+    grid.innerHTML = '';
+    $('rmUrl').placeholder = rmDev === 'tv' ? 'Open a web address in the TV Browser' : 'Open a web address or a YouTube link';
+    rmAppList().filter(function (a) { return !q || displayName(rmDev, a.id).toLowerCase().indexOf(q) >= 0; }).forEach(function (a) {
+      var b = el('button', 'rm-app'), art = el('span', 'art' + (a.banner ? ' banner' : ''));
+      if (a.emoji) { art.className += ' emoji'; art.textContent = a.emoji; }
+      else if (a.icon) { var img = new Image(); img.alt = ''; img.loading = 'lazy'; img.src = a.icon; img.onerror = function () { art.textContent = '▢'; }; art.appendChild(img); }
+      b.appendChild(art); b.appendChild(el('span', 'nm', displayName(rmDev, a.id)));
+      b.onclick = function () { rmLaunch({ app: a.id }, displayName(rmDev, a.id)); };
+      grid.appendChild(b);
+    });
+    if (!grid.firstChild) grid.appendChild(el('p', 'hint', q ? 'No app called that.' : 'No apps yet.'));
+  }
+  function rmLaunch(what, label) {
+    var where = rmDev === 'tv' ? 'the TV' : 'the Chromecast';
+    toast('Opening ' + label + ' on ' + where + '…', 6000);
+    api('/api/admin/launch', Object.assign({ device: rmDev }, what)).then(function (r) {
+      if (r && r.ok === false) toast(r.error || 'It didn\'t open.', 6000); else toast(label + ' is opening on ' + where + '.');
+    }, function (e) { toast(e.message, 6000); });
+  }
+  $('rmFind').oninput = renderRmApps;
+  $('rmUrlGo').onclick = function () {
+    var u = $('rmUrl').value.trim(); if (!u) { $('rmUrl').focus(); return; }
+    rmLaunch({ url: u }, u.replace(/^https?:\/\//, '').slice(0, 40));
+  };
+  $('rmUrl').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); $('rmUrlGo').onclick(); } };
   // A press sends the key; held, the arrows and the volume repeat.
   function rmStop() { clearTimeout(rmRepeat); clearInterval(rmRepeat); rmRepeat = 0; }
   $('remote').addEventListener('pointerdown', function (e) {
@@ -2139,12 +2215,41 @@
   });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { $('media').addEventListener(ev, rmStop); });
   function closeSheets() { if ($('mediaSheet').classList.contains('open')) closeMedia(); else closeRemote(); }
-  $('npFab').onclick = openMedia;
-  $('mdClose').onclick = closeMedia;
-  $('rmFab').onclick = openRemote;
-  $('rmClose').onclick = closeRemote;
-  $('rmScrim').onclick = closeSheets;
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.body.classList.contains('remote-open')) closeSheets(); });
+  // An open sheet is a step in the history: the phone's Back (button or gesture) closes it instead of leaving the panel.
+  function sheetOpened() { try { history.pushState({ cytSheet: 1 }, ''); } catch (e) {} }
+  function requestClose() {
+    if (!document.body.classList.contains('remote-open')) return;
+    if (history.state && history.state.cytSheet) history.back(); else closeSheets();
+  }
+  window.addEventListener('popstate', function () { if (document.body.classList.contains('remote-open')) closeSheets(); });
+  $('npFab').onclick = function () { openMedia(); sheetOpened(); };
+  $('rmFab').onclick = function () { openRemote(); sheetOpened(); };
+  $('mdClose').onclick = requestClose;
+  $('rmClose').onclick = requestClose;
+  $('rmScrim').onclick = requestClose;
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') requestClose(); });
+  // Swipe a sheet down by its top bar to close it.
+  ['remoteSheet', 'mediaSheet'].forEach(function (id) {
+    var sh = $(id), head = sh.querySelector('.rsheet-head'), drag = null;
+    head.addEventListener('pointerdown', function (e) {
+      if (e.target.closest('button')) return;
+      drag = { y: e.clientY, dy: 0 }; sh.classList.add('dragging');
+      try { head.setPointerCapture(e.pointerId); } catch (x) {}
+    });
+    head.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      drag.dy = Math.max(0, e.clientY - drag.y);
+      sh.style.transform = 'translateY(' + drag.dy + 'px)';
+    });
+    var end = function () {
+      if (!drag) return;
+      var far = drag.dy > 90; drag = null;
+      sh.classList.remove('dragging'); sh.style.transform = '';
+      if (far) requestClose();
+    };
+    head.addEventListener('pointerup', end);
+    head.addEventListener('pointercancel', end);
+  });
   // In the background, a look every 20 s whether the Chromecast is playing: the player's button shows it.
   setInterval(function () { if (!document.hidden && S && !document.body.classList.contains('remote-open')) npRefresh(); }, 20000);
 

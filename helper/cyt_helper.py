@@ -1011,6 +1011,51 @@ def remote_press(device: str, key: str = "", text: str = "") -> dict:
     return {"ok": r.returncode == 0, "error": "" if r.returncode == 0 else "The Chromecast didn't take it."}
 
 
+def remote_open(device: str, app_id: str = "", url: str = "") -> dict:
+    """Open an app, or a web address, on the TV or the Chromecast (the admin panel's remote). A per-app VPN country
+    is switched to first, as when the app is opened from Home."""
+    if url:
+        url = url.strip()
+        if not re.match(r"^[a-z][a-z0-9+.-]*://", url, re.I):
+            url = "https://" + url
+        if urlsplit(url).scheme not in ("http", "https") or not urlsplit(url).netloc:
+            raise ValueError("that isn't a web address")
+    if device == "tv":
+        if url:
+            browse(url)
+            return {"ok": True}
+        page = next((p for p in PAGES if p["appId"] == app_id), None)
+        if page:   # one of this helper's own screens (YouTube, Live TV): opened as the launcher's tile, on that page
+            state_path = DATA / "helper_state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
+            TV.launch({"appId": state.get("tile", "cythome"), "name": page["name"],
+                       "url": f"http://{own_ip()}:{CONFIG.get('port', 8765)}{page['page']}"})
+            return {"ok": True}
+        app = APPS.get(app_id)
+        if not app:
+            raise ValueError("the TV has no such app")
+        threading.Thread(target=open_app, args=(app,), daemon=True).start()
+        return {"ok": True}
+    if device != "cc":
+        raise ValueError("unknown device")
+    adb, serial, why = _cc_serial()
+    if not serial:
+        return {"ok": False, "error": why}
+    if url:   # its app if one takes such links (YouTube, Netflix…), else the browser
+        cmd = ["shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", shlex.quote(url)]
+    else:
+        if not re.match(r"^[A-Za-z0-9_.]+$", app_id):
+            raise ValueError("the Chromecast has no such app")
+        vpn_for_app(app_id)
+        cmd = ["shell", "monkey", "-p", app_id, "-c", "android.intent.category.LEANBACK_LAUNCHER", "1"]
+    r = subprocess.run([adb, "-s", serial] + cmd, capture_output=True, text=True, timeout=20)
+    if not url and ("No activities found" in r.stdout + r.stderr or r.returncode != 0):   # a phone-style app: its plain launcher
+        r = subprocess.run([adb, "-s", serial, "shell", "monkey", "-p", app_id, "-c", "android.intent.category.LAUNCHER", "1"],
+                           capture_output=True, text=True, timeout=20)
+    ok = r.returncode == 0 and "Error" not in r.stdout and "No activities found" not in r.stdout
+    return {"ok": ok, "error": "" if ok else "The Chromecast couldn't open it."}
+
+
 def remote_status() -> dict:
     out = {"tv": {"on": HOME_WATCH.up}, "cc": {"linked": False, "awake": None, "why": ""}}
     try:
@@ -1610,6 +1655,13 @@ class Handler(SimpleHTTPRequestHandler):
         elif path == "/api/admin/remote":
             try:
                 self._json(200, remote_press(str(data.get("device", "")), str(data.get("key", "")), str(data.get("text", ""))))
+            except ValueError as e:
+                self._json(400, {"ok": False, "error": str(e)})
+            except (ConnectionError, OSError, subprocess.TimeoutExpired) as e:
+                self._json(502, {"ok": False, "error": "Couldn't reach it: " + str(e)})
+        elif path == "/api/admin/launch":
+            try:
+                self._json(200, remote_open(str(data.get("device", "")), str(data.get("app", "")), str(data.get("url", ""))))
             except ValueError as e:
                 self._json(400, {"ok": False, "error": str(e)})
             except (ConnectionError, OSError, subprocess.TimeoutExpired) as e:
