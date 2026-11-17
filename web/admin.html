@@ -56,7 +56,9 @@
   input[type=text], input[type=number], input[type=password], input[type=search], input[type=url], select {
     font: inherit; color: var(--text); background: var(--soft); border: 1px solid var(--line); border-radius: 10px;
     padding: 10px 12px; width: 100%; min-height: 44px; }
-  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  textarea { font: inherit; color: var(--text); background: var(--soft); border: 1px solid var(--line); border-radius: 10px;
+             padding: 10px 12px; width: 100%; box-sizing: border-box; resize: vertical; line-height: 1.45; }
   button.btn { font: inherit; border: 0; border-radius: 12px; padding: 11px 16px; min-height: 44px; cursor: pointer;
                background: var(--soft); color: var(--text); border: 1px solid var(--line); }
   button.btn.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
@@ -1291,6 +1293,10 @@
         c.appendChild(card);
       });
     }
+    if (id === 'quote' || id === 'weather') {   // like a widget card: ✕ takes it off the screen
+      var rx = el('button', 'pv-x', '✕'); rx.title = 'Take the ' + id + ' off the screen'; rx.setAttribute('data-remove', id);
+      c.style.position = 'relative'; c.appendChild(rx);
+    }
     return c;
   }
   // ---------- clock styles: the same six as the TV and the Chromecast ----------
@@ -1429,7 +1435,12 @@
     return box;
   }
   function addonSettings(a, into) {   // an add-on's own settings (league, city, feed…)
-    (a.settings || []).forEach(function (spec) { into.appendChild(settingField(a, spec)); });
+    var conf = addonConf(a.id), now = function (k) { return k in conf.settings ? conf.settings[k] : (a.values || {})[k]; };
+    (a.settings || []).forEach(function (spec) {
+      var cond = spec.show_if;   // {"source": ["mine"]}: only while another setting has one of those values
+      if (cond && !Object.keys(cond).every(function (k) { return cond[k].indexOf(String(now(k) == null ? '' : now(k))) >= 0; })) return;
+      into.appendChild(settingField(a, spec));
+    });
   }
   function widgetCard(a, blockId) {
     var card = el('div', 'wcard'), top = el('div', 'top');
@@ -1596,6 +1607,13 @@
       c.setAttribute('data-addon', a.id); c.title = 'Drag onto the screen · tap for its settings';
       w.appendChild(c);
     });
+    S.addons.filter(function (a) { return a.slot && L().blocks[a.slot]; }).forEach(function (a) {   // the quote and the weather: blocks of their own
+      var on = L().blocks[a.slot].on, c = el('button', 'chipa' + (on ? ' onhome' : ''));
+      c.appendChild(document.createTextNode(a.emoji + ' ' + a.name)); c.appendChild(el('small', '', on ? '✓ on the screen' : '+'));
+      c.title = on ? 'Its settings' : 'Put it on the screen';
+      c.onclick = function () { if (on) select({ kind: 'block', id: a.slot }); else { addAddon(a.id); } };
+      w.appendChild(c);
+    });
     if (!allWidgets().length) w.appendChild(el('span', 'hint', 'No widget add-ons.'));
     s1.appendChild(w); box.appendChild(s1);
     var others = S.addons.filter(function (a) { return a.type !== 'widget' && !a.slot; });
@@ -1618,6 +1636,11 @@
   }
   function addAddon(id) {
     var a = addonById(id); if (!a) return;
+    if (a.slot) {   // the quote and the weather have their own block: on Home means that block shows
+      addonConf(id).enabled = true; setShown(a.slot, true); renderAddons();
+      if (L().blocks[a.slot].on) toast(a.name + ' is on the screen.');
+      return;
+    }
     if (a.type === 'widget') {   // into the first widget block on the screen, or a new one
       var lay = L(), k = S.layout_spec.widget_blocks.filter(function (b) { return lay.blocks[b].on; })[0];
       if (!k) {
@@ -1641,6 +1664,7 @@
   }
   function removeAddon(id) {
     var a = addonById(id); if (!a) return;
+    if (a.slot) { setShown(a.slot, false); renderAddons(); toast(a.name + ' removed from Home.'); return; }
     if (a.type === 'widget') { removeWidget(id); return; }
     addonConf(id).enabled = false;
     takeOut('cc', 'addon:' + id);
@@ -1774,7 +1798,7 @@
   var lay_drag = null, app_drag = null;
   $('canvas').addEventListener('click', function (e) {
     var x = e.target.closest('.pv-x');
-    if (x) { e.stopPropagation(); removeWidget(x.getAttribute('data-remove')); }
+    if (x) { e.stopPropagation(); var xa = addonById(x.getAttribute('data-remove')); if (xa && xa.slot) removeAddon(xa.id); else removeWidget(x.getAttribute('data-remove')); }
   });
   $('canvas').addEventListener('pointerdown', function (e) {
     if (e.target.closest('.pv-x')) return;
@@ -1900,8 +1924,15 @@
     } else if (spec.type === 'select') {
       var sel = el('select');
       (spec.options || []).forEach(function (o) { var op = el('option', '', o[1]); op.value = o[0]; sel.appendChild(op); });
-      sel.value = cur == null ? '' : String(cur); sel.onchange = function () { set(sel.value); };
+      sel.value = cur == null ? '' : String(cur); sel.onchange = function () { set(sel.value); renderInspector(); };
       wrap.appendChild(sel);
+    } else if (spec.type === 'lines') {   // a list, one per line (your own quotes)
+      var ta = el('textarea'); ta.rows = 9; ta.value = cur == null ? '' : cur; ta.placeholder = spec.placeholder || '';
+      ta.setAttribute('dir', 'auto'); ta.spellcheck = true;
+      var count = el('p', 'hint');
+      var n = function () { var k = ta.value.split('\n').filter(function (x) { return x.trim(); }).length; count.textContent = k ? k + (k === 1 ? ' line' : ' lines') : 'Empty: nothing to show yet.'; };
+      ta.oninput = function () { set(ta.value); n(); }; n();
+      wrap.appendChild(ta); wrap.appendChild(count);
     } else if (spec.type === 'place') {
       var line = el('div', '', cur && cur.city ? cur.city : 'Not set'); line.style.margin = '0 2px 8px';
       var row = el('div'); row.style.display = 'flex'; row.style.gap = '8px';
@@ -1936,7 +1967,8 @@
     var id = a.id, conf = addonConf(id), card = el('div', 'card addon'), top = el('div', 'top');
     var emo = el('div', 'emo', a.emoji); emo.style.background = a.color; top.appendChild(emo);
     var meta = el('div', 'meta'), name = el('b', '', a.name);
-    name.appendChild(el('span', 'badge2', a.slot ? 'Built into Home' : (TYPE_NAMES[a.type] || a.type)));
+    name.appendChild(el('span', 'badge2', TYPE_NAMES[a.type] || a.type));
+    var onHome = a.slot ? !!(L().blocks[a.slot] || {}).on : conf.enabled;
     meta.appendChild(name); meta.appendChild(el('small', '', a.description)); top.appendChild(meta);
     if (order) {
       var ord = el('div', 'ord');
@@ -1946,16 +1978,14 @@
       down.onclick = function () { var o = addonOrder(); o.splice(idx + 1, 0, o.splice(idx, 1)[0]); draft.addons.order = o; renderAddons(); dirty(); };
       ord.appendChild(up); ord.appendChild(down); top.appendChild(ord);
     }
-    if (!a.slot) {   // on Home or not: added and removed here, or on the screen
-      var act = conf.enabled ? el('button', 'link', 'Remove') : el('button', 'btn small', '+ Add');
-      if (conf.enabled) act.style.color = 'var(--bad)';
-      act.onclick = function () { if (conf.enabled) removeAddon(id); else addAddon(id); };
-      top.appendChild(act);
-    }
+    var act = onHome ? el('button', 'link', 'Remove') : el('button', 'btn small', '+ Add');   // added and removed here, or on the screen
+    if (onHome) act.style.color = 'var(--bad)';
+    act.onclick = function () { if (onHome) removeAddon(id); else addAddon(id); };
+    top.appendChild(act);
     card.appendChild(top);
     if ((a.settings || []).length || (conf.enabled && a.type !== 'action')) {
       var body = el('div', 'body');
-      (a.settings || []).forEach(function (spec) { body.appendChild(settingField(a, spec)); });
+      addonSettings(a, body);
       if (!a.slot && a.type !== 'action' && conf.enabled) {
         var st = el('div', 'state' + (a.error ? ' err' : ''));
         st.appendChild(document.createTextNode(a.error ? 'Problem: ' + a.error : a.updated ? 'Updated ' + ago(a.updated) : 'Not fetched yet: save first'));
@@ -1967,7 +1997,7 @@
         };
         st.appendChild(rf); body.appendChild(st);
       }
-      if (a.slot) body.appendChild(el('div', 'state', 'Part of Home: show or hide its block on the screen.'));
+      if (a.slot) body.appendChild(el('div', 'state', onHome ? 'On Home: its own block on the screen; tap it there to move or resize it.' : 'Not on Home: + Add puts it on the screen.'));
       else if (!conf.enabled) body.appendChild(el('div', 'state', a.type === 'widget' ? 'Not on Home: + Add, or drag it onto the screen.' : 'Not on Home: + Add puts it there.'));
       else if (a.type === 'screen' || a.type === 'action') body.appendChild(el('div', 'state', 'On Home: its tile is under More in Dock and rows; drag it where you like.'));
       else if (a.type === 'row') body.appendChild(el('div', 'state', 'On Home: its row shows after the dock.'));

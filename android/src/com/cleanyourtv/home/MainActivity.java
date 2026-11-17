@@ -157,6 +157,7 @@ public class MainActivity extends Activity {
     String wallShown = "";
     boolean hasWallpaper = false;
     long quoteDay = -1, lastWeather = 0, lastWallpaper = 0;
+    boolean quoteEach = false;
     JSONArray builtInQuotes;
     boolean resumed = false;
 
@@ -181,6 +182,7 @@ public class MainActivity extends Activity {
         super.onResume();
         resumed = true;
         ui.post(tick);
+        if (quoteEach) { quoteDay = -1; showQuote(); }   // back on Home: the next quote
         if (area.equals("screen") && screenKind.equals("slideshow")) ui.postDelayed(slideNext, 4000);
         renderWidgets();
         // An app may have been installed or removed while you were away; the VPN may have changed from the TV.
@@ -3158,6 +3160,7 @@ public class MainActivity extends Activity {
             final JSONObject fq = q;
             final Bitmap fp = pic;
             ui.post(() -> {
+                quoteEach = fq != null && fq.optBoolean("each");   // "a different one each time Home opens"
                 if (fq != null && !fq.optString("text").isEmpty()) paintQuote(fq.optString("text"), fq.optString("by"), fq.optString("source"), fp);
                 else {
                     JSONArray one = builtInQuotes.length() > 0 ? builtInQuotes.optJSONArray((int) (day % builtInQuotes.length())) : null;
@@ -3171,7 +3174,8 @@ public class MainActivity extends Activity {
 
     void paintQuote(String text, String by, String source, Bitmap pic) {
         quoteText.setText("“" + text + "”");
-        quoteBy.setText("— " + by);
+        quoteBy.setText(by == null || by.isEmpty() ? "" : "— " + by);
+        quoteBy.setVisibility(by == null || by.isEmpty() ? View.GONE : View.VISIBLE);
         quoteSrc.setText(source == null || source.isEmpty() ? "" : "Quote via " + source);
         quotePic.setImageBitmap(pic);
         quotePic.setVisibility(pic != null ? View.VISIBLE : View.GONE);

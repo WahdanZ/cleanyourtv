@@ -58,7 +58,8 @@ Built in:
 
 | Add-on | Kind | What it shows |
 |---|---|---|
-| Weather, Quote of the day | Home blocks | Now and today's high/low (Open-Meteo); a quote with the author's portrait (ZenQuotes) |
+| Weather | Its own block | Now and today's high/low (Open-Meteo), for the city you pick |
+| Quote of the day | Its own block | From ZenQuotes (with the author's portrait), **your own list** (one per line, `quote — author`, any language), or the built-in 30; one a day in order or at random, or a new one each time Home opens |
 | Football scores | Widget | Today's and the next matches of a league, live scores (ESPN) |
 | Prayer times | Widget | Today's times and a countdown to the next (AlAdhan) |
 | News headlines | Widget | The latest headlines of an RSS feed |
@@ -67,6 +68,9 @@ Built in:
 | News reader | Full screen | Headlines with their summaries |
 | Photo slideshow | Full screen | Your own photos |
 | Netflix USA, OSN+ UAE | Quick actions | Switch the VPN, then open the app (examples to copy) |
+
+The quote and the weather are added, removed and set up like the others (in **Add to the screen** and **All add-ons**,
+or by tapping their block); each has a block of its own.
 
 Write your own: a folder with an `addon.json` and a few lines of Python. See [addons/README.md](../addons/README.md).
 

@@ -13,6 +13,7 @@ import html
 import json
 import mimetypes
 import os
+import random
 import re
 import shlex
 import shutil
@@ -397,9 +398,48 @@ def _fetch(url: str) -> bytes:
         return r.read()
 
 
+def _quote_settings() -> dict:
+    a = ADDONS.items.get("quote")
+    return ADDONS.settings_of(a) if a else {}
+
+
+def parse_quotes(text: str) -> list:
+    """Your own quotes, one per line: "The quote — Author" (also " - ", " – " or " ~ "); no author is fine."""
+    out = []
+    for line in str(text or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        m = re.match(r"^(.*\S)\s+[—–~-]\s*([^—–~-]{1,80})$", line) or re.match(r"^(.*\S)\s*[—–]\s*([^—–]{1,80})$", line)
+        text_, by = (m.group(1), m.group(2).strip()) if m else (line, "")
+        out.append({"text": text_.strip().strip('"“”').strip(), "by": by})
+    return [q for q in out if q["text"]]
+
+
+def _quote_from_list(items: list, pick: str) -> dict | None:
+    """From a list: one a day (in order, or at random but the same all day), or a new one each time."""
+    if not items:
+        return None
+    if pick == "each":   # a new one on every ask: the screens ask each time Home opens
+        return dict(random.choice(items), each=True)
+    day = int(time.time() // 86400)
+    i = random.Random(day).randrange(len(items)) if pick == "random" else day % len(items)
+    return dict(items[i])
+
+
 def quote_of_day() -> dict | None:
     if not QUOTES_ON:
         return None
+    qs = _quote_settings()
+    source = qs.get("source") or "zenquotes"
+    if source == "mine":   # your own list: from the admin panel, no internet
+        return _quote_from_list(parse_quotes(qs.get("mine")), qs.get("pick"))
+    if source == "builtin":
+        try:
+            items = [{"text": t, "by": b} for t, b in json.loads((WEB / "quotes.json").read_text(encoding="utf-8")).get("en", [])]
+        except Exception:
+            items = []
+        return _quote_from_list(items, qs.get("pick"))
     today = time.strftime("%Y-%m-%d")
     if _quote["day"] == today:
         # The portrait didn't come with the quote: try it again every 10 minutes.
@@ -846,6 +886,11 @@ def validate_addons(v: dict) -> dict:
                 if str(val) not in [str(o[0]) for o in spec.get("options", [])]:
                     raise ValueError(f"{a.id}: {key} must be one of its choices")
                 val = str(val)
+            elif kind == "lines":   # a list, one item per line (e.g. your own quotes)
+                lines = [ln.strip() for ln in str(val).replace("\r", "").split("\n") if ln.strip()]
+                if len(lines) > 500:
+                    raise ValueError(f"{a.id}: at most 500 lines")
+                val = "\n".join(ln[:400] for ln in lines)
             elif kind == "place":
                 val = None if not val else {"city": str(val.get("city", ""))[:60], "lat": round(float(val["lat"]), 4),
                                             "lon": round(float(val["lon"]), 4)}
