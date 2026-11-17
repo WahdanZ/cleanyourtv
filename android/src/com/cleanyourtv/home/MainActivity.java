@@ -110,7 +110,7 @@ public class MainActivity extends Activity {
     View glassSheen;
     TextView greeting, clock, ampm, date, heroName, quoteText, quoteBy, quoteSrc, wxTemp, wxInfo, credit, toast;
     LinearLayout pills, quoteBox, weatherBox, menuBox, adminBox;
-    ImageView adminQr;
+    LinearLayout adminQrs;   // the QR codes: admin panel, remote, player
     TextView adminUrl;
     final List<View> sectionViews = new ArrayList<>();
 
@@ -326,6 +326,7 @@ public class MainActivity extends Activity {
         buildQuote();
         buildWeather();
         buildWidgets();
+        buildNowPlaying();
         credit = text(24, 400, white(.55), 0, false);
         credit.setGravity(Gravity.END);
         credit.setMaxWidth(640);
@@ -527,6 +528,12 @@ public class MainActivity extends Activity {
         place(hero, h, false);
         heroName.getLayoutParams().width = h.optInt("w", 7) * CW;
         heroName.requestLayout();
+        // Now playing: hidden unless the layout shows it.
+        JSONObject npb = blocks.optJSONObject("nowplaying");
+        npOn = npb != null && npb.optBoolean("on", true);
+        npRows = npb == null ? 2 : npb.optInt("h", 2);
+        if (npb != null) place(npBox, npb, false);
+        renderNp();
         // Widget blocks: a four-row block shows two cards stacked.
         for (Slot s : slots) {
             JSONObject w = s.id.equals("widgets") ? block(blocks, s.id) : blocks.optJSONObject(s.id);
@@ -547,7 +554,7 @@ public class MainActivity extends Activity {
         FrameLayout.LayoutParams lp = at(GX + b.optInt("x") * CW, GY + b.optInt("y") * RH, b.optInt("w", 4) * CW,
                 fullHeight ? b.optInt("h", 2) * RH : ViewGroup.LayoutParams.WRAP_CONTENT);
         v.setLayoutParams(lp);
-        if (v != weatherBox && v != quoteBox && !isSlotBox(v)) v.setVisibility(View.VISIBLE);
+        if (v != weatherBox && v != quoteBox && v != npBox && !isSlotBox(v)) v.setVisibility(View.VISIBLE);
         else if (v == weatherBox) v.setVisibility(weatherBox.getTag() == null ? View.GONE : View.VISIBLE);
     }
 
@@ -1799,19 +1806,19 @@ public class MainActivity extends Activity {
         bg.setStroke(2, white(.2));
         adminBox.setBackground(bg);
         TextView t = text(26, 500, white(.55), .14f, true);
-        t.setText("Admin panel");
+        t.setText("On your phone");
         t.setGravity(Gravity.CENTER_HORIZONTAL);
         adminBox.addView(t);
-        adminQr = new ImageView(this);
-        round(adminQr, 20);
-        LinearLayout.LayoutParams ql = new LinearLayout.LayoutParams(440, 440);
-        ql.setMargins(0, 30, 0, 26);
-        adminBox.addView(adminQr, ql);
+        adminQrs = new LinearLayout(this);   // the admin panel, its remote and its player: one code each
+        adminQrs.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams ql = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        ql.setMargins(0, 28, 0, 22);
+        adminBox.addView(adminQrs, ql);
         adminUrl = text(34, 500, Color.WHITE, 0, false);
         adminUrl.setGravity(Gravity.CENTER_HORIZONTAL);
         adminBox.addView(adminUrl);
         TextView hint = text(26, 400, white(.55), 0, false);
-        hint.setText("Scan with your phone's camera, or type the address. Back closes this.");
+        hint.setText("Scan one with your phone's camera. Back closes this.");
         hint.setSingleLine(false);
         hint.setMaxLines(2);
         hint.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -1819,27 +1826,52 @@ public class MainActivity extends Activity {
         hl.topMargin = 14;
         adminBox.addView(hint, hl);
         adminBox.setVisibility(View.GONE);
-        stage.addView(adminBox, new FrameLayout.LayoutParams(820, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        stage.addView(adminBox, new FrameLayout.LayoutParams(1180, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
     }
 
     void openAdmin() {
         io.execute(() -> {
             try {
                 JSONObject a = new JSONObject(get("/api/admin-link", 8000));
-                JSONArray rows = a.getJSONArray("qr");
-                int n = rows.length(), q = 4, full = n + 2 * q;
-                Bitmap small = Bitmap.createBitmap(full, full, Bitmap.Config.ARGB_8888);
-                small.eraseColor(Color.WHITE);
-                for (int y = 0; y < n; y++) {
-                    String row = rows.getString(y);
-                    for (int x = 0; x < n; x++) if (row.charAt(x) == '1') small.setPixel(x + q, y + q, Color.BLACK);
+                JSONArray links = a.optJSONArray("links");
+                if (links == null) { links = new JSONArray(); links.put(new JSONObject().put("label", "Admin panel").put("qr", a.getJSONArray("qr"))); }
+                final List<Bitmap> codes = new ArrayList<>();
+                final List<String> labels = new ArrayList<>();
+                for (int i = 0; i < links.length(); i++) {
+                    JSONArray rows = links.getJSONObject(i).getJSONArray("qr");
+                    int n = rows.length(), q = 4, full = n + 2 * q;
+                    Bitmap small = Bitmap.createBitmap(full, full, Bitmap.Config.ARGB_8888);
+                    small.eraseColor(Color.WHITE);
+                    for (int y = 0; y < n; y++) {
+                        String row = rows.getString(y);
+                        for (int x = 0; x < n; x++) if (row.charAt(x) == '1') small.setPixel(x + q, y + q, Color.BLACK);
+                    }
+                    int cell = Math.max(1, 300 / full);
+                    codes.add(Bitmap.createScaledBitmap(small, cell * full, cell * full, false));   // sharp squares
+                    small.recycle();
+                    labels.add(links.getJSONObject(i).optString("label"));
                 }
-                int cell = Math.max(1, 440 / full);
-                Bitmap big = Bitmap.createScaledBitmap(small, cell * full, cell * full, false);   // sharp squares
-                small.recycle();
                 String url = a.getString("url").replaceFirst("^https?://", "");
                 ui.post(() -> {
-                    adminQr.setImageBitmap(big);
+                    adminQrs.removeAllViews();
+                    for (int i = 0; i < codes.size(); i++) {
+                        LinearLayout col = new LinearLayout(this);
+                        col.setOrientation(LinearLayout.VERTICAL);
+                        col.setGravity(Gravity.CENTER_HORIZONTAL);
+                        ImageView iv = new ImageView(this);
+                        iv.setImageBitmap(codes.get(i));
+                        round(iv, 18);
+                        col.addView(iv, new LinearLayout.LayoutParams(300, 300));
+                        TextView l = text(28, 500, Color.WHITE, 0, false);
+                        l.setText(labels.get(i));
+                        l.setGravity(Gravity.CENTER_HORIZONTAL);
+                        LinearLayout.LayoutParams ll = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                        ll.topMargin = 14;
+                        col.addView(l, ll);
+                        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                        if (i > 0) cl.leftMargin = 40;
+                        adminQrs.addView(col, cl);
+                    }
                     adminUrl.setText(url);
                     area = "admin";
                     scrim.setVisibility(View.VISIBLE);
@@ -2435,6 +2467,84 @@ public class MainActivity extends Activity {
         ui.postDelayed(hideToast, 3500);
     }
 
+    // ---------- Now playing: what this Chromecast plays (its media sessions, read by the Mac), as a block on Home ----------
+    LinearLayout npBox;
+    JSONObject npNow;
+    TextView npTime;
+    boolean npOn = false;
+    int npRows = 2;
+    long lastNp = 0, npAt = 0;
+    String npKey = "";
+
+    void buildNowPlaying() {
+        npBox = newCard();
+        npBox.setOrientation(LinearLayout.HORIZONTAL);
+        npBox.setGravity(Gravity.CENTER_VERTICAL);
+        npBox.setVisibility(View.GONE);
+        blocksLayer.addView(npBox, at(GX, GY + 4 * RH, 5 * CW, ViewGroup.LayoutParams.WRAP_CONTENT));
+    }
+
+    void refreshNp() {
+        lastNp = System.currentTimeMillis();
+        io.execute(() -> {
+            try {
+                JSONObject r = new JSONObject(get("/api/now-playing", 8000));
+                JSONObject p = r.optBoolean("ok") ? r.optJSONObject("playing") : null;
+                ui.post(() -> { npNow = p; npAt = System.currentTimeMillis(); renderNp(); });
+            } catch (Exception ignored) { }
+        });
+    }
+
+    void renderNp() {
+        if (!npOn) { npBox.setVisibility(View.GONE); return; }
+        npBox.setVisibility(View.VISIBLE);
+        JSONObject p = npNow;
+        String key = (p == null ? "" : p.optString("app") + "|" + p.optString("title") + "|" + p.optString("state")) + "|" + npRows;
+        if (key.equals(npKey) && npBox.getChildCount() > 0) { npTick(); return; }   // same song: only the time moves
+        npKey = key;
+        npBox.removeAllViews();
+        boolean small = npRows < 2;
+        if (p != null && !small) {
+            ImageView art = new ImageView(this);
+            art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            round(art, 14);
+            art.setBackgroundColor(white(.08));
+            LinearLayout.LayoutParams al = new LinearLayout.LayoutParams(192, 108);
+            al.rightMargin = 22;
+            npBox.addView(art, al);
+            loadImage(BASE + p.optString("screen_icon"), art, 240);
+        }
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        TextView app = text(20, 500, white(.7), .1f, true);
+        app.setText(p == null ? "♫  Now playing" : (p.optString("state").equals("playing") ? "▶  " : "❚❚  ") + p.optString("name"));
+        col.addView(app);
+        TextView t = text(small ? 24 : 28, 500, Color.WHITE, 0, false);
+        if (!small) { t.setSingleLine(false); t.setMaxLines(2); }
+        t.setText(p == null ? "Nothing playing" : p.optString("title", p.optString("name")));
+        col.addView(t, below(small ? 4 : 8));
+        if (p != null && !small && !p.optString("subtitle").isEmpty()) {
+            TextView sub = text(22, 400, white(.7), 0, false);
+            sub.setText(p.optString("subtitle"));
+            col.addView(sub, below(4));
+        }
+        npTime = null;
+        if (p != null && !small) {
+            npTime = text(20, 400, white(.55), 0, false);
+            col.addView(npTime, below(6));
+        }
+        npBox.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        if (hasWallpaper) shadowAll(npBox);
+        npTick();
+    }
+
+    void npTick() {
+        if (npTime == null || npNow == null) return;
+        long sec = npNow.optLong("position") + (npNow.optString("state").equals("playing") ? (System.currentTimeMillis() - npAt) / 1000 : 0);
+        npTime.setText(sec >= 3600 ? String.format(Locale.ROOT, "%d:%02d:%02d", sec / 3600, sec % 3600 / 60, sec % 60)
+                : String.format(Locale.ROOT, "%d:%02d", sec / 60, sec % 60));
+    }
+
     // ---------- clock styles: Classic, Bold, Stacked, Tiles, Analog and Words; one, or a different one each day ----------
     JSONObject clockConf = new JSONObject();
     LinearLayout clockAlt;
@@ -2633,6 +2743,8 @@ public class MainActivity extends Activity {
                 if (now - lastWallpaper > 60 * 60_000) refreshWallpaper();
                 if (now - lastAddons > 5 * 60_000) io.execute(MainActivity.this::refreshAddons);
             }
+            if (npOn && System.currentTimeMillis() - lastNp > 8_000) refreshNp();   // Now playing: a look every 8 s
+            npTick();
             // "Update right away" in the admin panel; off: changes show when Home opens again.
             if (cfg.optBoolean("live_refresh", true) && System.currentTimeMillis() - lastRev > 3_000) checkRev();
             if (resumed) ui.postDelayed(this, 1000);

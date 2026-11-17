@@ -710,7 +710,7 @@ _auto_vpn = {"prev": None}   # the region before an app switched it, while that 
 CHROMECAST = CONFIG.get("chromecast") or {}
 _cc_ip = CHROMECAST.get("ip", [])
 CC_IPS = {str(x) for x in (_cc_ip if isinstance(_cc_ip, list) else [_cc_ip]) if x}
-CC_PATHS = {"/", "/index.html", "/quotes.json", "/api/rev", "/api/admin-link", "/api/home-edit", "/api/cc", "/api/cc-open", "/api/cc-apps", "/api/weather", "/api/quote",
+CC_PATHS = {"/", "/index.html", "/quotes.json", "/api/rev", "/api/admin-link", "/api/home-edit", "/api/now-playing", "/api/media", "/api/cc", "/api/cc-open", "/api/cc-apps", "/api/weather", "/api/quote",
             "/api/quote-image", "/api/wallpaper", "/api/wallpaper.jpg", "/api/region", "/vpn"}
 APP_VPN.update({str(k): str(v).lower() for k, v in (CHROMECAST.get("app_vpn") or {}).items()})
 
@@ -935,6 +935,22 @@ CC_KEYS = {"up": "DPAD_UP", "down": "DPAD_DOWN", "left": "DPAD_LEFT", "right": "
            "prev": "MEDIA_PREVIOUS", "next": "MEDIA_NEXT", "rew": "MEDIA_REWIND", "ff": "MEDIA_FAST_FORWARD", "stop": "MEDIA_STOP"}
 
 
+_np_cache = {"at": 0.0, "data": None}
+
+
+def now_playing_cached() -> dict:
+    if time.time() - _np_cache["at"] > 3:
+        try:
+            data = cc_now_playing()
+        except subprocess.TimeoutExpired:
+            data = {"ok": False, "error": "The Chromecast didn't answer in time."}
+        p = data.get("playing")
+        if p:   # an icon address the home screens may load (the panel's own needs the sign-in)
+            data = dict(data, playing=dict(p, screen_icon=f"/api/cc-icon/{p['app']}"))
+        _np_cache.update(at=time.time(), data=data)
+    return _np_cache["data"]
+
+
 def cc_now_playing() -> dict:
     """What the Chromecast is playing, from its media sessions: the app, title, artist or channel, playing or paused,
     and how far in. The session the media buttons go to wins; else the first one playing."""
@@ -970,7 +986,7 @@ def cc_now_playing() -> dict:
             cur["position"] = int(p / 1000)
         elif cur is not None and line.startswith("metadata: size="):
             d = line.partition("description=")[2]
-            parts = d.rsplit(", ", 2) if d else []
+            parts = d.split(", ", 2) if d else []   # "title, subtitle, description": the description may have commas
             clean = lambda x: "" if x in ("null", "") else x
             cur["title"] = clean(parts[0]) if parts else ""
             cur["subtitle"] = clean(parts[1]) if len(parts) > 1 else ""
@@ -1320,7 +1336,8 @@ class Handler(SimpleHTTPRequestHandler):
         if (ip == "127.0.0.1" or ip.rsplit(".", 1)[0] == own_ip().rsplit(".", 1)[0]) and \
                 (path == "/admin" or path.startswith("/api/admin/")):
             return True
-        if ip in CC_IPS and (path in CC_PATHS or path.startswith("/fonts/") or path.startswith("/api/addons/")):
+        if ip in CC_IPS and (path in CC_PATHS or path.startswith("/fonts/") or path.startswith("/api/addons/")
+                             or path.startswith("/api/cc-icon/")):
             return True
         # A phone or computer at home may use the VPN page and its switch, and nothing else.
         if urlsplit(self.path).path in ("/vpn", "/api/region") and ip.rsplit(".", 1)[0] == own_ip().rsplit(".", 1)[0]:
@@ -1369,10 +1386,25 @@ class Handler(SimpleHTTPRequestHandler):
         if path.startswith("/api/addons/"):
             self._addons_get(path)
             return
+        if path == "/api/now-playing":   # the home screens' Now playing block (the Chromecast's media)
+            self._json(200, now_playing_cached())
+            return
+        if path.startswith("/api/cc-icon/"):
+            body = ADMIN.cc_icon(path.rsplit("/", 1)[1])
+            if not body:
+                self.send_error(404)
+                return
+            self._send(body, "image/png")
+            return
         if path == "/api/admin-link":
             # The TV launcher's QR button: the admin panel's address, and its QR code for a phone camera.
+            # Also the remote's and the player's: the same panel, opened on them (#remote, #player).
             url = f"http://{own_ip()}:{CONFIG.get('port', 8765)}/admin"
-            self._json(200, {"url": url, "qr": qr.matrix(url)})
+            links = [{"label": "Admin panel", "url": url}, {"label": "Remote", "url": url + "#remote"},
+                     {"label": "Player", "url": url + "#player"}]
+            for link in links:
+                link["qr"] = qr.matrix(link["url"])
+            self._json(200, {"url": url, "qr": links[0]["qr"], "links": links})
             return
         if path == "/api/rev":
             # Polled by both home screens every 3 s: a save in the admin panel changes "saved" (or restarts the
@@ -1861,6 +1893,14 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
                 return
             if path.startswith("/api/addons/") and path.endswith("/run"):
                 self._json(200, addon_run(path.split("/")[3]))
+                return
+            if path == "/api/media":
+                key = str(data.get("key", ""))
+                if key not in ("play", "prev", "next", "rew", "ff", "stop"):
+                    self._json(400, {"ok": False, "error": "not a media key"})
+                    return
+                _np_cache["at"] = 0   # the next look is fresh
+                self._json(200, remote_press("cc", key))
                 return
             if path == "/api/home-edit":
                 try:

@@ -777,6 +777,12 @@
       $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
       renderAll(); snapReset(); dirty();
       setTimeout(npRefresh, 800);
+      var want = location.hash;   // #remote or #player: from a QR code on the TV
+      if (want === '#remote' || want === '#player') {
+        try { history.replaceState(null, '', location.pathname); } catch (e) {}
+        if (want === '#remote') openRemote(); else openMedia();
+        sheetOpened();
+      }
     });
   }
   function renderAll() { renderLayout(); renderStatus(); renderVpn(); renderEditor('tv'); renderEditor('cc'); renderAddons(); renderHome(); renderWall(); renderSystem(); }
@@ -1173,6 +1179,16 @@
       if (!wx) { c.appendChild(pvLine('Tap to choose the city', 22, 400, 'rgba(255,255,255,.75)')); return c; }
       c.appendChild(pvLine(wx ? wx.temp + '°' : '–°', b.h < 2 ? 60 : 88, 300));
       if (b.h >= 2) c.appendChild(pvLine(wx ? wx.city + '  ·  ' + wx.high + '° / ' + wx.low + '°' : 'Weather', 22, 400, 'rgba(255,255,255,.8)'));
+    } else if (id === 'nowplaying') {
+      var card = el('div', 'pv-card'); card.style.flexDirection = 'row'; card.style.alignItems = 'center'; card.style.gap = tv(18); card.style.flex = '1';
+      c.style.padding = '0'; c.style.textShadow = 'none';
+      var p = lastNp;
+      if (p && b.h >= 2) { var art = new Image(); art.alt = ''; art.src = p.icon; art.style.width = tv(160); art.style.height = tv(90); art.style.objectFit = 'cover'; art.style.borderRadius = tv(12); art.style.flex = 'none'; card.appendChild(art); }
+      var col = el('div'); col.style.minWidth = '0'; col.style.flex = '1';
+      col.appendChild(pvLine(p ? (p.state === 'playing' ? '▶  ' : '❚❚  ') + p.name : '🎵  Now playing', 20, 500, 'rgba(255,255,255,.7)'));
+      col.appendChild(pvLine(p ? p.title : 'Nothing playing on the Chromecast', b.h >= 2 ? 28 : 24, 500));
+      if (p && p.subtitle && b.h >= 2) col.appendChild(pvLine(p.subtitle, 22, 400, 'rgba(255,255,255,.7)'));
+      card.appendChild(col); c.appendChild(card);
     } else if (id === 'hero') {
       var first = (lay(SD).dock || [])[0];
       c.style.justifyContent = 'flex-end';
@@ -1374,6 +1390,8 @@
         box.appendChild(sec('')).appendChild(el('p', 'hint', 'The TV shows it too.'));
       } else if (id === 'hero') {
         var s3 = sec(''); s3.appendChild(el('p', 'hint', 'The name of the app the remote is on, large.')); box.appendChild(s3);
+      } else if (id === 'nowplaying') {
+        var s9 = sec(''); s9.appendChild(el('p', 'hint', 'What the Chromecast is playing, on both Homes. On the TV, its remote\'s play/pause, next and previous control it while Home is showing, and so does the ♫ button at the top.')); box.appendChild(s9);
       } else if (isWidgetBlock(id) && b.on) {
         var s4 = sec('Widgets here');
         var picks = b.addons || [];
@@ -2051,11 +2069,12 @@
     $('npTime').textContent = (np.playing ? 'Playing' : 'Paused') + ' · ' + fmtTime(t);
     setMainIcon(np.playing);
   }
-  var mdDev = 'cc';
+  var mdDev = 'cc', lastNp;
   function npRefresh() {
     if (!S || !S.cc_ip) return;
     api('/api/admin/now-playing').then(function (r) {
       var card = $('npCard'), p = r && r.playing;
+      if (r && r.ok && (lastNp === undefined || JSON.stringify(lastNp) !== JSON.stringify(p || null))) { lastNp = p || null; drawCanvas(); }
       $('npFab').classList.toggle('live', !!(p && p.state === 'playing'));
       if (mdDev !== 'cc' || !$('mediaSheet').classList.contains('open')) return;
       card.classList.toggle('idle', !p);

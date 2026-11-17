@@ -29,6 +29,7 @@ BLOCKS = {
     "widgets2": {"name": "Widgets 2", "emoji": "🧩", "sizes": WIDGET_SIZES},
     "widgets3": {"name": "Widgets 3", "emoji": "🧩", "sizes": WIDGET_SIZES},
     "hero":    {"name": "App name", "emoji": "🔤", "sizes": [[7, 2, "Normal"], [5, 2, "Narrow"]]},
+    "nowplaying": {"name": "Now playing", "emoji": "🎵", "sizes": [[5, 2, "Normal"], [4, 1, "Small"], [6, 2, "Wide"]]},
 }
 
 
@@ -53,7 +54,8 @@ PRESETS = {
         "clock": _b(0, 0, 3, 1), "weather": _b(3, 0, 2, 1), "quote": _b(0, 2, 8, 2, False),
         "widgets": _b(8, 4, 4, 2, False), "hero": _b(0, 4, 7, 2, False)}},
 }
-_SPARE = {"widgets2": _b(0, 4, 4, 2, False), "widgets3": _b(4, 4, 4, 2, False)}   # hidden until shown
+_SPARE = {"widgets2": _b(0, 4, 4, 2, False), "widgets3": _b(4, 4, 4, 2, False),
+          "nowplaying": _b(0, 4, 5, 2, False)}   # hidden until shown
 for _p in PRESETS.values():
     for _k, _v in _SPARE.items():
         _p["blocks"].setdefault(_k, dict(_v))
