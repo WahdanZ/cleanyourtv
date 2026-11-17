@@ -1,0 +1,18 @@
+{
+  "id": "news-reader",
+  "version": "1.0",
+  "name": "News reader",
+  "type": "screen",
+  "emoji": "🗞️",
+  "color": "#4a4f5c",
+  "refresh_minutes": 20,
+  "description": "Headlines with their summaries, full screen.",
+  "settings": [
+    {
+      "key": "feed",
+      "label": "News feed (RSS address)",
+      "type": "text",
+      "default": "https://feeds.bbci.co.uk/news/world/rss.xml"
+    }
+  ]
+}

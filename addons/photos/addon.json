@@ -1,0 +1,18 @@
+{
+  "id": "photos",
+  "version": "1.0",
+  "name": "Photo slideshow",
+  "type": "screen",
+  "emoji": "🖼️",
+  "color": "#2d6b73",
+  "refresh_minutes": 10,
+  "description": "Your photos (the ones uploaded under Wallpaper → My photos), full screen, one after another.",
+  "settings": [
+    {
+      "key": "seconds",
+      "label": "Seconds per photo",
+      "type": "number",
+      "default": 8
+    }
+  ]
+}

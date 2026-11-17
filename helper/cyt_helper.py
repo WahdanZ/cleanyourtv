@@ -20,6 +20,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 import urllib.request
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -45,6 +46,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import extras  # noqa: E402
 import admin  # noqa: E402
 import qr  # noqa: E402
+import addons  # noqa: E402
+import layout  # noqa: E402
 
 WEB = ROOT / "web"
 DATA = ROOT / "data"
@@ -334,7 +337,13 @@ def suggestions(q: str, region: str = "") -> list:
 
 # Weather for the launcher's hero, from Open-Meteo (free, no key). Fetched here and kept for 30 minutes, so the TV
 # never waits on it; if the internet is away, the last reading is served, or nothing, and the page hides the panel.
-WEATHER = CONFIG.get("weather") or {}
+# Quote and weather are add-ons (addons/quote, addons/weather) drawn by the launchers themselves. A config from
+# before add-ons ("quotes", "weather") is read as their settings until the admin panel saves.
+_addon_conf = CONFIG.setdefault("addons", {})
+_addon_conf.setdefault("quote", {"enabled": CONFIG.get("quotes", True) is not False})
+_addon_conf.setdefault("weather", {"enabled": bool(CONFIG.get("weather")), "settings": {"place": CONFIG.get("weather") or None}})
+QUOTES_ON = bool(_addon_conf["quote"].get("enabled"))
+WEATHER = ((_addon_conf["weather"].get("settings") or {}).get("place") or {}) if _addon_conf["weather"].get("enabled") else {}
 WEATHER_URL = ("https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&timezone=auto&forecast_days=1"
                "&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min")
 _weather = {"at": 0.0, "data": None}
@@ -371,7 +380,7 @@ def _fetch(url: str) -> bytes:
 
 
 def quote_of_day() -> dict | None:
-    if not CONFIG.get("quotes", True):
+    if not QUOTES_ON:
         return None
     today = time.strftime("%Y-%m-%d")
     if _quote["day"] == today:
@@ -708,15 +717,114 @@ APP_VPN.update({str(k): str(v).lower() for k, v in (CHROMECAST.get("app_vpn") or
 def chromecast_settings() -> dict:
     return {"dock": CHROMECAST.get("dock", []), "rows": CHROMECAST.get("rows", []), "rename": CHROMECAST.get("rename", {}),
             "hidden": CHROMECAST.get("hidden", []), "app_vpn": CHROMECAST.get("app_vpn", {}),
-            "greeting_name": CONFIG.get("greeting_name", ""), "quotes": CONFIG.get("quotes", True), "weather": bool(WEATHER),
+            "greeting_name": CONFIG.get("greeting_name", ""), "quotes": QUOTES_ON, "weather": bool(WEATHER),
             "wallpaper": bool(WALLPAPER_ON), "region": vpn_available(), "clock_24h": CONFIG.get("clock_24h", False),
-            "rev": CHROMECAST.get("rev", 0), "live_refresh": CONFIG.get("live_refresh", True) is not False}
+            "rev": CHROMECAST.get("rev", 0), "layout": CONFIG.get("home_layout") or layout.PRESETS["classic"],
+            "live_refresh": CONFIG.get("live_refresh", True) is not False}
+
+
+# ---------- add-ons (helper/addons.py, addons/, data/addons/) ----------
+ADDONS = addons.Addons([(ROOT / "addons", True), (DATA / "addons", False)], log, lambda: CONFIG,
+                       lambda: WEATHER or (CONFIG.get("weather") or {}),
+                       lambda addon_id, name: f"/api/addons/{addon_id}/file/{quote(name)}")
+
+
+def addon_run(addon_id: str) -> dict:
+    """A quick action: the VPN step here (it waits for the tunnel), the rest for the Chromecast to do."""
+    steps = ADDONS.steps(addon_id)
+    if steps is None:
+        return {"ok": False, "error": "unknown add-on"}
+    client = []
+    for st in steps:
+        if "vpn" in st and vpn_available():
+            key = str(st["vpn"]).lower()
+            if key in [r["id"] for r in regions()] or len(key) == 2:
+                _auto_vpn["prev"] = None   # like a choice by hand: no app switches it back
+                if region_now() != key:
+                    region_set(key)
+        else:
+            client.append(st)
+    return {"ok": True, "steps": client}
+
+
+def validate_addons(v: dict) -> dict:
+    """The admin panel's add-on settings, checked against each add-on's own list of settings."""
+    if not isinstance(v, dict):
+        raise ValueError("bad add-on settings")
+    out = {"order": [i for i in v.get("order", []) if i in ADDONS.items]}
+    if "widget_seconds" in v:
+        n = int(v["widget_seconds"])
+        if not 4 <= n <= 120:
+            raise ValueError("widgets change every 4 to 120 seconds")
+        out["widget_seconds"] = n
+    for addon_id, conf in v.items():
+        if addon_id in ("order", "widget_seconds"):
+            continue
+        a = ADDONS.items.get(addon_id)
+        if not a or not isinstance(conf, dict):
+            continue
+        clean = {}
+        for spec in a.meta.get("settings", []):
+            key, kind = spec.get("key"), spec.get("type", "text")
+            if key not in (conf.get("settings") or {}):
+                continue
+            val = conf["settings"][key]
+            if kind == "number":
+                val = float(val) if "." in str(val) else int(val)
+            elif kind == "bool":
+                val = bool(val)
+            elif kind == "select":
+                if str(val) not in [str(o[0]) for o in spec.get("options", [])]:
+                    raise ValueError(f"{a.id}: {key} must be one of its choices")
+                val = str(val)
+            elif kind == "place":
+                val = None if not val else {"city": str(val.get("city", ""))[:60], "lat": round(float(val["lat"]), 4),
+                                            "lon": round(float(val["lon"]), 4)}
+            else:
+                val = str(val)[:500]
+            clean[key] = val
+        out[addon_id] = {"enabled": bool(conf.get("enabled")), "settings": clean}
+    return out
 
 
 # ---------- admin panel (web/admin.html, helper/admin.py) ----------
 ADMIN = admin.Admin(CONFIG_PATH, DATA, log)
+ADMIN.validate_addons = validate_addons
 ADMIN.load_sessions()
 SAFE_ID = re.compile(r"^[A-Za-z0-9_.-]{1,120}$")
+
+
+# Saves that only change what the home screens draw are applied here at once, without a restart; the screens
+# check /api/rev every few seconds and see "saved" change. Everything else (VPN, TV apps, wallpaper…) restarts.
+LIVE_KEYS = {"home_layout", "chromecast", "greeting_name", "clock_24h", "live_refresh", "addons", "widget_seconds"}
+SAVED = {"at": 0}
+
+
+def apply_live(cfg: dict):
+    global CHROMECAST, QUOTES_ON, WEATHER
+    old_place = WEATHER
+    CONFIG.clear()
+    CONFIG.update(cfg)
+    CHROMECAST = CONFIG.get("chromecast") or {}
+    conf = CONFIG.setdefault("addons", {})
+    QUOTES_ON = bool((conf.get("quote") or {}).get("enabled"))
+    w = conf.get("weather") or {}
+    WEATHER = ((w.get("settings") or {}).get("place") or {}) if w.get("enabled") else {}
+    if WEATHER != old_place:
+        _weather["at"] = 0   # a new city: fetch it now
+    APP_VPN.clear()
+    APP_VPN.update({str(k): str(v).lower() for k, v in (CONFIG.get("app_vpn") or {}).items()})
+    APP_VPN.update({str(k): str(v).lower() for k, v in (CHROMECAST.get("app_vpn") or {}).items()})
+    SAVED["at"] = time.time()
+    log("settings applied without a restart")
+
+    def fetch_new():   # add-ons just switched on: their data now, then tell the screens again
+        due = [a for a in ADDONS.enabled() if a.result is None]
+        for a in due:
+            ADDONS.refresh(a, force=True)
+        if due:
+            SAVED["at"] = time.time()
+    threading.Thread(target=fetch_new, daemon=True).start()
 
 
 def restart_soon():
@@ -738,6 +846,8 @@ def admin_state() -> dict:
     cc = ADMIN.cc_apps()
     for a in cc["apps"]:
         a["icon"] = f"/api/admin/icon/cc/{a['id']}"
+    for t in ADDONS.home()["tiles"]:   # full-screen and quick-action add-ons are tiles to arrange, like apps
+        cc["apps"].append({"id": t["id"], "name": t["name"], "emoji": t["emoji"], "color": t["color"], "banner": True})
     try:
         server = Path("/var/run/tv-vpn/server").read_text().split()[1]
     except (OSError, IndexError):
@@ -749,9 +859,54 @@ def admin_state() -> dict:
     return {"settings": ADMIN.editable(cfg, takeover_on()), "tv_apps": tv, "tv_removed": APPS.removed(),
             "cc": cc, "cc_ip": CC_IPS and sorted(CC_IPS)[0] or "", "regions": regions() if vpn_available() else [],
             "region": now, "vpn_server": server if now not in (None, "off") else "", "country_names": COUNTRY_NAMES,
-            "tv_on": HOME_WATCH.up, "started": STARTED,
+            "tv_on": HOME_WATCH.up, "started": STARTED, "addons": ADDONS.status(), "addons_broken": ADDONS.broken,
+            "layout_spec": layout.spec(), "preview": layout_preview(),
             "wallpaper": {"now": wallpaper_meta(), "sources": WALLPAPER_SOURCES, "own": own_wallpapers(),
                           "active": {"source": WALLPAPER_SOURCE, "market": WALLPAPER_MARKET, "pick": WALLPAPER_PICK}}}
+
+
+def layout_preview() -> dict:
+    """What the Layout tab draws in its blocks: today's quote, the weather and the widget cards as they are now."""
+    out = {"widgets": [], "quote": None, "weather": None}
+    try:
+        out["widgets"] = ADDONS.home()["widgets"]
+        out["quote"] = quote_of_day()
+        out["weather"] = weather()
+    except Exception as e:
+        log(f"layout preview: {e}")
+    return out
+
+
+def _adb() -> str | None:
+    for p in (shutil.which("adb"), "/opt/homebrew/bin/adb", "/usr/local/bin/adb",
+              str(Path.home() / "Library/Android/sdk/platform-tools/adb")):
+        if p and Path(p).exists():
+            return p
+    return None
+
+
+def cc_screenshot() -> tuple[bytes | None, str]:
+    """A picture of the Chromecast's screen right now, over wireless debugging. Never wakes it."""
+    adb = _adb()
+    if not adb:
+        return None, "adb isn't on the Mac."
+    try:
+        out = subprocess.run([adb, "devices"], capture_output=True, text=True, timeout=10).stdout
+        ips = [CC_IPS] if isinstance(CC_IPS, str) else list(CC_IPS or [])
+        serial = next((ln.split()[0] for ln in out.splitlines()[1:]
+                       if ln.split()[-1:] == ["device"] and any(ln.startswith(ip + ":") for ip in ips)), None)
+        if not serial:
+            return None, "The Chromecast isn't connected for debugging: run Connect Chromecast on the Mac."
+        power = subprocess.run([adb, "-s", serial, "shell", "dumpsys power | grep -m1 mWakefulness"],
+                               capture_output=True, text=True, timeout=10).stdout
+        if "Awake" not in power:
+            return None, "The Chromecast is asleep. Turn it on, then try again."
+        png = subprocess.run([adb, "-s", serial, "exec-out", "screencap", "-p"], capture_output=True, timeout=20).stdout
+        if not png.startswith(b"\x89PNG"):
+            return None, "The Chromecast didn't send a picture."
+        return png, ""
+    except subprocess.TimeoutExpired:
+        return None, "The Chromecast didn't answer in time."
 
 
 def vpn_for_app(app_id: str):
@@ -980,7 +1135,7 @@ class Handler(SimpleHTTPRequestHandler):
         if (ip == "127.0.0.1" or ip.rsplit(".", 1)[0] == own_ip().rsplit(".", 1)[0]) and \
                 (path == "/admin" or path.startswith("/api/admin/")):
             return True
-        if ip in CC_IPS and (path in CC_PATHS or path.startswith("/fonts/")):
+        if ip in CC_IPS and (path in CC_PATHS or path.startswith("/fonts/") or path.startswith("/api/addons/")):
             return True
         # A phone or computer at home may use the VPN page and its switch, and nothing else.
         if urlsplit(self.path).path in ("/vpn", "/api/region") and ip.rsplit(".", 1)[0] == own_ip().rsplit(".", 1)[0]:
@@ -1012,7 +1167,7 @@ class Handler(SimpleHTTPRequestHandler):
             threading.Thread(target=APPS.refresh_if_stale, daemon=True).start()
             self._json(200, {"apps": APPS.for_launcher(), "dock_size": len(CONFIG.get("dock", [])),
                              "greeting_name": CONFIG.get("greeting_name", ""), "rows": CONFIG.get("rows", []),
-                             "quotes": CONFIG.get("quotes", True), "weather": bool(WEATHER), "wallpaper": bool(WALLPAPER_ON),
+                             "quotes": QUOTES_ON, "weather": bool(WEATHER), "wallpaper": bool(WALLPAPER_ON),
                              "region": vpn_available(), "live_refresh": CONFIG.get("live_refresh", True) is not False,
                              "clock_24h": CONFIG.get("clock_24h", False), "sources": SOURCES.get(),
                              "removed_count": len(APPS.removed()), "takeover": takeover_on(), "browser": BROWSER,
@@ -1021,19 +1176,22 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/cc":
             self._json(200, chromecast_settings())
             return
+        if path.startswith("/api/addons/"):
+            self._addons_get(path)
+            return
         if path == "/api/admin-link":
             # The TV launcher's QR button: the admin panel's address, and its QR code for a phone camera.
             url = f"http://{own_ip()}:{CONFIG.get('port', 8765)}/admin"
             self._json(200, {"url": url, "qr": qr.matrix(url)})
             return
         if path == "/api/rev":
-            # Polled by both home screens every 20 s: a save in the admin panel restarts the helper ("started"
-            # changes), and a new photo changes "wall". Cheap: nothing is fetched or computed here.
+            # Polled by both home screens every 3 s: a save in the admin panel changes "saved" (or restarts the
+            # helper: "started"), and a new photo changes "wall". Cheap: nothing is fetched or computed here.
             try:
                 wall = json.loads(WALLPAPER_META.read_text(encoding="utf-8")).get("image", "") if WALLPAPER_ON else ""
             except (OSError, ValueError):
                 wall = ""
-            self._json(200, {"started": STARTED, "wall": wall})
+            self._json(200, {"started": STARTED, "wall": wall, "saved": SAVED["at"]})
             return
         if path == "/admin":
             self._send((WEB / "admin.html").read_bytes(), "text/html; charset=utf-8")
@@ -1147,6 +1305,27 @@ class Handler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     # ---------- admin panel ----------
+    def _addons_get(self, path: str):
+        parts = path.split("/")   # ["", "api", "addons", id, ...]
+        if path == "/api/addons/home":
+            self._json(200, ADDONS.home())
+        elif len(parts) == 5 and parts[4] == "screen":
+            page = ADDONS.screen(parts[3])
+            self._json(200 if page is not None else 404, page or {"error": "unknown add-on"})
+        elif len(parts) == 6 and parts[4] == "file":
+            got = ADDONS.file(parts[3], urllib.parse.unquote(parts[5]))
+            if not got:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", got[1])
+            self.send_header("Content-Length", str(len(got[0])))
+            self.send_header("Cache-Control", "max-age=86400")
+            self.end_headers()
+            self.wfile.write(got[0])
+        else:
+            self.send_error(404)
+
     def _admin_ok(self) -> bool:
         if ADMIN.signed_in(self.headers.get("Cookie")):
             return True
@@ -1175,6 +1354,12 @@ class Handler(SimpleHTTPRequestHandler):
                 self.send_error(404)
                 return
             self._send(f.read_bytes(), "image/jpeg")
+        elif path == "/api/admin/cc-screen":
+            png, why = cc_screenshot()
+            if png:
+                self._send(png, "image/png")
+            else:
+                self._json(409, {"ok": False, "error": why})
         elif path.startswith("/api/admin/icon/"):
             kind, _, app_id = path[len("/api/admin/icon/"):].partition("/")
             got = None
@@ -1255,13 +1440,25 @@ class Handler(SimpleHTTPRequestHandler):
                 set_takeover(notes["takeover"])
             if notes.get("tv_dock_changed"):
                 APPS.set_order(None)   # the panel's dock wins over an order arranged on the TV
-            self._json(200, {"ok": True})
-            restart_soon()
+            if set(data.get("changes") or {}) <= LIVE_KEYS:
+                apply_live(cfg)
+                self._json(200, {"ok": True, "live": True})
+            else:
+                self._json(200, {"ok": True})
+                restart_soon()
         elif path == "/api/admin/wallpaper-next":
             try:
                 self._json(200, {"ok": True, "now": wallpaper_next()})
             except Exception as e:
                 self._json(502, {"ok": False, "error": str(e)})
+        elif path == "/api/admin/addon-refresh":
+            a = ADDONS.items.get(str(data.get("id", "")))
+            if a:
+                ADDONS.refresh(a, force=True)
+            self._json(200, {"ok": bool(a), "addons": ADDONS.status()})
+        elif path == "/api/admin/addons-reload":
+            ADDONS.load()
+            self._json(200, {"ok": True, "addons": ADDONS.status(), "broken": ADDONS.broken})
         elif path == "/api/admin/wallpaper-delete":
             self._json(200, {"ok": wallpaper_delete(str(data.get("name", "")))})
         elif path == "/api/admin/action":
@@ -1441,6 +1638,9 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
                 return
             if path.startswith("/api/admin/"):
                 self._admin_post(path, data)
+                return
+            if path.startswith("/api/addons/") and path.endswith("/run"):
+                self._json(200, addon_run(path.split("/")[3]))
                 return
             if path == "/api/cc-apps":
                 if self.client_address[0] not in CC_IPS or not isinstance(data.get("apps"), list):
@@ -1757,6 +1957,7 @@ def main():
     threading.Thread(target=LIVETV.sweeper, daemon=True).start()
     threading.Thread(target=YT.home, daemon=True).start()          # warm the YouTube start screen
     threading.Thread(target=keep_ytdlp_fresh, daemon=True).start()
+    threading.Thread(target=ADDONS.loop, daemon=True).start()
     log("home takeover " + ("on" if takeover_on() else "off (VIDAA's own home)") +
         ": the launcher opens when the TV comes on or Netflix, YouTube or Prime Video closes")
     port = int(CONFIG.get("port", 8765))

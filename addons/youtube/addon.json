@@ -1,0 +1,24 @@
+{
+  "id": "youtube",
+  "version": "1.0",
+  "name": "YouTube channels",
+  "type": "row",
+  "emoji": "▶️",
+  "color": "#c4302b",
+  "refresh_minutes": 30,
+  "description": "The newest videos of channels you follow, as a row; OK plays it in YouTube.",
+  "settings": [
+    {
+      "key": "channels",
+      "label": "Channel IDs (UC…), separated by commas",
+      "type": "text",
+      "default": "UCsXVk37bltHxD1rDPwtNM8Q, UCHnyfMqiRRG1u-2MsSQLbXA"
+    },
+    {
+      "key": "title",
+      "label": "Row title",
+      "type": "text",
+      "default": "New on YouTube"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "id": "football",
+  "version": "1.0",
+  "name": "Football scores",
+  "type": "widget",
+  "emoji": "⚽",
+  "color": "#2e7d4f",
+  "refresh_minutes": 5,
+  "description": "Today's and the next matches of a league, with live scores (from ESPN).",
+  "settings": [
+    {
+      "key": "league",
+      "label": "League",
+      "type": "select",
+      "default": "eng.1",
+      "options": [
+        [
+          "eng.1",
+          "Premier League"
+        ],
+        [
+          "esp.1",
+          "La Liga"
+        ],
+        [
+          "ger.1",
+          "Bundesliga"
+        ],
+        [
+          "ita.1",
+          "Serie A"
+        ],
+        [
+          "fra.1",
+          "Ligue 1"
+        ],
+        [
+          "uefa.champions",
+          "Champions League"
+        ],
+        [
+          "ksa.1",
+          "Saudi Pro League"
+        ]
+      ]
+    },
+    {
+      "key": "team",
+      "label": "Only this team (optional)",
+      "type": "text",
+      "default": ""
+    }
+  ]
+}

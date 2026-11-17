@@ -68,10 +68,32 @@ public class MainActivity extends Activity {
     static final String BASE = BuildConfig.HELPER;   // the Mac running helper/cyt_helper.py (set by build.sh)
 
     // The stage is 1920 x 1080 px; every number below is the TV page's.
-    static final int W = 1920, H = 1080, COLS = 4;
-    static final int DOCK_W = 400, DOCK_H = 225, DOCK_PITCH = 438, DOCK_LEFT = 103, DOCK_TOP = 690, BAND_PAD = 28;
-    static final int TILE_W = 360, TILE_H = 202, PITCH = DOCK_PITCH, LEFT = DOCK_LEFT + (DOCK_W - TILE_W) / 2;
-    static final int GRID_TOP = DOCK_TOP + DOCK_H + 2 * BAND_PAD + 40, ROW_PITCH = 270, TITLE_H = 60, FOCUS_Y = 640, RAIL_TOP = 230;
+    static final int W = 1920, H = 1080;
+    static final int DOCK_LEFT = 103, DOCK_TOP = 690, BAND_PAD = 28, TITLE_H = 60, FOCUS_Y = 640, RAIL_TOP = 0;
+    // Dock and row tiles: Big (4 across), Normal (5) or Small (6), chosen in the admin panel's Layout tab.
+    int dockCols = 4, DOCK_W = 400, DOCK_H = 225, DOCK_PITCH = 438;
+    int rowCols = 4, TILE_W = 360, TILE_H = 202, PITCH = 438, LEFT = DOCK_LEFT + 20, ROW_PITCH = 270;
+    int GRID_TOP = DOCK_TOP + DOCK_H + 2 * BAND_PAD + 40;
+
+    static int colsFor(String size) { return "small".equals(size) ? 6 : "normal".equals(size) ? 5 : 4; }
+
+    /** Tile sizes from the layout; true if they changed (the tiles must be built again). */
+    boolean dockFull = false;   // the dock runs the whole width; its apps widen to fill it
+
+    boolean applyTileSizes(JSONObject lay) {
+        dockFull = lay != null && lay.optBoolean("dock_full");
+        int dc = colsFor(lay == null ? "" : lay.optString("dock")), rc = colsFor(lay == null ? "" : lay.optString("rows"));
+        if (dc == dockCols && rc == rowCols) return false;   // (dock_full needs no new sizes: layout() reads it)
+        dockCols = dc;
+        DOCK_PITCH = 1752 / dc; DOCK_W = DOCK_PITCH * 400 / 438; DOCK_H = DOCK_W * 9 / 16;
+        rowCols = rc;
+        PITCH = 1752 / rc; TILE_W = PITCH * 360 / 438; TILE_H = TILE_W * 9 / 16; LEFT = DOCK_LEFT + (PITCH - TILE_W) / 2;
+        ROW_PITCH = TILE_H + 68;
+        GRID_TOP = DOCK_TOP + DOCK_H + 2 * BAND_PAD + 40;
+        return true;
+    }
+    // The Home layout grid (helper/layout.py): 12 x 6 cells of 144 x 104 from (96, 40), above the dock.
+    static final int GX = 96, GY = 40, CW = 144, RH = 104;
     static final String[] CC_DOCK = {"com.netflix.ninja", "com.google.android.youtube.tv", "com.amazon.amazonvideo.livingroom", "com.disney.disneyplus"};
 
     final Handler ui = new Handler(Looper.getMainLooper());
@@ -93,8 +115,14 @@ public class MainActivity extends Activity {
     final List<View> sectionViews = new ArrayList<>();
 
     // ---------- apps and layout ----------
-    static class App { String id, name, vpn; boolean banner; long v; }
-    static class Pos { int x, y, w, h, line, col; }
+    static class App {
+        String id, name, vpn; boolean banner; long v;
+        String kind = "app";            // app, addon (an add-on's tile), item (a picture in an add-on's row)
+        String emoji, color, addonKind, image;
+        Object action;                  // an item's action: one step or a list of steps
+    }
+    JSONObject addonHome = new JSONObject();   // /api/addons/home: widgets, rows and tiles of the enabled add-ons
+    static class Pos { int x, y, w, h, line, col; float fs; }   // fs: how much it grows when focused (0: by its size)
     static class Section { String title; int start, count, y; }
     List<App> apps = new ArrayList<>();
     int dockSize = 0;
@@ -138,8 +166,10 @@ public class MainActivity extends Activity {
         super.onCreate(saved);
         prefs = getSharedPreferences("home", MODE_PRIVATE);
         try { cfg = new JSONObject(prefs.getString("cfg", "{}")); } catch (Exception e) { cfg = new JSONObject(); }
+        try { addonHome = new JSONObject(prefs.getString("addons", "{}")); } catch (Exception e) { addonHome = new JSONObject(); }
         try { builtInQuotes = new JSONObject(readAsset("quotes.json")).getJSONArray("en"); } catch (Exception e) { builtInQuotes = new JSONArray(); }
         buildStage();
+        applyLayout();
         loadApps();
         build();
         render();
@@ -151,6 +181,8 @@ public class MainActivity extends Activity {
         super.onResume();
         resumed = true;
         ui.post(tick);
+        if (area.equals("screen") && screenKind.equals("slideshow")) ui.postDelayed(slideNext, 4000);
+        renderWidgets();
         // An app may have been installed or removed while you were away; the VPN may have changed from the TV.
         List<String> before = ids();
         loadApps();
@@ -161,6 +193,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         resumed = false;
+        ui.removeCallbacks(slideNext);
+        stopWidgets();
         ui.removeCallbacks(tick);
         super.onPause();
     }
@@ -169,6 +203,7 @@ public class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         // Home pressed while Home is open: close what is open and go back to the first tile.
+        if (area.equals("screen")) closeScreen();
         if (area.equals("admin")) closeAdmin();
         if (area.equals("menu")) closeMenu();
         if (area.equals("move")) endMove(false);
@@ -276,33 +311,40 @@ public class MainActivity extends Activity {
         // Everything under the header scrolls in one rail, clipped under the header.
         viewport = new FrameLayout(this);
         viewport.setClipChildren(true);
+        // Its own clip: the stage lets focused buttons grow past their area, which would let the rail show under the header.
+        viewport.setClipBounds(new android.graphics.Rect(-40, 0, W + 40, H - RAIL_TOP + 40));
         stage.addView(viewport, at(0, RAIL_TOP, W, H - RAIL_TOP));
         rail = new FrameLayout(this);
         rail.setClipChildren(false);
         rail.setTranslationY(-RAIL_TOP);
         viewport.addView(rail, at(0, 0, W, 6000));
 
+        // All the layout blocks share one layer: it fades out while you browse the rows (they scroll away anyway).
+        blocksLayer = new FrameLayout(this);
+        blocksLayer.setClipChildren(false);
+        rail.addView(blocksLayer, at(0, 0, W, 2000));
         buildQuote();
         buildWeather();
+        buildWidgets();
         credit = text(24, 400, white(.55), 0, false);
         credit.setGravity(Gravity.END);
         credit.setMaxWidth(640);
         FrameLayout.LayoutParams cl = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
-        cl.rightMargin = 103; cl.topMargin = 432;
+        cl.rightMargin = 96; cl.topMargin = 214;
         credit.setVisibility(View.GONE);
-        rail.addView(credit, cl);
+        creditCl = cl;
 
         LinearLayout h = new LinearLayout(this);
         h.setOrientation(LinearLayout.VERTICAL);
         heroName = text(104, 300, Color.WHITE, -.02f, false);
-        h.addView(heroName);
+        h.addView(heroName, new LinearLayout.LayoutParams(1000, ViewGroup.LayoutParams.WRAP_CONTENT));
         TextView hint = text(26, 400, white(.5), .04f, false);
         hint.setText("OK to open  ·  hold OK for options");
         LinearLayout.LayoutParams hl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         hl.setMargins(6, -4, 0, 0);
         h.addView(hint, hl);
         hero = h;
-        rail.addView(hero, at(108, 476, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        blocksLayer.addView(hero, at(GX + 12, GY + 4 * RH + 20, 7 * CW, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         band = new View(this);
         GradientDrawable bd = new GradientDrawable();
@@ -343,6 +385,7 @@ public class MainActivity extends Activity {
         stage.addView(menuBox, new FrameLayout.LayoutParams(920, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
 
         buildAdminBox();
+        buildScreen();
 
         toast = text(28, 400, Color.WHITE, 0, false);
         toast.setPadding(40, 22, 40, 22);
@@ -367,49 +410,138 @@ public class MainActivity extends Activity {
         setContentView(root);
     }
 
+    FrameLayout blocksLayer;
+    LinearLayout clockBlock, clockRow;
+    View clockDivider;
+    TextView miniClock;
+    View topShade2;
+    FrameLayout.LayoutParams creditCl;
+
     void buildHeader() {
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setClipChildren(false);   // a focused button grows a little past its row
-        header.setGravity(Gravity.BOTTOM);
-        LinearLayout left = new LinearLayout(this);
-        left.setOrientation(LinearLayout.VERTICAL);
+        // The clock block: greeting, time and date. Where it sits and how big it is comes from the layout.
+        clockBlock = new LinearLayout(this);
+        clockBlock.setOrientation(LinearLayout.VERTICAL);
+        clockBlock.setPadding(16, 12, 0, 0);
         greeting = text(24, 500, white(.55), .22f, true);
         LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         gl.leftMargin = 8;
-        left.addView(greeting, gl);
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.BOTTOM);
+        clockBlock.addView(greeting, gl);
+        clockRow = new LinearLayout(this);
+        clockRow.setOrientation(LinearLayout.HORIZONTAL);
+        clockRow.setGravity(Gravity.BOTTOM);
         clock = text(104, 300, Color.WHITE, -.04f, false);
-        row.addView(clock);
+        clockRow.addView(clock);
         ampm = text(30, 500, white(.7), .08f, true);
         LinearLayout.LayoutParams al = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         al.setMargins(12, 0, 0, 10);
-        row.addView(ampm, al);
-        View div = new View(this);
-        div.setBackgroundColor(white(.2));
+        clockRow.addView(ampm, al);
+        clockDivider = new View(this);
+        clockDivider.setBackgroundColor(white(.2));
         LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(2, 52);
         dl.setMargins(32, 0, 32, 8);
-        row.addView(div, dl);
+        clockRow.addView(clockDivider, dl);
         date = text(28, 400, white(.65), .14f, true);
         LinearLayout.LayoutParams dtl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         dtl.bottomMargin = 12;
-        row.addView(date, dtl);
+        clockRow.addView(date, dtl);
         LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         rl.topMargin = 6;
-        left.addView(row, rl);
-        header.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        clockBlock.addView(clockRow, rl);
+        blocksLayer.addView(clockBlock, at(GX, GY, 6 * CW, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        // While you browse the rows, the blocks scroll away: a shade keeps the buttons readable, and a small clock stays.
+        topShade2 = new View(this);
+        topShade2.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{black(.92), black(.6), black(0)}));
+        topShade2.setAlpha(0f);
+        stage.addView(topShade2, new FrameLayout.LayoutParams(W, 300));
+        miniClock = text(56, 300, Color.WHITE, -.03f, false);
+        miniClock.setAlpha(0f);
+        stage.addView(miniClock, at(112, 132, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        stage.addView(credit, creditCl);
 
         pills = new LinearLayout(this);
         pills.setOrientation(LinearLayout.HORIZONTAL);
         pills.setClipChildren(false);
         pills.setClipToPadding(false);
-        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        pl.bottomMargin = 8;
-        header.addView(pills, pl);
-        stage.addView(header, at(112, 52, W - 224, ViewGroup.LayoutParams.WRAP_CONTENT));
+        FrameLayout.LayoutParams pl = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, 72, Gravity.TOP | Gravity.END);
+        pl.rightMargin = 96; pl.topMargin = 128;
+        stage.addView(pills, pl);
         rebuildPills();
+    }
+
+    // ---------- the Home layout: where each block sits (admin panel → Layout) ----------
+    static final String CLASSIC = "{\"clock\":{\"x\":0,\"y\":0,\"w\":6,\"h\":2,\"on\":true},\"quote\":{\"x\":0,\"y\":2,\"w\":8,\"h\":2,\"on\":true},"
+            + "\"weather\":{\"x\":9,\"y\":2,\"w\":3,\"h\":2,\"on\":true},\"hero\":{\"x\":0,\"y\":4,\"w\":7,\"h\":2,\"on\":true},"
+            + "\"widgets\":{\"x\":8,\"y\":4,\"w\":4,\"h\":2,\"on\":true}}";
+    boolean heroOn = true;
+    int clockRows = 2;
+    int quoteW = 1120;
+
+    JSONObject block(JSONObject blocks, String id) {
+        JSONObject b = blocks.optJSONObject(id);
+        if (b == null) try { b = new JSONObject(CLASSIC).getJSONObject(id); } catch (Exception e) { b = new JSONObject(); }
+        return b;
+    }
+
+    void applyLayout() {
+        JSONObject lay = cfg.optJSONObject("layout"), blocks = lay == null ? null : lay.optJSONObject("blocks");
+        applyTileSizes(lay);   // the caller builds the tiles again
+        if (blocks == null) try { blocks = new JSONObject(CLASSIC); } catch (Exception e) { return; }
+        // Clock: Small (one row) is time and date side by side; Big (three rows) is a large time.
+        JSONObject c = block(blocks, "clock");
+        place(clockBlock, c, false);
+        int ch = c.optInt("h", 2);
+        clockRows = ch;
+        greeting.setVisibility(ch >= 2 ? View.VISIBLE : View.GONE);
+        clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, ch >= 3 ? 210 : ch == 2 ? 104 : 64);
+        ampm.setTextSize(TypedValue.COMPLEX_UNIT_PX, ch >= 3 ? 44 : ch == 2 ? 30 : 22);
+        date.setTextSize(TypedValue.COMPLEX_UNIT_PX, ch >= 3 ? 34 : ch == 2 ? 28 : 22);
+        clockDivider.setVisibility(ch >= 3 ? View.GONE : View.VISIBLE);
+        clockRow.setOrientation(ch >= 3 ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
+        greeting.setTextSize(TypedValue.COMPLEX_UNIT_PX, ch >= 3 ? 30 : 24);
+        // Quote: as wide as its block.
+        JSONObject q = block(blocks, "quote");
+        place(quoteBox, q, false);
+        quoteW = q.optInt("w", 8) * CW - 24;
+        quoteText.setTextSize(TypedValue.COMPLEX_UNIT_PX, q.optInt("w", 8) >= 8 ? 38 : 32);
+        if (quoteText.getLayoutParams() != null) { quoteText.getLayoutParams().width = quotePic.getVisibility() == View.VISIBLE ? quoteW - 150 : quoteW; quoteText.requestLayout(); }
+        // Weather: right-aligned in its block; Small leaves out the line under the temperature.
+        JSONObject wx = block(blocks, "weather");
+        place(weatherBox, wx, false);
+        boolean small = wx.optInt("h", 2) < 2;
+        wxInfo.setVisibility(small ? View.GONE : View.VISIBLE);
+        wxTemp.setTextSize(TypedValue.COMPLEX_UNIT_PX, small ? 60 : 88);
+        ViewGroup.LayoutParams il = wxIcon.getLayoutParams();
+        il.width = il.height = small ? 56 : 76;
+        wxIcon.setLayoutParams(il);
+        // App name (the focused dock app) and the widget cards.
+        JSONObject h = block(blocks, "hero");
+        heroOn = h.optBoolean("on", true);
+        place(hero, h, false);
+        heroName.getLayoutParams().width = h.optInt("w", 7) * CW;
+        heroName.requestLayout();
+        // Widget blocks: a four-row block shows two cards stacked.
+        for (Slot s : slots) {
+            JSONObject w = s.id.equals("widgets") ? block(blocks, s.id) : blocks.optJSONObject(s.id);
+            if (w == null) { s.on = false; s.box.setVisibility(View.GONE); continue; }
+            s.on = w.optBoolean("on", true);
+            s.cards = Math.max(1, w.optInt("h", 2) / 2);
+            s.pick = new java.util.HashSet<>();
+            JSONArray pk = w.optJSONArray("addons");
+            if (pk != null) for (int i = 0; i < pk.length(); i++) s.pick.add(pk.optString(i));
+            place(s.box, w, false);
+        }
+        renderWidgets();
+    }
+
+    /** A block at its grid place, or gone. */
+    void place(View v, JSONObject b, boolean fullHeight) {
+        if (!b.optBoolean("on", true)) { v.setVisibility(View.GONE); return; }
+        FrameLayout.LayoutParams lp = at(GX + b.optInt("x") * CW, GY + b.optInt("y") * RH, b.optInt("w", 4) * CW,
+                fullHeight ? b.optInt("h", 2) * RH : ViewGroup.LayoutParams.WRAP_CONTENT);
+        v.setLayoutParams(lp);
+        if (v != weatherBox && v != quoteBox && !isSlotBox(v)) v.setVisibility(View.VISIBLE);
+        else if (v == weatherBox) v.setVisibility(weatherBox.getTag() == null ? View.GONE : View.VISIBLE);
     }
 
     void buildQuote() {
@@ -454,7 +586,7 @@ public class MainActivity extends Activity {
         col.addView(meta, ml);
         quoteBox.addView(col);
         quoteBox.setVisibility(View.GONE);
-        rail.addView(quoteBox, at(108, 300, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        blocksLayer.addView(quoteBox, at(GX + 12, GY + 2 * RH + 40, 8 * CW, ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 
     void buildWeather() {
@@ -476,9 +608,7 @@ public class MainActivity extends Activity {
         wl.topMargin = -10;
         weatherBox.addView(wxInfo, wl);
         weatherBox.setVisibility(View.GONE);
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
-        lp.rightMargin = 103; lp.topMargin = 296;
-        rail.addView(weatherBox, lp);
+        blocksLayer.addView(weatherBox, at(GX + 9 * CW, GY + 2 * RH, 3 * CW, ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 
     // ---------- pills: Region (when the VPN switch is there) and Settings ----------
@@ -564,19 +694,47 @@ public class MainActivity extends Activity {
             try { a.v = pm.getPackageInfo(pkg, 0).lastUpdateTime; } catch (Exception ignored) { }
             list.add(a);
         }
+        // Full-screen and quick-action add-ons: tiles like apps (placed, renamed and hidden the same way).
+        JSONArray atiles = addonHome.optJSONArray("tiles");
+        if (atiles != null) for (int i = 0; i < atiles.length(); i++) {
+            JSONObject t = atiles.optJSONObject(i);
+            if (t == null || hide.contains(t.optString("id"))) continue;
+            App a = new App();
+            a.id = t.optString("id"); a.kind = "addon"; a.addonKind = t.optString("kind");
+            a.name = rename != null && rename.has(a.id) ? rename.optString(a.id) : t.optString("name");
+            a.emoji = t.optString("emoji"); a.color = t.optString("color", "#3a3a44"); a.banner = true;
+            list.add(a);
+        }
         // The dock first (your own order from Move, else the helper's, else the usual four), then the rows.
         List<String> dock = strings(jsonArray(prefs.getString("dock", null)));
         if (dock.isEmpty()) dock = strings(cfg.optJSONArray("dock"));
         if (dock.isEmpty()) { dock = new ArrayList<>(); Collections.addAll(dock, CC_DOCK); }
         List<App> docked = new ArrayList<>(), rest = new ArrayList<>();
-        for (String id : dock) for (App a : list) if (a.id.equals(id) && docked.size() < COLS) docked.add(a);
+        for (String id : dock) for (App a : list) if (a.id.equals(id) && docked.size() < dockCols) docked.add(a);
         for (App a : list) if (!docked.contains(a)) rest.add(a);
         Collections.sort(rest, (x, y) -> x.name.compareToIgnoreCase(y.name));
         dockSize = docked.size();
         List<App> ordered = new ArrayList<>(docked);
         sections.clear();
+        // Add-on rows (YouTube channels, top movies…) come right after the dock.
+        JSONArray arows = addonHome.optJSONArray("rows");
+        if (arows != null) for (int r = 0; r < arows.length(); r++) {
+            JSONObject row = arows.optJSONObject(r);
+            JSONArray its = row == null ? null : row.optJSONArray("items");
+            if (its == null || its.length() == 0) continue;
+            Section s = new Section();
+            s.title = row.optString("title"); s.start = ordered.size(); s.count = its.length();
+            sections.add(s);
+            for (int k = 0; k < its.length(); k++) {
+                JSONObject it = its.optJSONObject(k);
+                App a = new App();
+                a.id = "item:" + row.optString("id") + ":" + k; a.kind = "item"; a.banner = true;
+                a.name = it.optString("title"); a.image = it.optString("image"); a.action = it.opt("action");
+                ordered.add(a);
+            }
+        }
         JSONArray rows = cfg.optJSONArray("rows");
-        rowsMode = rows != null && rows.length() > 0;
+        rowsMode = (rows != null && rows.length() > 0) || !sections.isEmpty();
         if (rows != null) for (int r = 0; r < rows.length(); r++) {
             JSONObject row = rows.optJSONObject(r);
             if (row == null) continue;
@@ -608,18 +766,21 @@ public class MainActivity extends Activity {
     void layout() {
         pos.clear(); lines.clear();
         lines.add(new ArrayList<Integer>());
+        int gap = DOCK_PITCH - DOCK_W, span = (dockCols - 1) * DOCK_PITCH + DOCK_W;
+        int w = dockFull && dockSize > 0 ? (span - (dockSize - 1) * gap) / dockSize : DOCK_W;
         for (int i = 0; i < dockSize; i++) {
             Pos p = new Pos();
-            p.x = DOCK_LEFT + i * DOCK_PITCH; p.y = DOCK_TOP + BAND_PAD; p.w = DOCK_W; p.h = DOCK_H; p.line = 0; p.col = i;
+            p.x = DOCK_LEFT + i * (w + gap); p.y = DOCK_TOP + BAND_PAD; p.w = w; p.h = DOCK_H; p.line = 0; p.col = i;
+            if (dockFull) p.fs = Math.min(1.1f, 1f + (gap - 10f) / w);   // wide tiles grow less, so they don't cover their neighbours
             pos.add(p); lines.get(0).add(i);
         }
         int y = GRID_TOP;
         for (Section s : sections) {
             if (!s.title.isEmpty()) { s.y = y; y += TITLE_H; }
             for (int k = 0; k < s.count; k++) {
-                if (k % COLS == 0) { if (k > 0) y += ROW_PITCH; lines.add(new ArrayList<Integer>()); }
+                if (k % rowCols == 0) { if (k > 0) y += ROW_PITCH; lines.add(new ArrayList<Integer>()); }
                 Pos p = new Pos();
-                p.x = LEFT + (k % COLS) * PITCH; p.y = y; p.w = TILE_W; p.h = TILE_H; p.line = lines.size() - 1; p.col = k % COLS;
+                p.x = LEFT + (k % rowCols) * PITCH; p.y = y; p.w = TILE_W; p.h = TILE_H; p.line = lines.size() - 1; p.col = k % rowCols;
                 pos.add(p); lines.get(p.line).add(s.start + k);
             }
             y += ROW_PITCH;
@@ -640,7 +801,9 @@ public class MainActivity extends Activity {
             rail.addView(t, at(LEFT + 6, s.y, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
         int dock = Math.min(dockSize, apps.size());
-        FrameLayout.LayoutParams bl = at(DOCK_LEFT - BAND_PAD - 2, DOCK_TOP, dock > 0 ? (dock - 1) * DOCK_PITCH + DOCK_W + 2 * BAND_PAD + 4 : 0, DOCK_H + 2 * BAND_PAD);
+        int bandW = dock <= 0 ? 0 : dockFull ? (dockCols - 1) * DOCK_PITCH + DOCK_W + 2 * BAND_PAD + 4
+                : pos.get(dock - 1).x + pos.get(dock - 1).w - DOCK_LEFT + 2 * BAND_PAD + 4;
+        FrameLayout.LayoutParams bl = at(DOCK_LEFT - BAND_PAD - 2, DOCK_TOP, bandW, DOCK_H + 2 * BAND_PAD);
         band.setLayoutParams(bl);
         int glassAt = rail.indexOfChild(glass);
         for (int i = 0; i < apps.size(); i++) {
@@ -653,16 +816,27 @@ public class MainActivity extends Activity {
             img.setScaleType(app.banner ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.FIT_CENTER);
             t.addView(img, app.banner ? new FrameLayout.LayoutParams(p.w, p.h)
                     : new FrameLayout.LayoutParams(p.h, p.h, Gravity.CENTER));
-            TextView label = text(30, 500, Color.WHITE, 0, false);
+            TextView label = text(Math.max(20, 30 * p.h / 202), 500, Color.WHITE, 0, false);
             label.setText(app.name);
             label.setGravity(Gravity.CENTER);
             t.addView(label, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             t.setPivotX(p.w / 2f); t.setPivotY(p.h / 2f);
             rail.addView(t, glassAt++, at(p.x, p.y, p.w, p.h));
             tiles.add(t);
-            showArt(app, t);
+            if ("addon".equals(app.kind)) {   // its emoji on its colour
+                GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                        new int[]{parseColor(app.color, 0xFF3A3A44), darker(parseColor(app.color, 0xFF3A3A44))});
+                t.setBackground(g);
+                label.setText(app.emoji);
+                label.setTextSize(TypedValue.COMPLEX_UNIT_PX, Math.round(p.h * .42f));
+                label.setTypeface(Typeface.DEFAULT);
+            } else if ("item".equals(app.kind)) {   // a picture from the internet
+                label.setVisibility(View.GONE);
+                img.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                loadImage(app.image, img, p.w);
+            } else showArt(app, t);
 
-            TextView n = text(28, 500, white(.95), .02f, false);
+            TextView n = text(p.h < 180 ? 24 : 28, 500, white(.95), .02f, false);
             n.setText(app.name);
             n.setGravity(Gravity.CENTER_HORIZONTAL);
             n.setAlpha(0f);
@@ -733,7 +907,7 @@ public class MainActivity extends Activity {
     // =====================================================================================================
     // Focus
     // =====================================================================================================
-    boolean onTop() { return area.equals("pills") || area.equals("admin") || (area.equals("menu") && !menuKind.equals("tile")); }
+    boolean onTop() { return area.equals("pills") || area.equals("admin") || area.equals("screen") || (area.equals("menu") && !menuKind.equals("tile")); }
     App focused() { return onTop() || index >= apps.size() ? null : apps.get(index); }
     final DecelerateInterpolator decel = new DecelerateInterpolator(2f);
 
@@ -744,7 +918,7 @@ public class MainActivity extends Activity {
             boolean on = !top && i == index;
             boolean lift = on && area.equals("move");
             View t = tiles.get(i);
-            float s = lift ? 1.16f : on ? 1.1f : 1f;
+            float s = lift ? 1.16f : on ? (i < pos.size() ? focusScale(pos.get(i)) : 1.1f) : 1f;
             if (t.getScaleX() != s || t.getTranslationY() != (lift ? -14 : 0))
                 t.animate().scaleX(s).scaleY(s).translationY(lift ? -14 : 0).setDuration(280).setInterpolator(new OvershootInterpolator(1.4f)).start();
             t.setTranslationZ(on ? 2 : 0);
@@ -758,17 +932,27 @@ public class MainActivity extends Activity {
         Pos p = index < pos.size() ? pos.get(index) : null;
         int shift = top || inDock || p == null ? 0 : FOCUS_Y - p.y;
         rail.animate().translationY(-RAIL_TOP + shift).setDuration(500).setInterpolator(decel).start();
+        boolean browsing = shift != 0;
+        topShade2.animate().alpha(browsing ? 1f : 0f).setDuration(400).start();
+        blocksLayer.animate().alpha(browsing ? 0f : 1f).setDuration(browsing ? 200 : 400).start();
+        miniClock.animate().alpha(browsing ? 1f : 0f).setDuration(400).start();
+        credit.animate().alpha(browsing ? 0f : 1f).setDuration(300).start();
         App app = focused();
         if (inDock && app != null) heroName.setText(app.name);
-        hero.animate().alpha(inDock ? 1f : 0f).setDuration(300).start();
+        hero.animate().alpha(inDock && heroOn ? 1f : 0f).setDuration(300).start();
         gridShade.animate().alpha(hasWallpaper && !inDock && !top ? 1f : 0f).setDuration(600).start();
         if (app != null && p != null && !area.equals("move")) glassTo(p);
         else glass.animate().alpha(0f).setDuration(200).start();
     }
 
     // The glass highlight, on a slightly springy move.
+    /** Big tiles grow 10% when focused; smaller ones (closer together) 6%, so they don't cover their neighbours. */
+    static float focusScale(Pos p) { return p.fs > 0 ? p.fs : p.w >= 330 ? 1.1f : 1.06f; }
+
     void glassTo(Pos p) {
-        int gw = Math.round(p.w * 1.1f + 24), gh = Math.round(p.h * 1.1f + 24);
+        float fs = focusScale(p);
+        int pad = fs > 1.08f ? 24 : 14;
+        int gw = Math.round(p.w * fs + pad), gh = Math.round(p.h * fs + pad);
         float x = p.x + p.w / 2f - gw / 2f, y = p.y + p.h / 2f - gh / 2f;
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) glass.getLayoutParams();
         if (lp.width != gw || lp.height != gh) {
@@ -852,6 +1036,7 @@ public class MainActivity extends Activity {
 
     void arrow(int dx, int dy) {
         if (area.equals("admin")) return;
+        if (area.equals("screen")) { screenArrow(dx, dy); return; }
         if (area.equals("menu")) {
             if (dy != 0) { menuIndex = Math.max(0, Math.min(menuItems.size() - 1, menuIndex + dy)); renderMenu(); }
             return;
@@ -861,6 +1046,7 @@ public class MainActivity extends Activity {
     }
 
     void back() {
+        if (area.equals("screen")) { closeScreen(); return; }
         if (area.equals("admin")) { closeAdmin(); return; }
         if (area.equals("menu")) { closeMenu(); return; }
         if (area.equals("move")) { endMove(false); return; }
@@ -872,6 +1058,7 @@ public class MainActivity extends Activity {
     }
 
     void activate() {
+        if (area.equals("screen")) { screenOk(); return; }
         if (area.equals("admin")) { closeAdmin(); return; }
         if (area.equals("menu")) { menuChoose(); return; }
         if (area.equals("move")) { endMove(true); return; }
@@ -891,6 +1078,12 @@ public class MainActivity extends Activity {
 
     // The helper switches the VPN first when the app has a country (OSN+ -> UAE), or back after one; then it opens.
     void open(final App app) {
+        if ("addon".equals(app.kind)) {
+            if ("screen".equals(app.addonKind)) openScreen(app.id.substring(6));
+            else runAddon(app.id.substring(6), app.name);
+            return;
+        }
+        if ("item".equals(app.kind)) { runSteps(app.action); return; }
         String to = null;
         if (app.vpn != null && regionNow != null && !regionNow.equals(app.vpn)) to = regionName(app.vpn);
         if (to != null) toast("Switching the VPN to " + to + " for " + app.name + "…");
@@ -926,6 +1119,663 @@ public class MainActivity extends Activity {
     // =====================================================================================================
     // Menus: the tile menu and the Region menu, a glass panel in the middle
     // =====================================================================================================
+    // =====================================================================================================
+    // Add-ons: widgets (a card on the right), rows (after the dock), tiles (full-screen pages, quick actions)
+    // =====================================================================================================
+    long lastAddons = 0;
+
+    static int parseColor(String c, int fallback) {
+        try { return Color.parseColor(c); } catch (Exception e) { return fallback; }
+    }
+
+    static int darker(int c) {
+        return Color.rgb(Color.red(c) * 6 / 10, Color.green(c) * 6 / 10, Color.blue(c) * 6 / 10);
+    }
+
+    /** Runs on the io thread. */
+    void refreshAddons() {
+        lastAddons = System.currentTimeMillis();
+        try {
+            JSONObject h = new JSONObject(get("/api/addons/home", 15_000));
+            ui.post(() -> {
+                boolean layoutChanged = !String.valueOf(h.optJSONArray("rows")).equals(String.valueOf(addonHome.optJSONArray("rows")))
+                        || !String.valueOf(h.optJSONArray("tiles")).equals(String.valueOf(addonHome.optJSONArray("tiles")));
+                addonHome = h;
+                prefs.edit().putString("addons", h.toString()).apply();
+                if (layoutChanged && !area.equals("move")) { loadApps(); build(); render(); }
+                renderWidgets();
+            });
+        } catch (Exception ignored) { }
+    }
+
+    /** A widget block on the layout: the add-ons picked for it (none picked: every widget no other block has),
+     *  one card, or two stacked when the block is four rows tall. With more than fit, the next ones in turn. */
+    final class Slot {
+        final String id;
+        final LinearLayout box = new LinearLayout(MainActivity.this);   // the cards, one under the other
+        boolean on;
+        int cards = 1, page = 0, shownPage, shownPages;
+        java.util.Set<String> pick = new java.util.HashSet<>();
+        java.util.List<JSONObject> shown = new ArrayList<>();
+        final Runnable next = () -> { page++; renderSlot(this); };
+        Slot(String id) {
+            this.id = id;
+            box.setOrientation(LinearLayout.VERTICAL);
+            box.setVisibility(View.GONE);
+        }
+    }
+    static final String[] SLOT_IDS = {"widgets", "widgets2", "widgets3"};
+    final Slot[] slots = new Slot[SLOT_IDS.length];
+
+    void buildWidgets() {
+        for (int i = 0; i < SLOT_IDS.length; i++) {
+            slots[i] = new Slot(SLOT_IDS[i]);
+            blocksLayer.addView(slots[i].box, at(GX + 8 * CW, GY + 4 * RH, 4 * CW, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+    }
+
+    boolean isSlotBox(View v) {
+        for (Slot s : slots) if (s != null && s.box == v) return true;
+        return false;
+    }
+
+    LinearLayout newCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(28, 16, 28, 18);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(28);
+        bg.setColor(black(.45));
+        bg.setStroke(2, white(.12));
+        card.setBackground(bg);
+        return card;
+    }
+
+    /** The widgets a block shows, in the admin panel's order. */
+    java.util.List<JSONObject> widgetsFor(Slot s) {
+        java.util.List<JSONObject> out = new ArrayList<>();
+        JSONArray ws = addonHome.optJSONArray("widgets");
+        if (ws == null) return out;
+        java.util.Set<String> others = new java.util.HashSet<>();
+        for (Slot o : slots) if (o != null && o != s && o.on) others.addAll(o.pick);
+        for (int i = 0; i < ws.length(); i++) {
+            JSONObject w = ws.optJSONObject(i);
+            if (w == null) continue;
+            String id = w.optString("id");
+            if (s.pick.isEmpty() ? !others.contains(id) : s.pick.contains(id)) out.add(w);
+        }
+        return out;
+    }
+
+    void renderWidgets() {
+        for (Slot s : slots) if (s != null) renderSlot(s);
+    }
+
+    void stopWidgets() {
+        for (Slot s : slots) if (s != null) ui.removeCallbacks(s.next);
+    }
+
+    void renderSlot(Slot s) {
+        ui.removeCallbacks(s.next);
+        java.util.List<JSONObject> list = widgetsFor(s);
+        if (!s.on || list.isEmpty()) { s.box.setVisibility(View.GONE); s.box.removeAllViews(); s.shown = new ArrayList<>(); return; }
+        final int k = Math.min(s.cards, list.size()), pages = (list.size() + k - 1) / k, p = s.page % pages;
+        final java.util.List<JSONObject> now = new ArrayList<>(list.subList(p * k, Math.min(list.size(), p * k + k)));
+        Runnable swap = () -> {
+            fillSlot(s, now, p, pages);
+            s.box.animate().alpha(1f).setDuration(350).start();
+        };
+        if (s.box.getVisibility() != View.VISIBLE || s.box.getChildCount() == 0) {
+            s.box.setAlpha(0f);
+            s.box.setVisibility(View.VISIBLE);
+            swap.run();
+        } else s.box.animate().alpha(0f).setDuration(220).withEndAction(swap).start();
+        if (pages > 1 && resumed) ui.postDelayed(s.next, Math.max(4, addonHome.optInt("widget_seconds", 10)) * 1000L);
+    }
+
+    /** The block's cards; the first one has a dot per turn. */
+    void fillSlot(Slot s, java.util.List<JSONObject> now, int page, int pages) {
+        s.shown = now; s.shownPage = page; s.shownPages = pages;
+        s.box.removeAllViews();
+        for (int i = 0; i < now.size(); i++) {
+            LinearLayout card = newCard();
+            fillWidget(card, now.get(i), page, i == 0 ? pages : 0);
+            s.box.addView(card, below(i == 0 ? 0 : 16));
+        }
+    }
+
+    /** The minute changed: redraw the cards on screen (countdowns), without moving on to the next ones. */
+    void refreshWidgetTimes() {
+        for (Slot s : slots) if (s != null && s.box.getVisibility() == View.VISIBLE && !s.shown.isEmpty()) fillSlot(s, s.shown, s.shownPage, s.shownPages);
+    }
+
+    void fillWidget(LinearLayout card, JSONObject w, int at, int count) {
+        // Header: the add-on's emoji on its colour, the title, and a dot per card.
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        TextView emo = new TextView(this);
+        emo.setTextSize(TypedValue.COMPLEX_UNIT_PX, 22);
+        emo.setGravity(Gravity.CENTER);
+        emo.setText(w.optString("emoji"));
+        GradientDrawable eb = new GradientDrawable();
+        eb.setCornerRadius(10);
+        eb.setColor(parseColor(w.optString("color"), 0xFF3A3A44));
+        emo.setBackground(eb);
+        head.addView(emo, new LinearLayout.LayoutParams(38, 38));
+        TextView title = text(21, 500, white(.7), .12f, true);
+        title.setText(w.optString("title"));
+        LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        tl.leftMargin = 14;
+        head.addView(title, tl);
+        if (count > 1) for (int i = 0; i < count; i++) {
+            View dot = new View(this);
+            GradientDrawable d = new GradientDrawable();
+            d.setShape(GradientDrawable.OVAL);
+            d.setColor(i == at ? white(.9) : white(.28));
+            dot.setBackground(d);
+            LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(i == at ? 10 : 8, i == at ? 10 : 8);
+            dl.leftMargin = 7;
+            head.addView(dot, dl);
+        }
+        card.addView(head);
+        String kind = w.optString("kind");
+        if (kind.equals("matches") && w.optJSONArray("matches") != null && w.optJSONArray("matches").length() > 0) fillMatches(card, w);
+        else if (kind.equals("prayer") && w.optJSONObject("times") != null) fillPrayer(card, w);
+        else if (kind.equals("headlines") && w.optJSONArray("items") != null) fillHeadlines(card, w);
+        else fillLines(card, w);
+        if (hasWallpaper) shadowAll(card);
+    }
+
+    void shadowAll(ViewGroup g) {
+        for (int i = 0; i < g.getChildCount(); i++) {
+            View v = g.getChildAt(i);
+            if (v instanceof TextView && v.getBackground() == null) shadow((TextView) v, true);
+            else if (v instanceof ViewGroup) shadowAll((ViewGroup) v);
+        }
+    }
+
+    LinearLayout.LayoutParams below(int top) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = top;
+        return lp;
+    }
+
+    /** Any add-on: up to three lines of text, each with a smaller note after it. */
+    void fillLines(LinearLayout card, JSONObject w) {
+        JSONArray lines = w.optJSONArray("lines");
+        if (lines == null) return;
+        for (int i = 0; i < Math.min(3, lines.length()); i++) {
+            JSONObject l = lines.optJSONObject(i);
+            if (l == null) continue;
+            TextView t = text(26, 400, white(.92), 0, false);
+            String sub = l.optString("sub");
+            android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder(l.optString("text"));
+            if (!sub.isEmpty()) {
+                int from = sb.length();
+                sb.append("   ").append(sub);
+                sb.setSpan(new android.text.style.ForegroundColorSpan(l.optBoolean("live") ? 0xFFFF6B6B : white(.5)), from, sb.length(), 0);
+            }
+            t.setText(sb);
+            card.addView(t, below(i == 0 ? 12 : 6));
+        }
+    }
+
+    /** Football: home logo and name, the score or kick-off in the middle, the away side; live games marked. */
+    void fillMatches(LinearLayout card, JSONObject w) {
+        JSONArray ms = w.optJSONArray("matches");
+        for (int i = 0; i < Math.min(2, ms.length()); i++) {   // two fit above the dock
+            JSONObject m = ms.optJSONObject(i);
+            JSONObject h = m.optJSONObject("home"), a = m.optJSONObject("away");
+            if (h == null || a == null) continue;
+            String state = m.optString("state");
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.addView(teamLogo(h.optString("logo")), new LinearLayout.LayoutParams(34, 34));
+            TextView hn = text(24, 500, white(.92), 0, false);
+            hn.setText(h.optString("name"));
+            hn.setGravity(Gravity.END);
+            LinearLayout.LayoutParams hl = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            hl.leftMargin = 10;
+            row.addView(hn, hl);
+            // The middle: "2 – 1" (and a red LIVE badge), or the kick-off time and how long until it.
+            LinearLayout mid = new LinearLayout(this);
+            mid.setOrientation(LinearLayout.VERTICAL);
+            mid.setGravity(Gravity.CENTER_HORIZONTAL);
+            TextView big = text(state.equals("pre") ? 24 : 28, state.equals("pre") ? 500 : 600, Color.WHITE, 0, false);
+            TextView small = text(17, 600, white(.55), .06f, true);
+            if (state.equals("pre")) {
+                big.setText(new java.text.SimpleDateFormat(isToday(m.optLong("start")) ? "HH:mm" : "EEE HH:mm", Locale.ENGLISH).format(new java.util.Date(m.optLong("start"))));
+                small.setText(until(m.optLong("start")));
+            } else {
+                big.setText(h.optString("score") + " – " + a.optString("score"));
+                if (state.equals("in")) {
+                    small.setText("LIVE " + m.optString("detail").replaceAll("[^0-9'+:]", "").trim());
+                    small.setTextColor(Color.WHITE);
+                    small.setPadding(10, 2, 10, 2);
+                    GradientDrawable live = new GradientDrawable();
+                    live.setCornerRadius(8);
+                    live.setColor(0xFFE53935);
+                    small.setBackground(live);
+                } else small.setText("Full time");
+            }
+            mid.addView(big);
+            mid.addView(small);
+            LinearLayout.LayoutParams ml = new LinearLayout.LayoutParams(150, ViewGroup.LayoutParams.WRAP_CONTENT);
+            ml.leftMargin = 8; ml.rightMargin = 8;
+            row.addView(mid, ml);
+            TextView an = text(24, 500, white(.92), 0, false);
+            an.setText(a.optString("name"));
+            LinearLayout.LayoutParams al = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            al.rightMargin = 10;
+            row.addView(an, al);
+            row.addView(teamLogo(a.optString("logo")), new LinearLayout.LayoutParams(34, 34));
+            card.addView(row, below(i == 0 ? 12 : 8));
+        }
+    }
+
+    ImageView teamLogo(String url) {
+        ImageView iv = new ImageView(this);
+        iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        loadImage(url, iv, 68);
+        return iv;
+    }
+
+    static boolean isToday(long ms) {
+        Calendar a = Calendar.getInstance(), b = Calendar.getInstance();
+        b.setTimeInMillis(ms);
+        return a.get(Calendar.YEAR) == b.get(Calendar.YEAR) && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR);
+    }
+
+    /** "in 45 min", "in 3 h 20 min", "in 2 days"; "now" once it's time. */
+    static String until(long ms) {
+        long min = (ms - System.currentTimeMillis()) / 60_000;
+        if (min <= 0) return "now";
+        if (min < 60) return "in " + min + " min";
+        if (min < 24 * 60) return "in " + (min / 60) + " h" + (min % 60 > 0 ? " " + (min % 60) + " min" : "");
+        long days = (min + 12 * 60) / (24 * 60);
+        return "in " + days + (days == 1 ? " day" : " days");
+    }
+
+    /** Prayer times: the next one large with its countdown, and all five below with the next one lit. */
+    void fillPrayer(LinearLayout card, JSONObject w) {
+        JSONObject times = w.optJSONObject("times"), tomorrow = w.optJSONObject("tomorrow");
+        JSONArray names = w.optJSONArray("names");
+        if (names == null) return;
+        String today = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(new java.util.Date());
+        boolean stale = !today.equals(w.optString("date"));   // the day changed since the Mac last fetched
+        if (stale && tomorrow != null) times = tomorrow;
+        String now = new java.text.SimpleDateFormat("HH:mm", Locale.ROOT).format(new java.util.Date());
+        String next = null;
+        for (int i = 0; i < names.length(); i++) if (times.optString(names.optString(i)).compareTo(now) > 0) { next = names.optString(i); break; }
+        JSONObject nextDay = times;
+        boolean afterIsha = next == null;
+        if (afterIsha) { next = names.optString(0); if (tomorrow != null) nextDay = tomorrow; }
+        String at = nextDay.optString(next);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.BOTTOM);
+        TextView nm = text(40, 500, Color.WHITE, 0, false);
+        nm.setText(next);
+        row.addView(nm);
+        TextView tm = text(40, 300, white(.9), 0, false);
+        tm.setText("  " + at);
+        row.addView(tm);
+        TextView cd = text(22, 400, white(.6), 0, false);
+        try {
+            String[] hm = at.split(":");
+            Calendar c = Calendar.getInstance();
+            c.set(Calendar.HOUR_OF_DAY, Integer.parseInt(hm[0]));
+            c.set(Calendar.MINUTE, Integer.parseInt(hm[1]));
+            c.set(Calendar.SECOND, 0);
+            if (afterIsha) c.add(Calendar.DAY_OF_YEAR, 1);
+            cd.setText("   " + until(c.getTimeInMillis()));
+        } catch (Exception ignored) { }
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cl.bottomMargin = 6;
+        row.addView(cd, cl);
+        card.addView(row, below(10));
+        LinearLayout strip = new LinearLayout(this);
+        strip.setOrientation(LinearLayout.HORIZONTAL);
+        for (int i = 0; i < names.length(); i++) {
+            String n = names.optString(i);
+            LinearLayout col = new LinearLayout(this);
+            col.setOrientation(LinearLayout.VERTICAL);
+            col.setGravity(Gravity.CENTER_HORIZONTAL);
+            col.setPadding(0, 6, 0, 8);
+            boolean lit = n.equals(next);
+            if (lit) { GradientDrawable g = new GradientDrawable(); g.setCornerRadius(14); g.setColor(white(.16)); col.setBackground(g); }
+            TextView a = text(17, 600, lit ? Color.WHITE : white(.5), .08f, true);
+            a.setText(n);
+            a.setGravity(Gravity.CENTER_HORIZONTAL);
+            col.addView(a);
+            TextView b = text(23, lit ? 500 : 400, lit ? Color.WHITE : white(.8), 0, false);
+            b.setText(times.optString(n));
+            b.setGravity(Gravity.CENTER_HORIZONTAL);
+            col.addView(b);
+            strip.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        }
+        card.addView(strip, below(10));
+    }
+
+    /** News: the top story's picture beside the headlines. */
+    void fillHeadlines(LinearLayout card, JSONObject w) {
+        JSONArray items = w.optJSONArray("items");
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        String image = w.optString("image");
+        if (!image.isEmpty()) {
+            ImageView iv = new ImageView(this);
+            iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            iv.setBackgroundColor(white(.08));
+            round(iv, 12);
+            LinearLayout.LayoutParams il = new LinearLayout.LayoutParams(176, 120);
+            il.rightMargin = 18; il.topMargin = 4;
+            row.addView(iv, il);
+            loadImage(image, iv, 240);
+        }
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        for (int i = 0; i < Math.min(3, items.length()); i++) {
+            JSONObject it = items.optJSONObject(i);
+            TextView t = text(i == 0 ? 25 : 22, i == 0 ? 500 : 400, i == 0 ? Color.WHITE : white(.75), 0, false);
+            if (i == 0) { t.setSingleLine(false); t.setMaxLines(2); }
+            t.setText(it == null ? "" : it.optString("title"));
+            col.addView(t, below(i == 0 ? 0 : 6));
+        }
+        row.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        card.addView(row, below(12));
+    }
+
+    // ---------- quick actions and row items: steps ----------
+    void runAddon(String addonId, String name) {
+        final boolean[] done = {false};
+        ui.postDelayed(() -> { if (!done[0]) toast(name + "…"); }, 1200);   // a VPN switch takes a while
+        io.execute(() -> {
+            try {
+                JSONObject r = new JSONObject(post("/api/addons/" + addonId + "/run", "{}", 90_000));
+                done[0] = true;
+                if (!r.optBoolean("ok")) { ui.post(() -> toast(name + ": " + r.optString("error", "did not work"))); return; }
+                ui.post(this::refreshRegion);
+                runSteps(r.optJSONArray("steps"));
+            } catch (Exception e) {
+                done[0] = true;
+                ui.post(() -> toast("Cannot reach the Mac, so " + name + " did not run"));
+            }
+        });
+    }
+
+    /** One step or a list of them: {"vpn"}, {"open", "uri"}, {"screen"}, {"url"}, {"toast"}. */
+    void runSteps(Object action) {
+        JSONArray steps = action instanceof JSONArray ? (JSONArray) action : new JSONArray();
+        if (action instanceof JSONObject) steps.put(action);
+        final JSONArray all = steps;
+        new Thread(() -> {
+            for (int i = 0; i < all.length(); i++) {
+                JSONObject st = all.optJSONObject(i);
+                if (st == null) continue;
+                if (st.has("vpn")) {
+                    String v = st.optString("vpn");
+                    ui.post(() -> toast("Switching the VPN to " + regionName(v) + "…"));
+                    try { post("/api/region", new JSONObject().put("region", v).toString(), 90_000); } catch (Exception ignored) { }
+                    ui.post(this::refreshRegion);
+                }
+                if (st.has("open")) { String pkg = st.optString("open"), uri = st.optString("uri"); ui.post(() -> openPackage(pkg, uri)); }
+                if (st.has("url")) { String u = st.optString("url"); ui.post(() -> openPackage(null, u)); }
+                if (st.has("screen")) { String id = st.optString("screen"); ui.post(() -> openScreen(id)); }
+                if (st.has("toast")) { String m = st.optString("toast"); ui.post(() -> toast(m)); }
+            }
+        }).start();
+    }
+
+    void openPackage(String pkg, String uri) {
+        if (uri != null && !uri.isEmpty()) {
+            Intent view = new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
+            if (pkg != null && !pkg.isEmpty()) view.setPackage(pkg);
+            if (startSafely(view)) return;
+        }
+        if (pkg == null || pkg.isEmpty()) { toast("Nothing can open that here"); return; }
+        PackageManager pm = getPackageManager();
+        Intent i = pm.getLeanbackLaunchIntentForPackage(pkg);
+        if (i == null) i = pm.getLaunchIntentForPackage(pkg);
+        if (i == null || !startSafely(i)) toast("That app isn't installed");
+    }
+
+    // ---------- pictures from the internet (rows, slideshows, lists), shrunk to what's shown ----------
+    final ExecutorService imgPool = Executors.newFixedThreadPool(4);
+    final android.util.LruCache<String, Bitmap> imgCache = new android.util.LruCache<String, Bitmap>(40 * 1024 * 1024) {
+        @Override protected int sizeOf(String k, Bitmap b) { return b.getByteCount(); }
+    };
+
+    void loadImage(String url, ImageView iv, int width) {
+        if (url == null || url.isEmpty()) return;
+        final String full = url.startsWith("/") ? BASE + url : url;
+        final String key = full + "@" + width;
+        iv.setTag(key);
+        Bitmap hit = imgCache.get(key);
+        if (hit != null) { iv.setImageBitmap(hit); return; }
+        imgPool.execute(() -> {
+            try {
+                byte[] b = full.startsWith(BASE) ? fetch(full, null, 30_000) : download(full);
+                BitmapFactory.Options o = new BitmapFactory.Options();
+                o.inJustDecodeBounds = true;
+                BitmapFactory.decodeByteArray(b, 0, b.length, o);
+                o.inJustDecodeBounds = false;
+                o.inSampleSize = 1;
+                while (o.outWidth / (o.inSampleSize * 2) >= width) o.inSampleSize *= 2;
+                Bitmap bm = BitmapFactory.decodeByteArray(b, 0, b.length, o);
+                if (bm == null) return;
+                imgCache.put(key, bm);
+                ui.post(() -> { if (key.equals(iv.getTag())) { iv.setImageBitmap(bm); iv.setAlpha(0f); iv.animate().alpha(1f).setDuration(250).start(); } });
+            } catch (Exception ignored) { }
+        });
+    }
+
+    static byte[] download(String url) throws IOException {
+        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+        c.setConnectTimeout(8000);
+        c.setReadTimeout(20_000);
+        c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) HomeLauncher");
+        try (InputStream in = c.getInputStream()) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[16384];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            return out.toByteArray();
+        } finally {
+            c.disconnect();
+        }
+    }
+
+    // ---------- full-screen add-ons: a slideshow or a list ----------
+    FrameLayout screenRoot, slideA, slideB;
+    ImageView slideImgA, slideImgB;
+    TextView screenTitle, slideCaption, slideCount, screenEmpty;
+    View topShade;
+    LinearLayout listBox;
+    JSONObject screenPage;
+    String screenKind = "";
+    int screenIndex = 0;
+    boolean slideFront = true;
+    final Runnable slideNext = () -> { screenIndex++; showSlide(); };
+
+    void buildScreen() {
+        screenRoot = new FrameLayout(this);
+        screenRoot.setBackgroundColor(Color.BLACK);
+        screenRoot.setClipChildren(true);
+        slideImgA = new ImageView(this);
+        slideImgB = new ImageView(this);
+        for (ImageView v : new ImageView[]{slideImgA, slideImgB}) {
+            v.setScaleType(ImageView.ScaleType.FIT_CENTER);   // the whole photo, tall ones too
+            v.setAlpha(0f);
+            screenRoot.addView(v, new FrameLayout.LayoutParams(W, H));
+        }
+        listBox = new LinearLayout(this);
+        listBox.setOrientation(LinearLayout.VERTICAL);
+        screenRoot.addView(listBox, at(108, 190, W - 216, 40_000));   // tall: it slides up under the title as you go down
+        topShade = new View(this);
+        topShade.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0xFF000000, 0xEE000000, 0x00000000}));
+        screenRoot.addView(topShade, new FrameLayout.LayoutParams(W, 200));
+        screenTitle = text(44, 400, Color.WHITE, -.01f, false);
+        screenRoot.addView(screenTitle, at(108, 70, W - 216, ViewGroup.LayoutParams.WRAP_CONTENT));
+        slideCaption = text(28, 400, white(.9), 0, false);
+        shadow(slideCaption, true);
+        screenRoot.addView(slideCaption, at(108, H - 100, W - 500, ViewGroup.LayoutParams.WRAP_CONTENT));
+        slideCount = text(24, 400, white(.6), 0, false);
+        shadow(slideCount, true);
+        FrameLayout.LayoutParams cl = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.END);
+        cl.rightMargin = 108; cl.bottomMargin = 70;
+        screenRoot.addView(slideCount, cl);
+        screenEmpty = text(30, 400, white(.7), 0, false);
+        screenEmpty.setSingleLine(false);
+        screenEmpty.setGravity(Gravity.CENTER);
+        screenRoot.addView(screenEmpty, new FrameLayout.LayoutParams(W - 400, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        screenRoot.setVisibility(View.GONE);
+        stage.addView(screenRoot, new FrameLayout.LayoutParams(W, H));
+    }
+
+    void openScreen(String addonId) {
+        toast("Opening…");
+        io.execute(() -> {
+            try {
+                JSONObject page = new JSONObject(get("/api/addons/" + addonId + "/screen", 30_000));
+                ui.post(() -> showScreen(page));
+            } catch (Exception e) {
+                ui.post(() -> toast("Cannot reach the Mac, so that page can't open"));
+            }
+        });
+    }
+
+    void showScreen(JSONObject page) {
+        ui.removeCallbacks(hideToast);
+        toast.setAlpha(0f);
+        screenPage = page;
+        screenKind = page.optString("kind", "list");
+        screenIndex = 0;
+        area = "screen";
+        screenTitle.setText(page.optString("title"));
+        JSONArray items = page.optJSONArray("items");
+        boolean empty = items == null || items.length() == 0;
+        screenEmpty.setText(empty ? (page.optString("error").isEmpty() ? page.optString("empty", "Nothing to show yet.") : "Problem: " + page.optString("error")) : "");
+        screenEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
+        boolean slides = screenKind.equals("slideshow");
+        listBox.setVisibility(slides ? View.GONE : View.VISIBLE);
+        slideCaption.setVisibility(slides ? View.VISIBLE : View.GONE);
+        slideCount.setVisibility(slides ? View.VISIBLE : View.GONE);
+        slideImgA.setAlpha(0f); slideImgB.setAlpha(0f);
+        screenTitle.setVisibility(slides ? View.GONE : View.VISIBLE);
+        topShade.setVisibility(slides ? View.GONE : View.VISIBLE);
+        screenRoot.setAlpha(0f);
+        screenRoot.setVisibility(View.VISIBLE);
+        screenRoot.animate().alpha(1f).setDuration(250).start();
+        if (empty) return;
+        if (slides) showSlide();
+        else buildList(items);
+    }
+
+    void showSlide() {
+        ui.removeCallbacks(slideNext);
+        JSONArray items = screenPage.optJSONArray("items");
+        if (items == null || items.length() == 0) return;
+        int n = items.length();
+        screenIndex = ((screenIndex % n) + n) % n;
+        JSONObject it = items.optJSONObject(screenIndex);
+        ImageView in = slideFront ? slideImgB : slideImgA, out = slideFront ? slideImgA : slideImgB;
+        slideFront = !slideFront;
+        in.setImageDrawable(null);
+        in.setAlpha(0f);
+        loadImage(it.optString("image"), in, W);
+        in.animate().alpha(1f).setDuration(900).start();
+        out.animate().alpha(0f).setDuration(900).start();
+        slideCaption.setText(it.optString("caption"));
+        slideCount.setText((screenIndex + 1) + " / " + n);
+        if (resumed) ui.postDelayed(slideNext, Math.max(3, screenPage.optInt("seconds", 8)) * 1000L);
+    }
+
+    void buildList(JSONArray items) {
+        listBox.removeAllViews();
+        listBox.setTranslationY(0);
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject it = items.optJSONObject(i);
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(18, 14, 24, 14);
+            String image = it.optString("image");
+            if (!image.isEmpty()) {
+                ImageView iv = new ImageView(this);
+                iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                iv.setBackgroundColor(0xFF1C1C1E);
+                round(iv, 14);
+                LinearLayout.LayoutParams il = new LinearLayout.LayoutParams(224, 126);
+                il.rightMargin = 28;
+                row.addView(iv, il);
+                loadImage(image, iv, 224);
+            }
+            LinearLayout col = new LinearLayout(this);
+            col.setOrientation(LinearLayout.VERTICAL);
+            TextView t = text(30, 500, Color.WHITE, 0, false);
+            t.setText(it.optString("title"));
+            col.addView(t);
+            String sub = it.optString("subtitle");
+            if (!sub.isEmpty()) {
+                TextView st = text(24, 400, white(.6), 0, false);
+                st.setSingleLine(false);
+                st.setMaxLines(2);
+                st.setText(sub);
+                LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                sl.topMargin = 6;
+                col.addView(st, sl);
+            }
+            row.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 160);
+            rl.bottomMargin = 12;
+            listBox.addView(row, rl);
+        }
+        focusListRow();
+    }
+
+    void focusListRow() {
+        for (int i = 0; i < listBox.getChildCount(); i++) {
+            View r = listBox.getChildAt(i);
+            if (i == screenIndex) { GradientDrawable g = new GradientDrawable(); g.setCornerRadius(22); g.setColor(white(.12)); g.setStroke(3, white(.7)); r.setBackground(g); }
+            else r.setBackground(null);
+        }
+        float y = -Math.max(0, screenIndex - 1) * 172f;
+        listBox.animate().translationY(y).setDuration(250).setInterpolator(decel).start();
+    }
+
+    void screenArrow(int dx, int dy) {
+        JSONArray items = screenPage == null ? null : screenPage.optJSONArray("items");
+        if (items == null || items.length() == 0) return;
+        if (screenKind.equals("slideshow")) {
+            if (dx != 0) { screenIndex += dx; showSlide(); }
+        } else if (dy != 0) {
+            screenIndex = Math.max(0, Math.min(items.length() - 1, screenIndex + dy));
+            focusListRow();
+        }
+    }
+
+    void screenOk() {
+        if (screenKind.equals("slideshow")) { screenIndex++; showSlide(); return; }
+        JSONArray items = screenPage == null ? null : screenPage.optJSONArray("items");
+        JSONObject it = items == null ? null : items.optJSONObject(screenIndex);
+        if (it != null && it.has("action")) runSteps(it.opt("action"));
+    }
+
+    void closeScreen() {
+        ui.removeCallbacks(slideNext);
+        screenRoot.animate().alpha(0f).setDuration(200).withEndAction(() -> {
+            screenRoot.setVisibility(View.GONE);
+            slideImgA.setImageDrawable(null);
+            slideImgB.setImageDrawable(null);
+            listBox.removeAllViews();
+        }).start();
+        area = index < dockSize ? "dock" : "grid";
+        render();
+    }
+
     // ---------- Admin: the admin panel's address as a QR code, for a phone camera ----------
     void buildAdminBox() {
         adminBox = new LinearLayout(this);
@@ -1047,7 +1897,7 @@ public class MainActivity extends Activity {
 
     void openTileMenu() {
         App app = focused();
-        if (app == null) return;
+        if (app == null || "item".equals(app.kind)) return;   // a row's picture: nothing to arrange
         menuApp = app; menuKind = "tile";
         List<Item> items = new ArrayList<>();
         if (index < dockSize) items.add(new Item("Move", "move", null));
@@ -1055,7 +1905,7 @@ public class MainActivity extends Activity {
         if (prefs.getString("dock", null) != null) items.add(new Item("Reset the order", "reset-order", null));
         int n = removed().size();
         if (n > 0) items.add(new Item("Restore removed apps (" + n + ")", "restore", null));
-        items.add(new Item("App info", "info", null));
+        if ("app".equals(app.kind)) items.add(new Item("App info", "info", null));
         items.add(new Item("Cancel", "cancel", null));
         showMenu(app.name, items);
     }
@@ -1170,43 +2020,56 @@ public class MainActivity extends Activity {
                 String mm = String.format(Locale.ROOT, "%02d", m);
                 if (cfg.optBoolean("clock_24h")) { clock.setText(String.format(Locale.ROOT, "%02d", h) + ":" + mm); ampm.setText(""); }
                 else { clock.setText(((h % 12) == 0 ? 12 : h % 12) + ":" + mm); ampm.setText(h < 12 ? "am" : "pm"); }
+                miniClock.setText(clock.getText());
                 ampm.setVisibility(cfg.optBoolean("clock_24h") ? View.GONE : View.VISIBLE);
-                date.setText(DAYS[c.get(Calendar.DAY_OF_WEEK) - 1] + "  " + c.get(Calendar.DAY_OF_MONTH) + " " + MONTHS[c.get(Calendar.MONTH)]);
+                String day = DAYS[c.get(Calendar.DAY_OF_WEEK) - 1], mon = MONTHS[c.get(Calendar.MONTH)];
+                if (clockRows == 1) { day = day.substring(0, 3); mon = mon.substring(0, Math.min(3, mon.length())); }   // the one-row clock: "Tue 17 Nov"
+                date.setText(day + "  " + c.get(Calendar.DAY_OF_MONTH) + " " + mon);
                 String g = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
                 String name = cfg.optString("greeting_name", "");
                 greeting.setText(name.isEmpty() ? g : g + ", " + name);
                 showQuote();   // a new one at midnight
+                refreshWidgetTimes();   // countdowns
                 long now = System.currentTimeMillis();
                 if (now - lastWeather > 15 * 60_000) refreshWeather();
                 if (now - lastWallpaper > 60 * 60_000) refreshWallpaper();
+                if (now - lastAddons > 5 * 60_000) io.execute(MainActivity.this::refreshAddons);
             }
             // "Update right away" in the admin panel; off: changes show when Home opens again.
-            if (cfg.optBoolean("live_refresh", true) && System.currentTimeMillis() - lastRev > 20_000) checkRev();
+            if (cfg.optBoolean("live_refresh", true) && System.currentTimeMillis() - lastRev > 3_000) checkRev();
             if (resumed) ui.postDelayed(this, 1000);
         }
     };
 
-    // Changes from the admin panel, checked every 20 s while Home is on screen: a save restarts the helper
-    // ("started" changes: fetch the settings again), and a new photo changes "wall".
+    // Changes from the admin panel, checked every 3 s while Home is on screen: a save changes "saved" (or
+    // restarts the helper: "started"): fetch the settings again; a new photo changes "wall".
     long lastRev = 0, revStarted = 0;
+    double revSaved = -1;
+    volatile boolean revBusy = false;
     String revWall = null;
 
     void checkRev() {
         lastRev = System.currentTimeMillis();
-        if (!helperUp()) return;
+        if (!helperUp() || revBusy) return;
+        revBusy = true;
         io.execute(() -> {
             try {
-                JSONObject r = new JSONObject(get("/api/rev", 5000));
+                JSONObject r = new JSONObject(get("/api/rev", 2500));
                 long started = r.optLong("started");
+                double saved = r.optDouble("saved", 0);
                 String wall = r.optString("wall", "");
                 ui.post(() -> {
                     boolean first = revStarted == 0;
-                    if (!first && started != revStarted) refreshAll(false);
+                    if (!first && (started != revStarted || saved != revSaved)) refreshAll(false);
                     else if (!first && !wall.equals(revWall)) refreshWallpaper();
                     revStarted = started;
+                    revSaved = saved;
                     revWall = wall;
                 });
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) {
+            } finally {
+                revBusy = false;
+            }
         });
     }
 
@@ -1257,10 +2120,11 @@ public class MainActivity extends Activity {
                 if (rev != prefs.getLong("rev", 0)) ed.remove("dock").remove("removed").putLong("rev", rev);
                 ed.apply();
                 reportApps();
+                refreshAddons();
                 ui.post(() -> {
                     boolean changed = !c.toString().equals(cfg.toString());
                     cfg = c;
-                    if (changed || first) { lastMinute = -1; loadApps(); build(); render(); tick.run(); }
+                    if (changed || first) { lastMinute = -1; applyLayout(); applyWeatherVisibility(); loadApps(); build(); render(); tick.run(); }
                     quoteDay = -1; showQuote();
                     refreshWeather(); refreshWallpaper(); refreshRegion();
                 });
@@ -1342,6 +2206,12 @@ public class MainActivity extends Activity {
     static final String[] WX_LABEL = {"Clear", "Partly cloudy", "Cloudy", "Fog", "Drizzle", "Rain", "Snow", "Thunderstorm"};
     static final int[] WX_ICON = {R.drawable.wx_sun, R.drawable.wx_part, R.drawable.wx_cloud, R.drawable.wx_fog, R.drawable.wx_rain, R.drawable.wx_rain, R.drawable.wx_snow, R.drawable.wx_storm};
 
+    void applyWeatherVisibility() {
+        JSONObject lay = cfg.optJSONObject("layout"), blocks = lay == null ? null : lay.optJSONObject("blocks");
+        boolean on = blocks == null || block(blocks, "weather").optBoolean("on", true);
+        weatherBox.setVisibility(on && weatherBox.getTag() != null ? View.VISIBLE : View.GONE);
+    }
+
     void refreshWeather() {
         lastWeather = System.currentTimeMillis();
         if (!cfg.optBoolean("weather")) { weatherBox.setVisibility(View.GONE); return; }
@@ -1361,7 +2231,8 @@ public class MainActivity extends Activity {
                 wxTemp.setText(fw.optInt("temp") + "°");
                 String city = fw.optString("city", "");
                 wxInfo.setText((city.isEmpty() ? "" : city + "  ·  ") + WX_LABEL[k] + "  ·  " + fw.optInt("high") + "° / " + fw.optInt("low") + "°");
-                weatherBox.setVisibility(View.VISIBLE);
+                weatherBox.setTag("ok");
+                applyWeatherVisibility();
             });
         });
     }
@@ -1400,9 +2271,10 @@ public class MainActivity extends Activity {
         quoteSrc.setText(source == null || source.isEmpty() ? "" : "Quote via " + source);
         quotePic.setImageBitmap(pic);
         quotePic.setVisibility(pic != null ? View.VISIBLE : View.GONE);
-        quoteText.getLayoutParams().width = pic != null ? 1120 - 150 : 1120;
+        quoteText.getLayoutParams().width = pic != null ? quoteW - 150 : quoteW;
         quoteText.requestLayout();
-        quoteBox.setVisibility(View.VISIBLE);
+        JSONObject lay = cfg.optJSONObject("layout"), blocks = lay == null ? null : lay.optJSONObject("blocks");
+        quoteBox.setVisibility(blocks == null || block(blocks, "quote").optBoolean("on", true) ? View.VISIBLE : View.GONE);
     }
 
     // ---------- wallpaper of the day (Bing's photo, kept by the helper) ----------
@@ -1428,7 +2300,7 @@ public class MainActivity extends Activity {
                     hasWallpaper = true;
                     credit.setText(cr);
                     credit.setVisibility(cr.isEmpty() ? View.GONE : View.VISIBLE);
-                    for (TextView t : new TextView[]{greeting, clock, ampm, date, quoteText, quoteBy, quoteSrc, wxTemp, wxInfo, credit, heroName}) shadow(t, true);
+                    for (TextView t : new TextView[]{greeting, clock, ampm, date, quoteText, quoteBy, quoteSrc, wxTemp, wxInfo, credit, heroName, miniClock}) shadow(t, true);
                     render();
                 });
             } catch (Exception ignored) { }

@@ -1,0 +1,10 @@
+{
+  "id": "quote",
+  "version": "1.0",
+  "name": "Quote of the day",
+  "type": "widget",
+  "slot": "quote",
+  "emoji": "❝",
+  "color": "#5b4a8a",
+  "description": "A quote from ZenQuotes.io each day, with the author's portrait, on the left of Home."
+}

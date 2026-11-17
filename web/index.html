@@ -1120,7 +1120,7 @@
     if (state.static) return;
     load('/api/rev').then(function (r) {
       var first = !rev.started;
-      if (!first && r.started !== rev.started && focus.area !== 'menu' && focus.area !== 'move' && focus.area !== 'browser' && focus.area !== 'admin') {
+      if (!first && (r.started !== rev.started || r.saved !== rev.saved) && focus.area !== 'menu' && focus.area !== 'move' && focus.area !== 'browser' && focus.area !== 'admin') {
         rev = r; load('/api/state').then(start, function () {});   // new settings: rebuild Home in place
         return;
       }
@@ -1130,7 +1130,7 @@
   }
   // Off in the admin panel ("Update right away"): changes show the next time Home opens, the photo within the hour.
   function startRevChecks() {
-    if (state.liveRefresh && !revTimer) { revTimer = setInterval(checkRev, 20000); checkRev(); }
+    if (state.liveRefresh && !revTimer) { revTimer = setInterval(checkRev, 3000); checkRev(); }
     else if (!state.liveRefresh && revTimer) { clearInterval(revTimer); revTimer = 0; }
   }
 

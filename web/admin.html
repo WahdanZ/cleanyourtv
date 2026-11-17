@@ -147,6 +147,156 @@
   .photo .bar button { flex: 1; font: inherit; font-size: 13px; padding: 8px 4px; border: 0; background: none; color: var(--text); cursor: pointer; }
   .photo .bar button.del { color: var(--bad); flex: none; padding: 8px 10px; }
 
+  /* add-ons */
+  .addon { margin-top: 14px; }
+  .addon .top { display: flex; gap: 14px; align-items: center; padding: 14px 16px; }
+  .addon .emo { width: 52px; height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+                font-size: 28px; flex: none; color: #fff; }
+  .addon .meta { flex: 1; min-width: 0; }
+  .addon .meta b { display: block; }
+  .addon .meta small { color: var(--muted); font-size: 13px; display: block; }
+  .badge2 { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px;
+            border-radius: 999px; background: var(--soft); border: 1px solid var(--line); color: var(--muted); margin-left: 6px; vertical-align: 2px; }
+  .addon .body { border-top: 1px solid var(--line); padding: 4px 16px 14px; }
+  .addon .body label { display: block; font-size: 13px; color: var(--muted); margin: 12px 2px 6px; }
+  .addon .state { font-size: 13px; color: var(--muted); margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .addon .state.err { color: var(--bad); }
+  .addon .ord { display: flex; flex-direction: column; }
+  .addon .ord button { padding: 2px 8px; }
+
+  /* layout designer: a 16:9 picture of the TV; blocks snap to a 12 x 6 grid above the dock */
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; }
+  .presets button { font: inherit; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
+  .presets button.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .canvas { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #111 center/cover no-repeat;
+            margin-top: 12px; user-select: none; -webkit-user-select: none; }
+  .canvas .dim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.15) 50%, rgba(0,0,0,.55)); }
+  .canvas .cell { position: absolute; border: 1px dashed rgba(255,255,255,.12); box-sizing: border-box; }
+  .canvas .fixed { position: absolute; border-radius: 10px; display: flex; align-items: center; justify-content: center; text-align: center;
+                   font-size: 11px; color: rgba(255,255,255,.75); padding: 4px; box-sizing: border-box;
+                   background: repeating-linear-gradient(45deg, rgba(255,255,255,.08) 0 6px, rgba(255,255,255,.03) 6px 12px);
+                   border: 1px solid rgba(255,255,255,.25); }
+  .canvas { container-type: inline-size; }
+  .canvas .pv-dock { position: absolute; border-radius: 1.4cqw; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); pointer-events: none; }
+  .canvas .pv-tile { position: absolute; border-radius: 1.6cqw; background: #1c1c1e; overflow: hidden; display: flex; align-items: center;
+                     justify-content: center; color: #fff; text-align: center; pointer-events: none; }
+  .canvas .pv-tile img { height: 100%; }
+  .canvas .pv-tile img.fill { width: 100%; object-fit: cover; }
+  .canvas .pv-sec { position: absolute; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .16em; font-weight: 500; pointer-events: none; }
+  .canvas .blk.pv { background: transparent; border: 1.5px dashed rgba(255,255,255,.45); backdrop-filter: none; padding: 0;
+                    justify-content: flex-start; }
+  .canvas .blk.pv.sel { border: 2px solid var(--accent); box-shadow: 0 0 0 2px rgba(0,0,0,.4); }
+  .canvas .blk.pv.bad { background: rgba(210,60,60,.45); }
+  .canvas .chip { position: absolute; left: 3px; bottom: 3px; font-size: 10px; line-height: 1.4; background: rgba(0,0,0,.65); color: #fff;
+                  border-radius: 6px; padding: 0 5px; z-index: 2; white-space: nowrap; opacity: 0; transition: opacity .15s; }
+  .canvas .blk.drag .chip { opacity: 1; }
+  @media (hover: hover) { .canvas .blk:hover .chip { opacity: 1; } }
+  .canvas .pvc { padding: .8cqw .6cqw; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.6); overflow: hidden; height: 100%; box-sizing: border-box;
+                 display: flex; flex-direction: column; gap: .3cqw; }
+  .canvas .pvc div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
+  .canvas .pv-card { background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.12); border-radius: 1.45cqw; padding: .8cqw 1.4cqw;
+                     display: flex; flex-direction: column; gap: .35cqw; text-shadow: none; min-height: 0; flex: 1; }
+  .canvas .pv-card .hd { color: rgba(255,255,255,.7); text-transform: uppercase; letter-spacing: .1em; }
+  .picks { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 14px; }
+  .picks label { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); cursor: pointer; }
+  .picks label.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .realshot { margin-top: 12px; }
+  .row.wrap { flex-wrap: wrap; }
+  .row.wrap .grow { min-width: 200px; }
+  .tray { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  .tray .chipa { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line);
+                 background: var(--card); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .tray .chipa small { color: var(--muted); }
+  .chipa.flying { position: fixed; z-index: 50; pointer-events: none; transform: translate(-50%, -50%) scale(1.06);
+                  box-shadow: 0 10px 26px rgba(0,0,0,.4); border-color: var(--accent); }
+  .canvas .blk.target { border: 2px solid #4ade80 !important; box-shadow: 0 0 0 3px rgba(74,222,128,.35); }
+  .canvas .ghostblk { position: absolute; border: 2px dashed #4ade80; border-radius: 10px; background: rgba(74,222,128,.15); pointer-events: none; }
+  .canvas .ghostblk.bad { border-color: #f87171; background: rgba(248,113,113,.15); }
+  .realshot img { width: 100%; border-radius: 14px; display: block; }
+  .canvas .blk { position: absolute; border-radius: 10px; box-sizing: border-box; padding: 6px 8px; color: #fff; cursor: grab;
+                 background: rgba(40,90,220,.55); border: 2px solid rgba(255,255,255,.55); backdrop-filter: blur(2px);
+                 display: flex; flex-direction: column; justify-content: center; touch-action: none; transition: box-shadow .15s; overflow: hidden; }
+  .canvas .blk b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .canvas .blk small { font-size: 11px; opacity: .8; }
+  .canvas .blk.sel { border-color: #fff; box-shadow: 0 0 0 3px var(--accent); }
+  .canvas .blk.drag { cursor: grabbing; opacity: .9; z-index: 5; }
+  .canvas .blk.bad { background: rgba(210,60,60,.6); }
+  .sizes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sizes button.on { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+
+
+  /* the Chromecast studio: the TV drawn as it looks; a side panel for whatever is tapped; a library to drag from */
+  body.wide .wrap { max-width: 1320px; }
+  .studiobar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 10px; }
+  .studiobar select { width: auto; min-height: 40px; }
+  button.btn.small { min-height: 40px; padding: 8px 14px; background: var(--card); border: 1px solid var(--line); color: var(--text); }
+  .studio { display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-areas: "stage side" "apps side"; gap: 16px; align-items: start; }
+  .stagearea { grid-area: stage; min-width: 0; }
+  .stagearea .canvas { margin-top: 0; }
+  .sidearea { grid-area: side; position: sticky; top: 64px; max-height: calc(100vh - 80px); overflow: auto; display: flex; flex-direction: column; gap: 12px;
+              padding-bottom: 80px; scrollbar-width: thin; }
+  .appsarea { grid-area: apps; min-width: 0; }
+  .appsarea h2 { margin-top: 6px; }
+  .insp { padding: 0 0 6px; }
+  .insp-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 6px; }
+  .insp-head b { flex: 1; font-size: 17px; }
+  .insp-head .x { display: none; }
+  .insp .sec { padding: 6px 16px 10px; }
+  .insp .sec > .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 8px 0 8px; font-weight: 600; }
+  .insp .row { padding: 10px 16px; min-height: 48px; }
+  .insp .card { box-shadow: none; }
+  .insp .addon { margin: 8px 12px 0; }
+  .insp .addon .ord { display: none; }
+  .insp .addon .top { flex-wrap: wrap; }
+  .insp .addon .meta { flex: 1 1 150px; min-width: 0; }
+  .insp .card.addon > .top > .btn, .insp .card.addon > .top > .link { margin-left: auto; }
+  .wcard { border: 1px solid var(--line); border-radius: 12px; margin: 0 12px 8px; }
+  .wcard > .top { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+  .wcard > .top .emo { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .wcard > .top b { flex: 1; font-weight: 600; }
+  .wcard details summary { cursor: pointer; color: var(--accent); font-size: 14px; padding: 0 12px 10px; list-style: none; }
+  .wcard details summary::-webkit-details-marker { display: none; }
+  .wcard details > div { padding: 0 12px 12px; }
+  .wcard label { display: block; font-size: 13px; color: var(--muted); margin: 10px 2px 6px; }
+  .lib .chips2 { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chipa { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line);
+           background: var(--card); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; font: inherit; color: var(--text); }
+  .chipa small { color: var(--muted); font-size: 12px; }
+  .chipa.onhome { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); }
+  .chipa.onhome small { color: var(--ok); }
+  .chipa.tile { cursor: pointer; touch-action: manipulation; }
+  .chipa .d { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .chipa .d.on { background: var(--ok); }
+  .chipa.flying { position: fixed; z-index: 50; pointer-events: none; transform: translate(-50%, -50%) scale(1.06);
+                  box-shadow: 0 10px 26px rgba(0,0,0,.4); border-color: var(--accent); opacity: 1; }
+  .lib.droptarget { outline: 2px dashed var(--bad); outline-offset: -4px; }
+  .canvas .pv-tile { pointer-events: auto; cursor: pointer; }
+  .canvas .pv-tile.dk { cursor: grab; touch-action: none; }
+  .canvas .pv-tile.dragging { z-index: 6; box-shadow: 0 0 0 3px var(--accent); cursor: grabbing; }
+  .canvas .pv-dock { pointer-events: auto; cursor: pointer; }
+  .canvas .pv-dock.sel { outline: 3px solid var(--accent); }
+  .canvas .pv-sec { pointer-events: auto; cursor: pointer; }
+  .canvas.wallsel { box-shadow: 0 0 0 3px var(--accent); }
+  .canvas .pv-x { position: absolute; top: .3cqw; right: .3cqw; width: 1.9cqw; height: 1.9cqw; min-width: 18px; min-height: 18px; border-radius: 50%;
+                  border: 0; background: rgba(0,0,0,.7); color: #fff; font-size: 11px; line-height: 1; cursor: pointer; z-index: 3; padding: 0; }
+  .canvas .pv-card { position: relative; }
+  .canvas .blk.empty { border-color: #4ade80; }
+  .sizes button.btn.on { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+  .scrim2 { display: none; }
+  @media (max-width: 900px) {
+    .studio { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "side" "apps"; }
+    .stagearea { position: sticky; top: 58px; z-index: 6; background: var(--bg); padding-bottom: 6px; }
+    .stagearea > .hint { display: none; }
+    .studiobar h2 { display: none; }
+    .studiobar select { flex: 1; }
+    .sidearea { position: static; max-height: none; overflow: visible; padding-bottom: 0; }
+    #inspector { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; max-height: max(38vh, calc(100vh - 56vw - 96px)); overflow: auto; border-radius: 18px 18px 0 0;
+                 transform: translateY(105%); transition: transform .22s ease; padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+    #inspector.open { transform: none; box-shadow: 0 -10px 30px rgba(0,0,0,.35); }
+    .insp-head .x { display: inline-block; }
+    .insp-head { position: sticky; top: 0; background: var(--card); z-index: 1; }
+  }
+
   /* drag and drop */
   .app { touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .app.ghost { opacity: .3; }
@@ -181,7 +331,6 @@
       <button data-tab="tv">TV</button>
       <button data-tab="cc">Chromecast</button>
       <button data-tab="home">Home screen</button>
-      <button data-tab="wall">Wallpaper</button>
       <button data-tab="system">System</button>
     </nav>
 
@@ -204,34 +353,42 @@
     </div>
 
     <div data-pane="cc" class="hidden">
-      <p class="hint" id="ccNote"></p>
-      <div id="ccEditor"></div>
-    </div>
-
-    <div data-pane="home" class="hidden">
-      <h2>Both home screens</h2>
-      <div class="card">
-        <div class="row"><div class="grow">Your name<small>"Good morning, …"</small></div><div style="width:180px"><input type="text" id="greeting" maxlength="40"></div></div>
-        <div class="row"><div class="grow">Update right away<small>Changes from this panel reach the TV and Chromecast within 20 seconds while Home is on screen. Off: the next time Home opens.</small></div><label class="sw"><input type="checkbox" id="liveRefresh"><span></span></label></div>
-        <div class="row"><div class="grow">24-hour clock</div><label class="sw"><input type="checkbox" id="clock24"><span></span></label></div>
-        <div class="row"><div class="grow">Quote of the day</div><label class="sw"><input type="checkbox" id="quotes"><span></span></label></div>
+      <div class="studiobar">
+        <h2 style="margin:0;flex:1">Chromecast home</h2>
+        <select id="presetSel" aria-label="Start from a layout"></select>
+        <button class="btn small" id="undoBtn">↶ Undo</button>
+        <button class="btn small" id="realShot">📷 Real screen</button>
       </div>
-      <h2>Weather</h2>
-      <div class="card">
-        <div class="row"><div class="grow"><span id="wxCity">Off</span><small>Shown at the top right</small></div><button class="link" id="wxOff">Turn off</button></div>
-        <div class="row"><input type="search" id="wxSearch" placeholder="Search a city"><button class="btn" id="wxFind">Find</button></div>
-        <div class="places" id="wxPlaces"></div>
+      <div class="studio">
+        <div class="stagearea">
+          <div class="canvas" id="canvas"><div class="dim"></div></div>
+          <div class="realshot" id="realShotBox"></div>
+          <p class="hint">Tap anything to change it: a block, the dock, or the background for the wallpaper. Drag blocks to move them and apps to reorder the dock.</p>
+        </div>
+        <aside class="sidearea">
+          <div class="card insp" id="inspector"></div>
+          <div class="card insp" id="library"></div>
+        </aside>
+        <div class="appsarea" id="appsArea">
+          <h2>Dock and rows</h2>
+          <p class="hint" id="ccNote"></p>
+          <div id="ccEditor"></div>
+        </div>
       </div>
-      <h2>TV only</h2>
-      <div class="card">
-        <div class="row"><div class="grow">Automatic Home<small>Your launcher instead of VIDAA's home</small></div><label class="sw"><input type="checkbox" id="takeover"><span></span></label></div>
-        <div class="row"><div class="grow">Open Home when the TV turns on</div><label class="sw"><input type="checkbox" id="powerOn"><span></span></label></div>
-        <div class="row"><div class="grow">Wait after turning on<small>Seconds, 0 to 30</small></div><div style="width:90px"><input type="number" id="delay" min="0" max="30"></div></div>
+      <div id="addonsHolder" class="hidden"><div id="addonsBody">
+      <p class="hint">Widgets go on the screen: drag them from the library. Full-screen and quick-action add-ons become tiles under More (Dock and rows). The quote and the weather show on the TV too.</p>
+      <div class="card"><div class="row"><div class="grow">Widget cards change every<small>With more than one widget on, the Chromecast shows them in turn</small></div>
+        <div style="width:110px;display:flex;align-items:center;gap:6px"><input type="number" id="widgetSecs" min="4" max="120"> s</div></div></div>
+      <div id="addonList"></div>
+      <div class="card pad section" style="margin-top:14px">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:200px">Your own add-ons<small class="hint" style="margin:2px 0 0">Put a folder in data/addons on the Mac (format: addons/README.md), then reload.</small></div>
+        <button class="btn" id="addonsReload">Reload add-ons</button></div>
+        <div id="addonsBroken"></div>
       </div>
-    </div>
-
-    <div data-pane="wall" class="hidden">
-      <h2>Now on the TV and Chromecast</h2>
+    
+      </div></div>
+      <div id="wallHolder" class="hidden"><div id="wallBody">
+      <p class="hint">One wallpaper for both the TV and the Chromecast.</p>
       <div class="preview" id="wallPreview"><div class="cap" id="wallCap"></div></div>
       <div style="display:flex;gap:10px;margin-top:10px">
         <button class="btn" id="wallNext" style="flex:1">Show another photo</button>
@@ -262,6 +419,24 @@
             <button class="link" id="pickDaily">One a day</button></div>
           <div class="photos" id="wallPhotos"></div>
         </div>
+      </div>
+    
+      </div></div>
+    </div>
+
+    <div data-pane="home" class="hidden">
+      <h2>Both home screens</h2>
+      <div class="card">
+        <div class="row"><div class="grow">Your name<small>"Good morning, …"</small></div><div style="width:180px"><input type="text" id="greeting" maxlength="40"></div></div>
+        <div class="row"><div class="grow">Update right away<small>Changes from this panel reach the TV and Chromecast in a few seconds while Home is on screen. Off: the next time Home opens.</small></div><label class="sw"><input type="checkbox" id="liveRefresh"><span></span></label></div>
+        <div class="row"><div class="grow">24-hour clock</div><label class="sw"><input type="checkbox" id="clock24"><span></span></label></div>
+      </div>
+      <p class="hint">The quote, the weather, widgets and the wallpaper: in the Chromecast tab (tap them on its screen).</p>
+      <h2>TV only</h2>
+      <div class="card">
+        <div class="row"><div class="grow">Automatic Home<small>Your launcher instead of VIDAA's home</small></div><label class="sw"><input type="checkbox" id="takeover"><span></span></label></div>
+        <div class="row"><div class="grow">Open Home when the TV turns on</div><label class="sw"><input type="checkbox" id="powerOn"><span></span></label></div>
+        <div class="row"><div class="grow">Wait after turning on<small>Seconds, 0 to 30</small></div><div style="width:90px"><input type="number" id="delay" min="0" max="30"></div></div>
       </div>
     </div>
 
@@ -336,12 +511,23 @@
   // ---------- load ----------
   function load() {
     return api('/api/admin/state').then(function (s) {
+      if (!s.settings.home_layout) { s.settings.home_layout = clone(s.layout_spec.presets.classic); s.settings.home_layout.preset = 'classic'; }
+      Object.keys(s.layout_spec.blocks).forEach(function (k) {   // blocks newer than the saved layout: there, hidden
+        if (!s.settings.home_layout.blocks[k]) { s.settings.home_layout.blocks[k] = clone(s.layout_spec.presets.classic.blocks[k]); s.settings.home_layout.blocks[k].on = false; }
+      });
+      s.settings.home_layout.dock = s.settings.home_layout.dock || 'big';
+      s.settings.home_layout.rows = s.settings.home_layout.rows || 'big';
+      s.settings.home_layout.dock_full = !!s.settings.home_layout.dock_full;
+      ['quote', 'weather'].forEach(function (k) {   // part of Home: always on; their blocks show or hide them
+        var c = s.settings.addons[k] = s.settings.addons[k] || { settings: {} };
+        c.enabled = true;
+      });
       S = s; orig = clone(s.settings); draft = clone(s.settings);
       $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
-      renderAll(); dirty();
+      renderAll(); snapReset(); dirty();
     });
   }
-  function renderAll() { renderStatus(); renderVpn(); renderEditor('tv'); renderEditor('cc'); renderHome(); renderWall(); renderSystem(); }
+  function renderAll() { renderLayout(); renderStatus(); renderVpn(); renderEditor('tv'); renderEditor('cc'); renderAddons(); renderHome(); renderWall(); renderSystem(); }
 
   function regionName(id) {
     var r = (S.regions || []).filter(function (x) { return x.id === id; })[0];
@@ -399,8 +585,20 @@
   }
 
   // ---------- layout editor (TV and Chromecast) ----------
-  function appsOf(dev) { return dev === 'tv' ? S.tv_apps : S.cc.apps; }
+  function appsOf(dev) {
+    if (dev === 'tv') return S.tv_apps;
+    var on = function (id) { return !!(draft.addons[id] || {}).enabled; };
+    var list = S.cc.apps.filter(function (a) { return a.id.indexOf('addon:') !== 0 || on(a.id.slice(6)); });
+    S.addons.forEach(function (a) {
+      if ((a.type === 'screen' || a.type === 'action') && on(a.id) && !list.some(function (x) { return x.id === 'addon:' + a.id; }))
+        list.push({ id: 'addon:' + a.id, name: a.name, emoji: a.emoji, color: a.color, banner: true });
+    });
+    return list;
+  }
   function lay(dev) { return dev === 'tv' ? draft.tv : draft.chromecast; }
+  // The TV's dock holds 4; the Chromecast's 4, 5 or 6, by its dock tile size (Layout tab).
+  function dockMax(dev) { return dev === 'tv' ? 4 : tileCols(draft.home_layout && draft.home_layout.dock); }
+  function tileCols(size) { var t = S.layout_spec.tile_sizes[size || 'big']; return t ? t[1] : 4; }
   function appById(dev, id) { return appsOf(dev).filter(function (a) { return a.id === id; })[0] || { id: id, name: id, icon: '' }; }
   function placeOf(dev, id) {
     var L = lay(dev);
@@ -423,7 +621,7 @@
     L.rows.forEach(function (r) { r.apps = r.apps.filter(function (x) { return x !== id; }); });
   }
   function moveTo(dev, id, place) {
-    if (place === 'dock' && lay(dev).dock.length >= 4 && placeOf(dev, id) !== 'dock') { toast('The dock is full (4 apps). Move one out first.'); return false; }
+    if (place === 'dock' && lay(dev).dock.length >= dockMax(dev) && placeOf(dev, id) !== 'dock') { toast('The dock is full (' + dockMax(dev) + ' apps). Move one out first.'); return false; }
     if (placeOf(dev, id) === place) return true;
     takeOut(dev, id);
     var list = listFor(dev, place);
@@ -445,7 +643,8 @@
     var a = appById(dev, id), b = el('button', 'app');
     b.setAttribute('data-dev', dev); b.setAttribute('data-id', id);
     var art = el('div', 'art' + (a.banner ? '' : ' square'));
-    if (a.icon) { var img = new Image(); img.alt = ''; img.loading = 'lazy'; img.src = a.icon; img.onerror = function () { art.textContent = '▢'; }; art.appendChild(img); }
+    if (a.emoji) { art.textContent = a.emoji; art.style.background = a.color || '#3a3a44'; art.style.fontSize = '28px'; }
+    else if (a.icon) { var img = new Image(); img.alt = ''; img.loading = 'lazy'; img.src = a.icon; img.onerror = function () { art.textContent = '▢'; }; art.appendChild(img); }
     b.appendChild(art);
     b.appendChild(el('span', 'nm', displayName(dev, id) + (installed(dev, id) ? '' : ' (not installed)')));
     var vpn = lay(dev).app_vpn[id];
@@ -468,7 +667,7 @@
       head.appendChild(up); head.appendChild(down); head.appendChild(del);
     } else {
       head.appendChild(el('span', 'label', title));
-      head.appendChild(el('span', 'count', place === 'dock' ? ids.length + ' of 4' : ids.length + (ids.length === 1 ? ' app' : ' apps')));
+      head.appendChild(el('span', 'count', place === 'dock' ? ids.length + ' of ' + dockMax(dev) : ids.length + (ids.length === 1 ? ' app' : ' apps')));
     }
     card.appendChild(head);
     var grid = el('div', 'apps');
@@ -493,6 +692,7 @@
     box.appendChild(add);
     box.appendChild(section(dev, 'more', 'More (after the rows)', more(dev), { empty: 'Every app has a place.' }));
     box.appendChild(section(dev, 'hidden', 'Hidden', L.hidden, { empty: 'Nothing hidden.' }));
+    if (dev === 'cc') drawCanvas();
     if (dev === 'tv') {
       var rm = $('tvRemovedBox'); rm.innerHTML = '';
       var n = (S.tv_removed || []).length;
@@ -542,6 +742,15 @@
     earlier.onclick = function () { shift(-1); }; later.onclick = function () { shift(1); };
     order.appendChild(earlier); order.appendChild(later); sh.appendChild(order);
 
+    if (dev === 'cc' && id.indexOf('addon:') === 0) {   // an add-on's tile, not an app
+      var btns2 = el('div', 'btns');
+      var rm = el('button', 'btn danger', 'Remove from Home');
+      rm.onclick = function () { closeSheet(); takeOut('cc', id); removeAddon(id.slice(6)); renderEditor('cc'); };
+      var done2 = el('button', 'btn primary', 'Done'); done2.onclick = closeSheet;
+      btns2.appendChild(rm); btns2.appendChild(done2); sh.appendChild(btns2);
+      sh.classList.add('open'); $('scrim').classList.add('open');
+      return;
+    }
     sh.appendChild(el('label', '', 'VPN country when this app opens'));
     var vpn = el('select');
     var none = el('option', '', 'Keep the current one'); none.value = ''; vpn.appendChild(none);
@@ -561,33 +770,726 @@
   // ---------- home screen ----------
   function renderHome() {
     $('greeting').value = draft.greeting_name;
-    $('clock24').checked = draft.clock_24h; $('quotes').checked = draft.quotes; $('liveRefresh').checked = draft.live_refresh;
+    $('clock24').checked = draft.clock_24h; $('liveRefresh').checked = draft.live_refresh;
     $('takeover').checked = draft.home_takeover; $('powerOn').checked = draft.takeover_on_power_on; $('delay').value = draft.power_on_delay_seconds;
-    $('wxCity').textContent = draft.weather ? draft.weather.city || (draft.weather.lat + ', ' + draft.weather.lon) : 'Off';
-    $('wxOff').classList.toggle('hidden', !draft.weather);
   }
   $('greeting').oninput = function () { draft.greeting_name = this.value; dirty(); };
   $('clock24').onchange = function () { draft.clock_24h = this.checked; dirty(); };
   $('liveRefresh').onchange = function () { draft.live_refresh = this.checked; dirty(); };
-  $('quotes').onchange = function () { draft.quotes = this.checked; dirty(); };
   $('takeover').onchange = function () { draft.home_takeover = this.checked; dirty(); };
   $('powerOn').onchange = function () { draft.takeover_on_power_on = this.checked; dirty(); };
   $('delay').oninput = function () { var n = parseInt(this.value, 10); if (n >= 0 && n <= 30) { draft.power_on_delay_seconds = n; dirty(); } };
-  $('wxOff').onclick = function () { draft.weather = null; renderHome(); dirty(); };
-  function findPlace() {
-    var q = $('wxSearch').value.trim(); if (!q) return;
-    var box = $('wxPlaces'); box.innerHTML = '';
-    api('/api/admin/geocode?q=' + encodeURIComponent(q)).then(function (r) {
-      if (!r.places.length) { box.appendChild(el('div', 'row hint', 'Nothing found.')); return; }
-      r.places.forEach(function (p) {
-        var b = el('button', '', p.city + (p.admin ? ', ' + p.admin : '') + (p.country ? ', ' + p.country : ''));
-        b.onclick = function () { draft.weather = { city: p.city, lat: p.lat, lon: p.lon }; box.innerHTML = ''; $('wxSearch').value = ''; renderHome(); dirty(); };
-        box.appendChild(b);
-      });
-    }, function (e) { toast('Search failed: ' + e.message); });
+  // ---------- the Chromecast studio: its Home drawn as it looks today; tap anything on it to change it ----------
+  // The same numbers as the Chromecast app: the grid starts at (96, 40) on a 1920 x 1080 screen, cells 144 x 104.
+  var GX = 96, GY = 40, CW = 144, RH = 104, SW = 1920, SH = 1080;
+  var sel = { kind: 'none' };   // what the side panel shows: none | block | dock | wall | addon | addons
+  function L() { return draft.home_layout; }
+  function pct(v, of) { return (v / of * 100) + '%'; }
+  function place(el, x, y, w, h) {
+    el.style.left = pct(GX + x * CW, SW); el.style.top = pct(GY + y * RH, SH);
+    el.style.width = pct(w * CW, SW); el.style.height = pct(h * RH, SH);
   }
-  $('wxFind').onclick = findPlace;
-  $('wxSearch').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); findPlace(); } };
+  function overlaps(a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; }
+  function fits(id, b) {
+    var spec = S.layout_spec;
+    if (b.x < 0 || b.y < 0 || b.x + b.w > spec.cols || b.y + b.h > spec.rows) return false;
+    if (overlaps(b, spec.reserved)) return false;
+    var blocks = L().blocks;
+    return Object.keys(blocks).every(function (k) { return k === id || !blocks[k].on || !overlaps(b, blocks[k]); });
+  }
+  function sizeName(id, b) {
+    var s = S.layout_spec.blocks[id].sizes.filter(function (z) { return z[0] === b.w && z[1] === b.h; })[0];
+    return s ? s[2] : b.w + '×' + b.h;
+  }
+  function isWidgetBlock(id) { return S.layout_spec.widget_blocks.indexOf(id) >= 0; }
+  function addonById(id) { return S.addons.filter(function (a) { return a.id === id; })[0]; }
+  function narrow() { return window.matchMedia('(max-width: 900px)').matches; }
+
+  function select(s) {
+    sel = s;
+    renderLayout();
+    openPanel(s.kind !== 'none');
+    if (!narrow()) $('inspector').scrollIntoView({ block: 'nearest' });
+  }
+  // On a phone the panel slides up from the bottom; the screen scrolls to the top first, so the panel never covers it.
+  function openPanel(on) {
+    $('inspector').classList.toggle('open', narrow() && on);
+    if (narrow() && on) {
+      var y = $('canvas').getBoundingClientRect().top + window.scrollY - 64;
+      if (window.scrollY < y - 4) window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  }
+
+  function renderLayout() { drawCanvas(); renderInspector(); renderLibrary(); updUndo(); }
+  function drawCanvas() {
+    if (!S) return;
+    var spec = S.layout_spec, lay = L();
+    // "Start from": the presets move the blocks; the dock and row sizes stay.
+    var ps = $('presetSel'); ps.innerHTML = '';
+    var cur = el('option', '', 'Layout: ' + (lay.preset && spec.presets[lay.preset] ? spec.presets[lay.preset].name : 'your own')); cur.value = ''; ps.appendChild(cur);
+    Object.keys(spec.presets).forEach(function (k) {
+      if (k === lay.preset) return;
+      var o = el('option', '', 'Start from ' + spec.presets[k].name); o.value = k; ps.appendChild(o);
+    });
+    ps.value = '';
+    var cv = $('canvas');
+    Array.prototype.slice.call(cv.querySelectorAll('.cell, .fixed, .blk, .pv-dock, .pv-tile, .pv-sec, .ghostblk')).forEach(function (n) { n.remove(); });
+    var now = S.wallpaper && S.wallpaper.now;
+    cv.style.backgroundImage = now && draft.wallpaper ? 'url(/api/admin/wallpaper-preview?v=' + encodeURIComponent(now.image || '') + ')' : 'none';
+    cv.classList.toggle('wallsel', sel.kind === 'wall');
+    for (var r = 0; r < spec.rows; r++) for (var c = 0; c < spec.cols; c++) { var cell = el('div', 'cell'); place(cell, c, r, 1, 1); cv.appendChild(cell); }
+    var res = el('div', 'fixed', 'Buttons · photo credit'); place(res, spec.reserved.x, spec.reserved.y, spec.reserved.w, spec.reserved.h); cv.appendChild(res);
+    drawDock(cv);
+    Object.keys(lay.blocks).forEach(function (id) {
+      var b = lay.blocks[id]; if (!b.on) return;
+      var info = spec.blocks[id], d = el('div', 'blk pv' + (sel.kind === 'block' && sel.id === id ? ' sel' : ''));
+      d.appendChild(el('span', 'chip', info.emoji + ' ' + info.name + ' · ' + sizeName(id, b)));
+      d.appendChild(blockPreview(id, b));
+      d.setAttribute('data-id', id);
+      place(d, b.x, b.y, b.w, b.h);
+      cv.appendChild(d);
+    });
+  }
+  $('presetSel').onchange = function () {
+    var k = this.value; if (!k) return;
+    var lay = L(), keep = { dock: lay.dock, rows: lay.rows, dock_full: lay.dock_full };
+    draft.home_layout = clone(S.layout_spec.presets[k]); draft.home_layout.preset = k;
+    draft.home_layout.dock = keep.dock; draft.home_layout.rows = keep.rows; draft.home_layout.dock_full = keep.dock_full;
+    sel = { kind: 'none' }; renderLayout(); dirty();
+    toast(S.layout_spec.presets[k].name + ' layout. Undo brings yours back.');
+  };
+
+  // ---------- what the blocks show: today's clock, quote, weather and widget cards, at the Chromecast's sizes ----------
+  function tv(px) { return (px / 19.2).toFixed(3) + 'cqw'; }   // 1920 TV pixels = the canvas's width
+  function pvLine(txt, px, weight, color) {
+    var d = el('div', '', txt); d.style.fontSize = tv(px); d.style.fontWeight = weight || 400; if (color) d.style.color = color; return d;
+  }
+  function allWidgets() { return S.addons.filter(function (a) { return a.type === 'widget' && !a.slot; }); }
+  function widgetAddons() { return allWidgets().filter(function (a) { return (draft.addons[a.id] || {}).enabled; }); }   // switched on (saved or not)
+  function widgetsFor(id) {   // the same rule as the Chromecast: picked ones, or every widget no other block picked
+    var lay = L(), mine = lay.blocks[id].addons || [], others = [];
+    S.layout_spec.widget_blocks.forEach(function (k) { var o = lay.blocks[k]; if (k !== id && o && o.on) others = others.concat(o.addons || []); });
+    var have = {}; ((S.preview && S.preview.widgets) || []).forEach(function (w) { have[w.id] = w; });
+    var on = widgetAddons();
+    if (mine.length) on = mine.map(addonById).filter(function (a) { return a && (draft.addons[a.id] || {}).enabled; });   // in the order they were added
+    else on = on.filter(function (a) { return others.indexOf(a.id) < 0; });
+    return on.map(function (a) { return have[a.id] || { id: a.id, title: a.name, emoji: a.emoji, color: a.color, lines: [{ text: 'Shows after saving' }] }; });
+  }
+  function widgetLines(w) {
+    if (w.kind === 'matches' && w.matches) return w.matches.slice(0, 2).map(function (m) {
+      var h = m.home || {}, a = m.away || {};
+      return h.name + '   ' + (m.state === 'pre' ? 'vs' : h.score + ' – ' + a.score) + '   ' + a.name;
+    });
+    if (w.kind === 'prayer' && w.names && w.times) return [w.names.map(function (n) { return n + ' ' + w.times[n]; }).join('  ·  ')];
+    if (w.kind === 'headlines' && w.items) return w.items.slice(0, 3).map(function (i) { return i.title; });
+    return (w.lines || []).slice(0, 3).map(function (l) { return l.text + (l.sub ? '   ' + l.sub : ''); });
+  }
+  function blockPreview(id, b) {
+    var c = el('div', 'pvc'), pv = S.preview || {};
+    if (id === 'clock') {
+      var now = new Date(), h = now.getHours(), m = ('0' + now.getMinutes()).slice(-2);
+      var t = draft.clock_24h ? ('0' + h).slice(-2) + ':' + m : ((h % 12) || 12) + ':' + m + (h < 12 ? ' am' : ' pm');
+      var dateTxt = now.toLocaleDateString('en-GB', b.h === 1 ? { weekday: 'short', day: 'numeric', month: 'short' } : { weekday: 'long', day: 'numeric', month: 'long' });
+      if (b.h >= 2) c.appendChild(pvLine((h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + (draft.greeting_name ? ', ' + draft.greeting_name : ''), b.h >= 3 ? 30 : 24, 400, 'rgba(255,255,255,.75)'));
+      c.appendChild(pvLine(t, b.h >= 3 ? 210 : b.h === 2 ? 104 : 64, 300));
+      c.appendChild(pvLine(dateTxt, b.h >= 3 ? 34 : b.h === 2 ? 28 : 22, 400, 'rgba(255,255,255,.8)'));
+      if (b.h === 1) { c.style.flexDirection = 'row'; c.style.alignItems = 'baseline'; c.style.gap = '1.2cqw'; c.firstChild.style.flexShrink = '0'; c.firstChild.style.overflow = 'visible'; }
+    } else if (id === 'quote') {
+
+      var q = pv.quote || { text: 'Today\'s quote', by: '' }, qt = pvLine('“' + q.text + '”', b.w >= 8 ? 38 : 32, 300);
+      qt.style.whiteSpace = 'normal'; qt.style.display = '-webkit-box'; qt.style.webkitLineClamp = 2; qt.style.webkitBoxOrient = 'vertical';
+      c.appendChild(qt);
+      if (q.by) c.appendChild(pvLine('— ' + q.by, 22, 400, 'rgba(255,255,255,.7)'));
+    } else if (id === 'weather') {
+      var wx = pv.weather; c.style.alignItems = 'flex-end';
+      if (!wx) { c.appendChild(pvLine('Tap to choose the city', 22, 400, 'rgba(255,255,255,.75)')); return c; }
+      c.appendChild(pvLine(wx ? wx.temp + '°' : '–°', b.h < 2 ? 60 : 88, 300));
+      if (b.h >= 2) c.appendChild(pvLine(wx ? wx.city + '  ·  ' + wx.high + '° / ' + wx.low + '°' : 'Weather', 22, 400, 'rgba(255,255,255,.8)'));
+    } else if (id === 'hero') {
+      var first = (draft.chromecast.dock || [])[0];
+      c.style.justifyContent = 'flex-end';
+      c.appendChild(pvLine(first ? displayName('cc', first) : 'App name', 104, 300));
+    } else {   // a widget block: one card, or two stacked; ✕ takes a widget off the screen
+      var ws = widgetsFor(id), k = Math.max(1, Math.floor(b.h / 2));
+      c.style.textShadow = 'none'; c.style.gap = tv(16); c.style.padding = '0';
+      if (!ws.length) { c.appendChild(pvLine('Drop a widget here', 22, 500, '#4ade80')); c.style.padding = '.8cqw'; c.style.justifyContent = 'center'; c.style.alignItems = 'center'; }
+      ws.slice(0, k).forEach(function (w, i) {
+        var card = el('div', 'pv-card'), hd = pvLine((w.emoji || '') + '  ' + (w.title || '') + (i === 0 && ws.length > k ? '   ' + '●○○○○○'.slice(0, Math.ceil(ws.length / k)) : ''), 21, 500);
+        hd.className = 'hd'; card.appendChild(hd);
+        widgetLines(w).forEach(function (t, j) { card.appendChild(pvLine(t, j === 0 ? 26 : 22, j === 0 ? 500 : 400, j === 0 ? '#fff' : 'rgba(255,255,255,.75)')); });
+        var x = el('button', 'pv-x', '✕'); x.title = 'Take ' + (w.title || 'it') + ' off the screen'; x.setAttribute('data-remove', w.id);
+        card.appendChild(x);
+        c.appendChild(card);
+      });
+    }
+    return c;
+  }
+  // The dock and the first row, at their chosen sizes, with the Chromecast's own apps. Dock apps can be dragged.
+  var dockGeo = null;
+  function drawDock(cv) {
+    var lay = L(), dc = tileCols(lay.dock), rc = tileCols(lay.rows);
+    var dp = 1752 / dc, dw = dp * 400 / 438, dh = dw * 9 / 16, top = 690;
+    var dock = (draft.chromecast.dock || []).slice(0, dc);
+    var gap = dp - dw, span = (dc - 1) * dp + dw, tw0 = lay.dock_full && dock.length ? (span - (dock.length - 1) * gap) / dock.length : dw;
+    dockGeo = { pitch: tw0 + gap, n: dock.length };
+    var put = function (e, x, y, w, h) { e.style.left = pct(x, SW); e.style.top = pct(y, SH); e.style.width = pct(w, SW); if (h != null) e.style.height = pct(h, SH); cv.appendChild(e); };
+    var tile = function (id, x, y, w, h, i) {
+      var a = appById('cc', id), t = el('div', 'pv-tile' + (i != null ? ' dk' : ''));
+      t.setAttribute('data-app', id); if (i != null) t.setAttribute('data-i', i);
+      t.title = displayName('cc', id);
+      if (a.emoji) { t.textContent = a.emoji; t.style.fontSize = tv(h * .42); t.style.background = a.color || '#3a3a44'; }
+      else if (a.icon) { var img = new Image(); img.alt = ''; img.draggable = false; img.src = a.icon; if (a.banner) img.className = 'fill'; img.onerror = function () { t.textContent = displayName('cc', id); }; t.appendChild(img); }
+      else { t.textContent = displayName('cc', id); t.style.fontSize = tv(Math.max(20, 30 * h / 202)); }
+      put(t, x, y, w, h);
+    };
+    var band = el('div', 'pv-dock' + (sel.kind === 'dock' ? ' sel' : '')); band.title = 'The dock: tap for its size';
+    put(band, 103 - 30, top, (lay.dock_full ? span : Math.max(0, dock.length - 1) * (tw0 + gap) + tw0) + 60, dh + 56);
+    if (!dock.length) { band.textContent = 'Empty dock: the first apps fill it'; band.style.color = '#fff'; band.style.display = 'flex'; band.style.alignItems = 'center'; band.style.justifyContent = 'center'; }
+    dock.forEach(function (id, i) { tile(id, 103 + i * (tw0 + gap), top + 28, tw0, dh, i); });
+    var row = (draft.chromecast.rows || []).filter(function (r) { return r.apps && r.apps.length; })[0];
+    var rp = 1752 / rc, tw = rp * 360 / 438, th = tw * 9 / 16, left = 103 + (rp - tw) / 2, y = top + dh + 56 + 40;
+    if (row) {
+      if (row.title) { var st = el('div', 'pv-sec', row.title); st.style.fontSize = tv(26); put(st, left + 6, y, 800); y += 60; }
+      row.apps.slice(0, rc).forEach(function (id, i) { tile(id, left + i * rp, y, tw, th); });
+    }
+  }
+
+  // ---------- the side panel: settings for what was tapped ----------
+  function swRow(title, note, on, onchange) {
+    var row = el('div', 'row'), g = el('div', 'grow', title);
+    if (note) g.appendChild(el('small', '', note));
+    var sw = el('label', 'sw'), cb = el('input'); cb.type = 'checkbox'; cb.checked = !!on;
+    cb.onchange = function () { onchange(cb.checked); };
+    sw.appendChild(cb); sw.appendChild(el('span'));
+    row.appendChild(g); row.appendChild(sw);
+    return row;
+  }
+  function sec(label) { var s = el('div', 'sec'); if (label) s.appendChild(el('div', 'lbl', label)); return s; }
+  function sizeButtons(id) {
+    var lay = L(), b = lay.blocks[id], box = el('div', 'sizes');
+    S.layout_spec.blocks[id].sizes.forEach(function (z) {
+      var same = z[0] === b.w && z[1] === b.h, ok = fits(id, { x: b.x, y: b.y, w: z[0], h: z[1] });
+      var btn = el('button', 'btn small' + (same ? ' on' : ''), z[2]);
+      btn.title = ok ? z[0] + ' × ' + z[1] + ' cells' : 'No room here: move it first';
+      btn.onclick = function () {
+        if (!ok && !same) { toast('No room for ' + z[2] + ' here: drag the block somewhere freer first.'); return; }
+        b.w = z[0]; b.h = z[1]; lay.preset = ''; renderLayout(); dirty();
+      };
+      box.appendChild(btn);
+    });
+    return box;
+  }
+  function addonSettings(a, into) {   // an add-on's own settings (league, city, feed…)
+    (a.settings || []).forEach(function (spec) { into.appendChild(settingField(a, spec)); });
+  }
+  function widgetCard(a, blockId) {
+    var card = el('div', 'wcard'), top = el('div', 'top');
+    var emo = el('div', 'emo', a.emoji); emo.style.background = a.color; top.appendChild(emo);
+    top.appendChild(el('b', '', a.name));
+    var rm = el('button', 'link', 'Remove'); rm.style.color = 'var(--bad)';
+    rm.onclick = function () { removeWidget(a.id); };
+    top.appendChild(rm);
+    card.appendChild(top);
+    if ((a.settings || []).length) {
+      var det = el('details'), sum = el('summary', '', 'Settings'), body = el('div');
+      det.appendChild(sum); addonSettings(a, body); det.appendChild(body); card.appendChild(det);
+    }
+    return card;
+  }
+  function inspectorHead(box, title) {
+    var h = el('div', 'insp-head'); h.appendChild(el('b', '', title));
+    var x = el('button', 'link x', 'Done'); x.onclick = function () { select({ kind: 'none' }); };
+    h.appendChild(x); box.appendChild(h);
+  }
+  function renderInspector() {
+    $('wallHolder').appendChild($('wallBody'));       // give back what an earlier view borrowed
+    $('addonsHolder').appendChild($('addonsBody'));
+    var box = $('inspector'), spec = S.layout_spec, lay = L();
+    box.innerHTML = '';
+    if (sel.kind === 'block' && !lay.blocks[sel.id]) sel = { kind: 'none' };
+    if (sel.kind === 'block') {
+      var id = sel.id, b = lay.blocks[id], info = spec.blocks[id];
+      inspectorHead(box, info.emoji + '  ' + info.name);
+      box.appendChild(swRow('Show on Home', '', b.on, function (on) { setShown(id, on); }));
+      if (b.on) { var s1 = sec('Size'); s1.appendChild(sizeButtons(id)); box.appendChild(s1); }
+      if (id === 'clock') {
+        box.appendChild(swRow('24-hour clock', '', draft.clock_24h, function (on) { draft.clock_24h = on; renderHome(); renderLayout(); dirty(); }));
+        var nm = el('div', 'row'), g = el('div', 'grow', 'Your name'); g.appendChild(el('small', '', '"Good morning, …"'));
+        var inp = el('input'); inp.type = 'text'; inp.maxLength = 40; inp.value = draft.greeting_name || ''; inp.style.width = '150px';
+        inp.oninput = function () { draft.greeting_name = inp.value; renderHome(); dirty(); };
+        inp.onchange = function () { renderLayout(); };
+        nm.appendChild(g); nm.appendChild(inp); box.appendChild(nm);
+      } else if (id === 'quote' || id === 'weather') {
+        var a = addonById(id);
+        if (a && (a.settings || []).length) { var s2 = sec(id === 'weather' ? 'City' : 'Settings'); addonSettings(a, s2); box.appendChild(s2); }
+        box.appendChild(sec('')).appendChild(el('p', 'hint', 'The TV shows it too.'));
+      } else if (id === 'hero') {
+        var s3 = sec(''); s3.appendChild(el('p', 'hint', 'The name of the app the remote is on, large.')); box.appendChild(s3);
+      } else if (isWidgetBlock(id) && b.on) {
+        var s4 = sec('Widgets here');
+        var picks = b.addons || [];
+        s4.appendChild(el('p', 'hint', (b.h >= 4 ? 'Two at a time, stacked; ' : 'One at a time; ') + 'more take turns. Drag more from the library, or onto the screen.'));
+        box.appendChild(s4);
+        var shown = widgetsFor(id);
+        shown.forEach(function (w) { var a2 = addonById(w.id); if (a2) box.appendChild(widgetCard(a2, id)); });
+        if (!picks.length && shown.length) box.appendChild(sec('')).appendChild(el('p', 'hint', 'This block also takes every widget that isn\'t in another block.'));
+        var secs = el('div', 'row'), g2 = el('div', 'grow', 'Next card every'); g2.appendChild(el('small', '', 'Seconds, all widget blocks'));
+        var n = el('input'); n.type = 'number'; n.min = 4; n.max = 120; n.style.width = '90px'; n.value = draft.addons.widget_seconds || 10;
+        n.oninput = function () { var v = parseInt(n.value, 10); if (v >= 4 && v <= 120) { draft.addons.widget_seconds = v; $('widgetSecs').value = v; dirty(); } };
+        secs.appendChild(g2); secs.appendChild(n); box.appendChild(secs);
+      }
+    } else if (sel.kind === 'dock') {
+      inspectorHead(box, '▭  Dock and rows');
+      [['Dock tiles', 'dock'], ['Row tiles', 'rows']].forEach(function (pair) {
+        var s5 = sec(pair[0]), sz = el('div', 'sizes');
+        Object.keys(spec.tile_sizes).forEach(function (k) {
+          var t = spec.tile_sizes[k], on = (lay[pair[1]] || 'big') === k;
+          var btn = el('button', 'btn small' + (on ? ' on' : ''), t[0] + ' · ' + t[1] + ' across');
+          btn.onclick = function () {
+            lay[pair[1]] = k;
+            if (pair[1] === 'dock' && draft.chromecast.dock.length > t[1]) {   // the ones that no longer fit go to More
+              var out = draft.chromecast.dock.splice(t[1]);
+              toast(out.length + (out.length === 1 ? ' app moves' : ' apps move') + ' out of the dock, to More.');
+            }
+            renderLayout(); renderEditor('cc'); dirty();
+          };
+          sz.appendChild(btn);
+        });
+        s5.appendChild(sz); box.appendChild(s5);
+      });
+      box.appendChild(swRow('Dock fills the whole width', 'Its apps widen to fill it', lay.dock_full, function (on) { lay.dock_full = on; renderLayout(); dirty(); }));
+      var s6 = sec('');
+      s6.appendChild(el('p', 'hint', 'Drag apps in the dock on the screen to reorder them; tap one to rename, hide or move it. Everything else: Dock and rows, under the screen.'));
+      var go = el('button', 'btn small', 'Go to Dock and rows'); go.onclick = function () { $('appsArea').scrollIntoView({ behavior: 'smooth' }); if (narrow()) select({ kind: 'none' }); };
+      s6.appendChild(go); box.appendChild(s6);
+    } else if (sel.kind === 'wall') {
+      inspectorHead(box, '🖼  Wallpaper');
+      box.appendChild($('wallBody'));
+    } else if (sel.kind === 'addons') {
+      inspectorHead(box, '🧩  All add-ons');
+      box.appendChild($('addonsBody'));
+    } else if (sel.kind === 'addon') {
+      var ad = addonById(sel.id);
+      if (!ad) { sel = { kind: 'none' }; return renderInspector(); }
+      inspectorHead(box, ad.emoji + '  ' + ad.name);
+      box.appendChild(addonCard(ad, null));
+    } else {
+      inspectorHead(box, 'Your Chromecast\'s Home');
+      var s7 = sec('');
+      s7.appendChild(el('p', 'hint', 'Tap anything on the screen to change it: the clock, a widget block, the dock, or the background for the wallpaper.'));
+      box.appendChild(s7);
+      var hidden = Object.keys(lay.blocks).filter(function (k) { return !lay.blocks[k].on; });
+      if (hidden.length) {
+        var s8 = sec('Not on the screen'), wrap = el('div', 'chips2');
+        hidden.forEach(function (k) {
+          var c = el('button', 'chipa tile', spec.blocks[k].emoji + ' ' + spec.blocks[k].name);
+          c.appendChild(el('small', '', 'show'));
+          c.onclick = function () { setShown(k, true); select({ kind: 'block', id: k }); };
+          wrap.appendChild(c);
+        });
+        s8.appendChild(wrap); box.appendChild(s8);
+      }
+    }
+  }
+
+  // ---------- the library: widgets to drag onto the screen; rows and tiles to switch on ----------
+  function blockOf(addonId) {
+    var lay = L(), found = '';
+    S.layout_spec.widget_blocks.forEach(function (k) { var b = lay.blocks[k]; if (b && b.on && (b.addons || []).indexOf(addonId) >= 0) found = k; });
+    return found;
+  }
+  function whereIs(a) {   // where a widget shows: a block's name, or '' when it isn't on Home
+    if (!(draft.addons[a.id] || {}).enabled) return '';
+    var k = blockOf(a.id);
+    if (k) return S.layout_spec.blocks[k].name;
+    var auto = S.layout_spec.widget_blocks.filter(function (b) { var o = L().blocks[b]; return o.on && !(o.addons || []).length; })[0];
+    return auto ? S.layout_spec.blocks[auto].name : 'not placed';
+  }
+  function renderLibrary() {
+    var box = $('library'); box.innerHTML = ''; box.classList.add('lib');
+    var h = el('div', 'insp-head'); h.appendChild(el('b', '', 'Add to the screen')); box.appendChild(h);
+    var s1 = sec('Widgets: drag onto the screen'), w = el('div', 'chips2');
+    allWidgets().forEach(function (a) {
+      var where = whereIs(a), c = el('span', 'chipa' + (where ? ' onhome' : ''));
+      c.appendChild(document.createTextNode(a.emoji + ' ' + a.name)); c.appendChild(el('small', '', where ? '✓ ' + where : '+'));
+      c.setAttribute('data-addon', a.id); c.title = 'Drag onto the screen · tap for its settings';
+      w.appendChild(c);
+    });
+    if (!allWidgets().length) w.appendChild(el('span', 'hint', 'No widget add-ons.'));
+    s1.appendChild(w); box.appendChild(s1);
+    var others = S.addons.filter(function (a) { return a.type !== 'widget' && !a.slot; });
+    if (others.length) {
+      var s2 = sec('Rows and tiles: tap to add or change'), t = el('div', 'chips2');
+      others.forEach(function (a) {
+        var on = !!(draft.addons[a.id] || {}).enabled, c = el('button', 'chipa tile' + (on ? ' onhome' : ''));
+        c.appendChild(document.createTextNode(a.emoji + ' ' + a.name));
+        c.appendChild(el('small', '', on ? '✓ ' + (a.type === 'row' ? 'row' : 'tile') : '+'));
+        c.onclick = function () { select({ kind: 'addon', id: a.id }); };
+        t.appendChild(c);
+      });
+      s2.appendChild(t); box.appendChild(s2);
+    }
+    var s3 = sec(''), links = el('div', 'chips2');
+    var wb = el('button', 'btn small', '🖼 Wallpaper'); wb.onclick = function () { select({ kind: 'wall' }); };
+    var ab = el('button', 'btn small', '🧩 All add-ons'); ab.onclick = function () { select({ kind: 'addons' }); };
+    links.appendChild(wb); links.appendChild(ab); s3.appendChild(links); box.appendChild(s3);
+  }
+  function addAddon(id) {
+    var a = addonById(id); if (!a) return;
+    if (a.type === 'widget') {   // into the first widget block on the screen, or a new one
+      var lay = L(), k = S.layout_spec.widget_blocks.filter(function (b) { return lay.blocks[b].on; })[0];
+      if (!k) {
+        k = S.layout_spec.widget_blocks[0];
+        setShown(k, true);
+        if (!lay.blocks[k].on) return;   // no room: setShown said so
+      }
+      var b = lay.blocks[k]; b.addons = b.addons || [];
+      if ((b.addons.length || widgetsFor(k).length) && b.addons.indexOf(id) < 0) {
+        if (!b.addons.length) b.addons = widgetsFor(k).map(function (w) { return w.id; });   // keep what it showed
+        b.addons.push(id);
+      }
+      addonConf(id).enabled = true;
+      lay.preset = ''; renderAddons(); select({ kind: 'block', id: k }); dirty();
+      toast(a.name + ' added to ' + S.layout_spec.blocks[k].name + '. Its data comes after saving.');
+      return;
+    }
+    addonConf(id).enabled = true;
+    renderAddons(); renderEditor('cc'); renderLayout(); dirty();
+    toast(a.name + (a.type === 'row' ? ' added: its row shows after the dock.' : ' added: its tile is under More in Dock and rows.'));
+  }
+  function removeAddon(id) {
+    var a = addonById(id); if (!a) return;
+    if (a.type === 'widget') { removeWidget(id); return; }
+    addonConf(id).enabled = false;
+    takeOut('cc', 'addon:' + id);
+    renderAddons(); renderEditor('cc'); renderLayout(); dirty();
+    toast(a.name + ' removed from Home.');
+  }
+  function removeWidget(id) {
+    var lay = L(), a = addonById(id);
+    S.layout_spec.widget_blocks.forEach(function (k) { var o = lay.blocks[k]; if (o.addons) o.addons = o.addons.filter(function (x) { return x !== id; }); });
+    addonConf(id).enabled = false;
+    lay.preset = ''; renderAddons(); renderLayout(); dirty();
+    toast((a ? a.name : id) + ' removed from the screen. Drag it back from the library any time.');
+  }
+  function cellAt(e) {   // the grid cell under the pointer, or null off the canvas
+    var r = $('canvas').getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return null;
+    var px = (e.clientX - r.left) / r.width * SW, py = (e.clientY - r.top) / r.height * SH;
+    return { x: Math.floor((px - GX) / CW), y: Math.floor((py - GY) / RH) };
+  }
+  function newBlockAt(cell) {   // a hidden widget block, placed at this cell (a little to the left if it doesn't fit)
+    var spec = S.layout_spec, lay = L();
+    var free = spec.widget_blocks.filter(function (k) { return !lay.blocks[k].on; })[0];
+    if (!free || !cell) return null;
+    var w = 4, h = 2, tries = [[cell.x, cell.y], [cell.x - 1, cell.y], [cell.x - 2, cell.y], [cell.x - 3, cell.y], [cell.x, cell.y - 1], [cell.x - 2, cell.y - 1]];
+    for (var i = 0; i < tries.length; i++) {
+      var cand = { x: Math.max(0, Math.min(spec.cols - w, tries[i][0])), y: Math.max(0, Math.min(spec.rows - h, tries[i][1])), w: w, h: h };
+      if (fits(free, cand)) return { id: free, b: cand };
+    }
+    return { id: free, b: null };
+  }
+  // A chip: tap opens its settings; moved more than a few pixels, it flies and can be dropped on the screen
+  // (on a widget block, or an empty spot for a new block) or back on the library (off the screen).
+  var chipDrag = null;
+  $('library').addEventListener('pointerdown', function (e) {
+    var c = e.target.closest('.chipa[data-addon]'); if (!c) return;
+    e.preventDefault();
+    chipDrag = { id: c.getAttribute('data-addon'), src: c, sx: e.clientX, sy: e.clientY, fly: null, ghost: null, over: null };
+    c.setPointerCapture(e.pointerId);
+  });
+  function moveChip(e) {
+    var g = chipDrag; if (!g) return;
+    if (!g.fly) {
+      if (Math.abs(e.clientX - g.sx) + Math.abs(e.clientY - g.sy) < 8) return;
+      g.fly = g.src.cloneNode(true); g.fly.classList.add('flying'); document.body.appendChild(g.fly);
+    }
+    g.fly.style.left = e.clientX + 'px'; g.fly.style.top = e.clientY + 'px';
+    Array.prototype.forEach.call($('canvas').querySelectorAll('.blk.target'), function (x) { x.classList.remove('target'); });
+    if (g.ghost) { g.ghost.remove(); g.ghost = null; }
+    g.fly.style.display = 'none';
+    var under = document.elementFromPoint(e.clientX, e.clientY);
+    g.fly.style.display = '';
+    var blk = under && under.closest && under.closest('#canvas .blk');
+    var onLib = under && under.closest && under.closest('#library');
+    $('library').classList.toggle('droptarget', !!onLib && !!whereIs(addonById(g.id)));
+    g.over = onLib ? { lib: true } : null;
+    if (blk && isWidgetBlock(blk.getAttribute('data-id'))) { blk.classList.add('target'); g.over = { block: blk.getAttribute('data-id') }; return; }
+    var cell = cellAt(e); g.inCanvas = !!cell;
+    if (blk || !cell || onLib) return;
+    var nb = newBlockAt(cell); if (!nb) return;
+    g.ghost = el('div', 'ghostblk' + (nb.b ? '' : ' bad'));
+    if (nb.b) place(g.ghost, nb.b.x, nb.b.y, nb.b.w, nb.b.h); else place(g.ghost, Math.max(0, Math.min(8, cell.x)), Math.max(0, Math.min(4, cell.y)), 4, 2);
+    $('canvas').appendChild(g.ghost);
+    g.over = { create: nb };
+  }
+  function dropChip() {
+    var g = chipDrag; if (!g) return;
+    chipDrag = null; $('library').classList.remove('droptarget');
+    if (g.ghost) g.ghost.remove();
+    if (!g.fly) { select({ kind: 'addon', id: g.id }); return; }   // a tap
+    g.fly.remove();
+    var lay = L(), target = null, a = addonById(g.id);
+    if (g.over && g.over.lib) { if (whereIs(a)) removeWidget(g.id); return; }
+    if (g.over && g.over.block) target = g.over.block;
+    else if (g.over && g.over.create) {
+      if (!g.over.create.b) { toast('No room there for a new block: drop it on a free spot, or on a widget block.'); renderLayout(); return; }
+      target = g.over.create.id;
+      var nb = lay.blocks[target]; nb.x = g.over.create.b.x; nb.y = g.over.create.b.y; nb.w = 4; nb.h = 2; nb.on = true; nb.addons = [];
+    } else {
+      if (g.inCanvas && !S.layout_spec.widget_blocks.filter(function (k) { return !lay.blocks[k].on; }).length) toast('All three widget blocks are in use: drop it on one of them.');
+      renderLayout(); return;
+    }
+    S.layout_spec.widget_blocks.forEach(function (k) {   // one block per add-on
+      var o = lay.blocks[k]; if (k !== target && o.addons) o.addons = o.addons.filter(function (x) { return x !== g.id; });
+    });
+    var tb = lay.blocks[target]; tb.addons = tb.addons || [];
+    if (tb.addons.indexOf(g.id) < 0) tb.addons.push(g.id);
+    var wasOff = !addonConf(g.id).enabled;
+    addonConf(g.id).enabled = true;
+    lay.preset = ''; renderAddons(); select({ kind: 'block', id: target }); dirty();
+    toast(a.name + ' → ' + S.layout_spec.blocks[target].name + (wasOff ? '. Its data comes after saving.' : ''));
+  }
+  $('library').addEventListener('pointermove', moveChip);
+  $('library').addEventListener('pointerup', dropChip);
+  $('library').addEventListener('pointercancel', function () {
+    if (!chipDrag) return;
+    if (chipDrag.fly) chipDrag.fly.remove(); if (chipDrag.ghost) chipDrag.ghost.remove();
+    chipDrag = null; $('library').classList.remove('droptarget'); renderLayout();
+  });
+
+  $('realShot').onclick = function () {
+    var btn = this, box = $('realShotBox');
+    if (box.firstChild && !btn.disabled && btn.textContent.indexOf('Hide') === 0) { box.innerHTML = ''; btn.textContent = '📷 Real screen'; return; }
+    btn.disabled = true; btn.textContent = 'Taking it…';
+    var label = '📷 Real screen';
+    fetch('/api/admin/cc-screen', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) {
+      if (r.ok) return r.blob().then(function (b) {
+        box.innerHTML = ''; var img = new Image(); img.alt = "The Chromecast's screen"; img.src = URL.createObjectURL(b); box.appendChild(img);
+        box.appendChild(el('p', 'hint', 'The real Chromecast at ' + new Date().toLocaleTimeString() + '. Saved changes reach it in a few seconds.'));
+        label = 'Hide the picture';
+      });
+      return r.json().then(function (j) { box.innerHTML = ''; box.appendChild(el('p', 'hint', j.error || 'No picture.')); });
+    }).catch(function () { box.innerHTML = ''; box.appendChild(el('p', 'hint', 'No picture: the Mac didn\'t answer.')); })
+      .then(function () { btn.disabled = false; btn.textContent = label; });
+  };
+  function setShown(id, on) {
+    var b = L().blocks[id];
+    if (on && !fits(id, b)) {   // its old place is taken: the first free place for its size, else its smaller sizes
+      var spec = S.layout_spec, found = null;
+      spec.blocks[id].sizes.some(function (z) {
+        for (var y = 0; y + z[1] <= spec.rows && !found; y++)
+          for (var x = 0; x + z[0] <= spec.cols && !found; x++) if (fits(id, { x: x, y: y, w: z[0], h: z[1] })) found = { x: x, y: y, w: z[0], h: z[1] };
+        return !!found;
+      });
+      if (!found) { toast('No room for ' + spec.blocks[id].name + ': hide or shrink another block first.'); renderLayout(); return; }
+      b.x = found.x; b.y = found.y; b.w = found.w; b.h = found.h;
+    }
+    b.on = on; L().preset = ''; sel = { kind: 'block', id: id }; renderLayout(); dirty();
+  }
+
+  // ---------- the screen: tap to select, drag blocks around the grid, drag dock apps to reorder ----------
+  var lay_drag = null, app_drag = null;
+  $('canvas').addEventListener('click', function (e) {
+    var x = e.target.closest('.pv-x');
+    if (x) { e.stopPropagation(); removeWidget(x.getAttribute('data-remove')); }
+  });
+  $('canvas').addEventListener('pointerdown', function (e) {
+    if (e.target.closest('.pv-x')) return;
+    var d = e.target.closest('.blk');
+    if (d) {
+      var id = d.getAttribute('data-id'), b = L().blocks[id], r = $('canvas').getBoundingClientRect();
+      sel = { kind: 'block', id: id };
+      lay_drag = { id: id, el: d, sx: e.clientX, sy: e.clientY, ox: b.x, oy: b.y, cw: r.width * CW / SW, rh: r.height * RH / SH, nx: b.x, ny: b.y, moved: false };
+      Array.prototype.forEach.call($('canvas').querySelectorAll('.blk'), function (x) { x.classList.toggle('sel', x === d); });
+      $('canvas').classList.remove('wallsel'); var band = $('canvas').querySelector('.pv-dock'); if (band) band.classList.remove('sel');
+      d.setPointerCapture(e.pointerId);
+      renderInspector();
+      openPanel(true);
+      return;
+    }
+    var t = e.target.closest('.pv-tile');
+    if (t) {
+      app_drag = { id: t.getAttribute('data-app'), i: t.hasAttribute('data-i') ? +t.getAttribute('data-i') : -1, el: t, sx: e.clientX, moved: false,
+                   w: $('canvas').getBoundingClientRect().width };
+      if (app_drag.i >= 0) t.setPointerCapture(e.pointerId);
+      return;
+    }
+    if (e.target.closest('.pv-dock, .pv-sec')) { select({ kind: 'dock' }); return; }
+    if (e.target.closest('.fixed')) return;
+    select({ kind: 'wall' });
+  });
+  $('canvas').addEventListener('pointermove', function (e) {
+    if (app_drag && app_drag.i >= 0) {
+      var dx = e.clientX - app_drag.sx;
+      if (!app_drag.moved && Math.abs(dx) < 8) return;
+      app_drag.moved = true; app_drag.el.classList.add('dragging');
+      app_drag.el.style.transform = 'translateX(' + dx + 'px)';
+      return;
+    }
+    if (!lay_drag) return;
+    var g = lay_drag, b = L().blocks[g.id];
+    var nx = g.ox + Math.round((e.clientX - g.sx) / g.cw), ny = g.oy + Math.round((e.clientY - g.sy) / g.rh);
+    if (nx === g.nx && ny === g.ny) return;
+    g.nx = nx; g.ny = ny; g.moved = true;
+    g.el.classList.add('drag');
+    place(g.el, nx, ny, b.w, b.h);
+    g.el.classList.toggle('bad', !fits(g.id, { x: nx, y: ny, w: b.w, h: b.h }));
+  });
+  function dropOnCanvas(e) {
+    if (app_drag) {
+      var g = app_drag; app_drag = null;
+      if (!g.moved) { openSheet('cc', g.id); return; }
+      var steps = Math.round((e.clientX - g.sx) / g.w * SW / dockGeo.pitch);
+      var dock = draft.chromecast.dock, to = Math.max(0, Math.min(dockGeo.n - 1, g.i + steps));
+      if (to !== g.i) { dock.splice(to, 0, dock.splice(g.i, 1)[0]); renderEditor('cc'); dirty(); }
+      renderLayout();
+      return;
+    }
+    if (!lay_drag) return;
+    var d = lay_drag, b = L().blocks[d.id]; lay_drag = null;
+    if (!d.moved) return;
+    if (fits(d.id, { x: d.nx, y: d.ny, w: b.w, h: b.h })) { b.x = d.nx; b.y = d.ny; L().preset = ''; dirty(); }
+    else toast("Can't go there: it would cover another block, the buttons or the dock.");
+    renderLayout();
+  }
+  $('canvas').addEventListener('pointerup', dropOnCanvas);
+  $('canvas').addEventListener('pointercancel', function () { app_drag = null; lay_drag = null; renderLayout(); });
+
+  // ---------- undo: every change is remembered until the next save ----------
+  var undoStack = [], lastSnap = null, undoing = false;
+  function snapReset() { undoStack = []; lastSnap = draft ? JSON.stringify(draft) : null; updUndo(); }
+  function remember() {
+    if (undoing || !draft) return;
+    var j = JSON.stringify(draft);
+    if (lastSnap !== null && j !== lastSnap) { undoStack.push(lastSnap); if (undoStack.length > 80) undoStack.shift(); }
+    lastSnap = j; updUndo();
+  }
+  function updUndo() { var b = $('undoBtn'); if (b) b.style.opacity = undoStack.length ? '1' : '.45'; }
+  $('undoBtn').onclick = function () {
+    if (!undoStack.length) { toast('Nothing to undo.'); return; }
+    undoing = true;
+    draft = JSON.parse(undoStack.pop()); lastSnap = JSON.stringify(draft);
+    renderAll(); dirty();
+    undoing = false; updUndo();
+  };
+
+
+  // ---------- add-ons ----------
+  var TYPE_NAMES = { widget: 'Widget', row: 'Row', screen: 'Full screen', action: 'Quick action' };
+  function addonOrder() {
+    var ids = S.addons.map(function (a) { return a.id; });
+    var o = (draft.addons.order || []).filter(function (i) { return ids.indexOf(i) >= 0; });
+    ids.forEach(function (i) { if (o.indexOf(i) < 0) o.push(i); });
+    return o;
+  }
+  function addonConf(id) {
+    if (!draft.addons[id]) draft.addons[id] = { enabled: false, settings: {} };
+    if (!draft.addons[id].settings) draft.addons[id].settings = {};
+    return draft.addons[id];
+  }
+  function settingField(a, spec) {
+    var conf = addonConf(a.id), cur = spec.key in conf.settings ? conf.settings[spec.key] : (a.values || {})[spec.key];
+    var wrap = el('div');
+    wrap.appendChild(el('label', '', spec.label || spec.key));
+    var set = function (v) { conf.settings[spec.key] = v; dirty(); };
+    if (spec.type === 'bool') {
+      var sw = el('label', 'sw'), cb = el('input'); cb.type = 'checkbox'; cb.checked = !!cur; cb.onchange = function () { set(cb.checked); };
+      sw.appendChild(cb); sw.appendChild(el('span')); wrap.appendChild(sw);
+    } else if (spec.type === 'select') {
+      var sel = el('select');
+      (spec.options || []).forEach(function (o) { var op = el('option', '', o[1]); op.value = o[0]; sel.appendChild(op); });
+      sel.value = cur == null ? '' : String(cur); sel.onchange = function () { set(sel.value); };
+      wrap.appendChild(sel);
+    } else if (spec.type === 'place') {
+      var line = el('div', '', cur && cur.city ? cur.city : 'Not set'); line.style.margin = '0 2px 8px';
+      var row = el('div'); row.style.display = 'flex'; row.style.gap = '8px';
+      var q = el('input'); q.type = 'search'; q.placeholder = 'Search a city';
+      var go = el('button', 'btn', 'Find'), results = el('div', 'places');
+      var find = function () {
+        if (!q.value.trim()) return;
+        results.innerHTML = '';
+        api('/api/admin/geocode?q=' + encodeURIComponent(q.value.trim())).then(function (r) {
+          if (!r.places.length) results.appendChild(el('div', 'row hint', 'Nothing found.'));
+          r.places.forEach(function (p) {
+            var b = el('button', '', p.city + (p.admin ? ', ' + p.admin : '') + (p.country ? ', ' + p.country : ''));
+            b.onclick = function () { set({ city: p.city, lat: p.lat, lon: p.lon }); line.textContent = p.city; results.innerHTML = ''; q.value = ''; };
+            results.appendChild(b);
+          });
+        }, function (e) { toast('Search failed: ' + e.message); });
+      };
+      go.onclick = find; q.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); find(); } };
+      row.appendChild(q); row.appendChild(go);
+      wrap.appendChild(line); wrap.appendChild(row); wrap.appendChild(results);
+    } else {
+      var inp = el('input'); inp.type = spec.type === 'number' ? 'number' : 'text';
+      inp.value = cur == null ? '' : cur;
+      inp.oninput = function () { set(spec.type === 'number' ? (inp.value === '' ? '' : Number(inp.value)) : inp.value); };
+      wrap.appendChild(inp);
+    }
+    return wrap;
+  }
+  $('widgetSecs').oninput = function () { var n = parseInt(this.value, 10); if (n >= 4 && n <= 120) { draft.addons.widget_seconds = n; dirty(); } };
+  // One add-on's card: its switch, its settings and how fresh its data is. With an order (the full list): ↑ ↓ too.
+  function addonCard(a, idx, order) {
+    var id = a.id, conf = addonConf(id), card = el('div', 'card addon'), top = el('div', 'top');
+    var emo = el('div', 'emo', a.emoji); emo.style.background = a.color; top.appendChild(emo);
+    var meta = el('div', 'meta'), name = el('b', '', a.name);
+    name.appendChild(el('span', 'badge2', a.slot ? 'Built into Home' : (TYPE_NAMES[a.type] || a.type)));
+    meta.appendChild(name); meta.appendChild(el('small', '', a.description)); top.appendChild(meta);
+    if (order) {
+      var ord = el('div', 'ord');
+      var up = el('button', 'link', '↑'), down = el('button', 'link', '↓');
+      up.disabled = idx === 0; down.disabled = idx === order.length - 1;
+      up.onclick = function () { var o = addonOrder(); o.splice(idx - 1, 0, o.splice(idx, 1)[0]); draft.addons.order = o; renderAddons(); dirty(); };
+      down.onclick = function () { var o = addonOrder(); o.splice(idx + 1, 0, o.splice(idx, 1)[0]); draft.addons.order = o; renderAddons(); dirty(); };
+      ord.appendChild(up); ord.appendChild(down); top.appendChild(ord);
+    }
+    if (!a.slot) {   // on Home or not: added and removed here, or on the screen
+      var act = conf.enabled ? el('button', 'link', 'Remove') : el('button', 'btn small', '+ Add');
+      if (conf.enabled) act.style.color = 'var(--bad)';
+      act.onclick = function () { if (conf.enabled) removeAddon(id); else addAddon(id); };
+      top.appendChild(act);
+    }
+    card.appendChild(top);
+    if ((a.settings || []).length || (conf.enabled && a.type !== 'action')) {
+      var body = el('div', 'body');
+      (a.settings || []).forEach(function (spec) { body.appendChild(settingField(a, spec)); });
+      if (!a.slot && a.type !== 'action' && conf.enabled) {
+        var st = el('div', 'state' + (a.error ? ' err' : ''));
+        st.appendChild(document.createTextNode(a.error ? 'Problem: ' + a.error : a.updated ? 'Updated ' + ago(a.updated) : 'Not fetched yet: save first'));
+        var rf = el('button', 'link', 'Refresh now');
+        rf.onclick = function () {
+          rf.disabled = true;
+          api('/api/admin/addon-refresh', { id: id }).then(function (r) { S.addons = r.addons; renderAddons(); renderInspector(); toast(a.name + ': refreshed.'); },
+                                                        function (e) { toast(e.message); rf.disabled = false; });
+        };
+        st.appendChild(rf); body.appendChild(st);
+      }
+      if (a.slot) body.appendChild(el('div', 'state', 'Part of Home: show or hide its block on the screen.'));
+      else if (!conf.enabled) body.appendChild(el('div', 'state', a.type === 'widget' ? 'Not on Home: + Add, or drag it onto the screen.' : 'Not on Home: + Add puts it there.'));
+      else if (a.type === 'screen' || a.type === 'action') body.appendChild(el('div', 'state', 'On Home: its tile is under More in Dock and rows; drag it where you like.'));
+      else if (a.type === 'row') body.appendChild(el('div', 'state', 'On Home: its row shows after the dock.'));
+      card.appendChild(body);
+    }
+    return card;
+  }
+  function renderAddons() {
+    $('widgetSecs').value = draft.addons.widget_seconds || 10;
+    var box = $('addonList'); box.innerHTML = '';
+    var order = addonOrder();
+    order.forEach(function (id, idx) {
+      var a = addonById(id); if (!a) return;
+      box.appendChild(addonCard(a, idx, order));
+    });
+    var br = $('addonsBroken'); br.innerHTML = '';
+    Object.keys(S.addons_broken || {}).forEach(function (k) {
+      br.appendChild(el('div', 'state err', 'Not loaded: ' + k + ': ' + S.addons_broken[k]));
+    });
+  }
+  $('addonsReload').onclick = function () {
+    api('/api/admin/addons-reload', {}).then(function (r) { S.addons = r.addons; S.addons_broken = r.broken; renderAddons(); toast('Add-ons reloaded.'); });
+  };
 
   // ---------- wallpaper ----------
   var MARKETS = [['en-US', 'USA'], ['en-GB', 'UK'], ['de-DE', 'Germany'], ['fr-FR', 'France'], ['es-ES', 'Spain'], ['it-IT', 'Italy'],
@@ -646,7 +1548,7 @@
   $('wall4k').onchange = function () { draft.wallpaper_size = this.checked ? 'UHD' : '1920x1080'; dirty(); };
   $('wallNext').onclick = function () {
     var b = this; b.disabled = true; toast('Getting another photo…', 60000);
-    api('/api/admin/wallpaper-next', {}).then(function (r) { S.wallpaper.now = r.now; renderWall(); toast('New photo. Home shows it the next time it opens.'); },
+    api('/api/admin/wallpaper-next', {}).then(function (r) { S.wallpaper.now = r.now; renderWall(); drawCanvas(); toast('New photo. Home shows it the next time it opens.'); },
       function (e) { toast('No other photo: ' + e.message, 6000); renderWall(); });
   };
   $('wallFile').onchange = function () {
@@ -711,7 +1613,7 @@
     var t = d.target;
     if (cancel || !t) return;
     var dev = d.dev, id = d.id, from = placeOf(dev, id);
-    if (t.place === 'dock' && from !== 'dock' && lay(dev).dock.length >= 4) { toast('The dock is full (4 apps). Drag one out first.'); return; }
+    if (t.place === 'dock' && from !== 'dock' && lay(dev).dock.length >= dockMax(dev)) { toast('The dock is full (' + dockMax(dev) + ' apps). Drag one out first.'); return; }
     takeOut(dev, id);
     var list = listFor(dev, t.place);
     if (list) {
@@ -772,6 +1674,7 @@
   Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (b) {
     b.onclick = function () {
       tab = b.getAttribute('data-tab');
+      document.body.classList.toggle('wide', tab === 'cc');
       Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (x) { x.classList.toggle('on', x === b); });
       Array.prototype.forEach.call(document.querySelectorAll('[data-pane]'), function (p) { p.classList.toggle('hidden', p.getAttribute('data-pane') !== tab); });
       window.scrollTo(0, 0);
@@ -784,14 +1687,16 @@
     Object.keys(draft).forEach(function (k) { if (JSON.stringify(draft[k]) !== JSON.stringify(orig[k])) out[k] = draft[k]; });
     return out;
   }
-  function dirty() { $('saveBar').classList.toggle('open', !!draft && Object.keys(changes()).length > 0); }
-  $('discard').onclick = function () { draft = clone(orig); renderAll(); dirty(); };
+  function dirty() { remember(); $('saveBar').classList.toggle('open', !!draft && Object.keys(changes()).length > 0); }
+  $('discard').onclick = function () { draft = clone(orig); renderAll(); snapReset(); dirty(); };
   $('save').onclick = function () {
     var c = changes(); if (!Object.keys(c).length) return;
     $('save').disabled = true;
-    api('/api/admin/save', { changes: c }).then(function () {
+    api('/api/admin/save', { changes: c }).then(function (r) {
       $('saveBar').classList.remove('open');
-      waitForHelper('Saved. The TV and Chromecast show it the next time Home opens.');
+      var where = draft.live_refresh ? 'Saved. On the screens in a few seconds.' : 'Saved. The TV and Chromecast show it the next time Home opens.';
+      if (r && r.live) load().then(function () { toast(where, 4000); });   // applied without a restart
+      else waitForHelper(where);
     }, function (e) { toast('Not saved: ' + e.message, 6000); }).then(function () { $('save').disabled = false; });
   };
   // The helper restarts after a save; wait for it to answer again, then reload what it has.

@@ -139,6 +139,8 @@ class Admin:
             "wallpaper_source": cfg.get("wallpaper_source", "bing"), "wallpaper_market": cfg.get("wallpaper_market", "en-US"),
             "wallpaper_pick": cfg.get("wallpaper_pick") or "", "nasa_key_set": bool(cfg.get("nasa_api_key")),
             "vpn_countries": cfg.get("vpn_countries", []), "home_takeover": takeover,
+            "addons": self.addons_conf(cfg),
+            "home_layout": cfg.get("home_layout") or None,
             "takeover_on_power_on": cfg.get("takeover_on_power_on", True) is not False,
             "power_on_delay_seconds": cfg.get("power_on_delay_seconds", 5),
             "tv": {"dock": cfg.get("dock", []), "rows": cfg.get("rows", []), "rename": cfg.get("rename", {}),
@@ -146,6 +148,19 @@ class Admin:
             "chromecast": {"dock": cc.get("dock", []), "rows": cc.get("rows", []), "rename": cc.get("rename", {}),
                            "hidden": cc.get("hidden", []), "app_vpn": cc.get("app_vpn", {})},
         }
+
+    @staticmethod
+    def addons_conf(cfg: dict) -> dict:
+        """The add-ons' part of the config, with the quote and weather of an older config read in."""
+        c = json.loads(json.dumps(cfg.get("addons") or {}))
+        c.setdefault("quote", {"enabled": cfg.get("quotes", True) is not False})
+        c.setdefault("weather", {"enabled": bool(cfg.get("weather")), "settings": {"place": cfg.get("weather") or None}})
+        c.setdefault("order", [])
+        c.setdefault("widget_seconds", 10)
+        for k, v in c.items():
+            if isinstance(v, dict):
+                v.setdefault("settings", {})
+        return c
 
     @staticmethod
     def _ids(v, limit=300) -> list:
@@ -160,7 +175,7 @@ class Admin:
                 out.append(s)
         return out
 
-    def _layout(self, v: dict) -> dict:
+    def _layout(self, v: dict, dock_max: int = 4) -> dict:
         if not isinstance(v, dict):
             raise ValueError("bad layout")
         rows = []
@@ -178,7 +193,7 @@ class Admin:
             if not CODE.match(c):
                 raise ValueError(f"bad country {c!r}")
             app_vpn[str(k)[:120]] = c
-        return {"dock": self._ids(v.get("dock") or [], 4), "rows": rows, "rename": rename,
+        return {"dock": self._ids(v.get("dock") or [], dock_max), "rows": rows, "rename": rename,
                 "hidden": self._ids(v.get("hidden") or []), "app_vpn": app_vpn}
 
     def apply(self, changes: dict) -> tuple[dict, dict]:
@@ -217,6 +232,13 @@ class Admin:
                     cfg.pop(key, None)
             elif key == "nasa_key_set":
                 pass
+            elif key == "home_layout":
+                import layout
+                cfg["home_layout"] = layout.validate(v)
+            elif key == "addons":
+                cfg["addons"] = self.validate_addons(v)   # set by the helper: it knows each add-on's settings
+                cfg.pop("quotes", None)
+                cfg.pop("weather", None)   # now the quote and weather add-ons' settings
             elif key == "weather":
                 if v is None:
                     cfg.pop("weather", None)
@@ -242,7 +264,8 @@ class Admin:
                 cfg.update(dock=lay["dock"], rows=lay["rows"], rename=lay["rename"], hidden=lay["hidden"],
                            app_vpn=lay["app_vpn"])
             elif key == "chromecast":
-                lay = self._layout(v)
+                import layout   # Normal and Small dock tiles fit 5 and 6 apps
+                lay = self._layout(v, layout.dock_max(changes.get("home_layout") or cfg.get("home_layout")))
                 cc = cfg.setdefault("chromecast", {})
                 cc.update(lay)
                 cc["rev"] = int(time.time())   # the Chromecast drops its own Move/Remove changes for these

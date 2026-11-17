@@ -1,0 +1,24 @@
+{
+  "id": "news",
+  "version": "1.0",
+  "name": "News headlines",
+  "type": "widget",
+  "emoji": "📰",
+  "color": "#a33a3a",
+  "refresh_minutes": 20,
+  "description": "The latest headlines from a news feed (RSS), as a card on Home.",
+  "settings": [
+    {
+      "key": "feed",
+      "label": "News feed (RSS address)",
+      "type": "text",
+      "default": "https://feeds.bbci.co.uk/news/world/rss.xml"
+    },
+    {
+      "key": "source",
+      "label": "Name shown",
+      "type": "text",
+      "default": "BBC News"
+    }
+  ]
+}
