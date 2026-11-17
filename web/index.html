@@ -40,12 +40,62 @@
   body.wallpaper.ingrid #gridShade { opacity: 1; }
   body.wallpaper .backdrop { display: none; }
   body.wallpaper #header, body.wallpaper #quote, body.wallpaper #weather, body.wallpaper #wallCredit { text-shadow: 0 1px 6px rgba(0,0,0,.6); }
-  #wallCredit { position: absolute; right: 103px; top: 432px; max-width: 640px; text-align: right; font-size: 24px;
+  body.ingrid #wallCredit { opacity: 0; }
+
+  /* Widget cards (add-ons): one per block, or two stacked in a four-row block. */
+  .wslot { position: absolute; display: none; flex-direction: column; gap: 16px; transition: opacity .3s ease; }
+  .wcard { background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.12); border-radius: 28px; padding: 16px 28px 18px;
+           box-sizing: border-box; text-shadow: none; }
+  .whead { display: flex; align-items: center; gap: 14px; }
+  .wemo { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex: none; }
+  .wtitle { flex: 1; min-width: 0; font-size: 21px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.7);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wdot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.28); margin-left: 7px; flex: none; }
+  .wdot.on { width: 10px; height: 10px; background: rgba(255,255,255,.9); }
+  .wline { margin-top: 8px; font-size: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: rgba(255,255,255,.92); }
+  .wline:first-of-type { margin-top: 12px; }
+  .wline .sub { color: rgba(255,255,255,.5); }
+  .wline .sub.live { color: #ff6b6b; }
+  .wmatch { display: flex; align-items: center; margin-top: 10px; }
+  .wmatch img { width: 34px; height: 34px; object-fit: contain; flex: none; }
+  .wmatch .team { flex: 1; min-width: 0; font-size: 24px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 10px; }
+  .wmatch .team.home { text-align: right; }
+  .wmatch .mid { width: 150px; text-align: center; flex: none; }
+  .wmatch .big { font-size: 28px; font-weight: 600; }
+  .wmatch .big.pre { font-size: 24px; font-weight: 500; }
+  .wmatch .small { font-size: 17px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.55); }
+  .wmatch .small.live { color: #fff; background: #e53935; border-radius: 8px; padding: 2px 10px; display: inline-block; }
+  .wnext { margin-top: 10px; display: flex; align-items: baseline; gap: 14px; white-space: nowrap; }
+  .wnext .n { font-size: 40px; font-weight: 500; }
+  .wnext .t { font-size: 40px; font-weight: 300; color: rgba(255,255,255,.9); }
+  .wnext .c { font-size: 22px; color: rgba(255,255,255,.6); }
+  .wstrip { margin-top: 10px; display: flex; }
+  .wstrip > div { flex: 1; text-align: center; padding: 6px 0 8px; border-radius: 14px; }
+  .wstrip > div.lit { background: rgba(255,255,255,.16); }
+  .wstrip .a { font-size: 17px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.5); }
+  .wstrip .b { font-size: 23px; color: rgba(255,255,255,.8); }
+  .wstrip .lit .a, .wstrip .lit .b { color: #fff; }
+  .wnews { margin-top: 12px; display: flex; gap: 18px; }
+  .wnews img { width: 176px; height: 120px; object-fit: cover; border-radius: 12px; flex: none; background: rgba(255,255,255,.08); margin-top: 4px; }
+  .wnews .col { flex: 1; min-width: 0; }
+  .wnews .h1 { font-size: 25px; font-weight: 500; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .wnews .h2 { margin-top: 6px; font-size: 22px; color: rgba(255,255,255,.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #wallCredit { position: absolute; right: 112px; top: 150px; z-index: 2; max-width: 680px; text-align: right; font-size: 24px;
                 color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity .3s ease; }
 
   /* Header: greeting, clock and date on the left, pills on the right. */
-  #header { position: absolute; left: 112px; right: 112px; top: 52px; display: flex; align-items: flex-end; z-index: 3; }
-  #left { flex: 1; min-width: 0; }
+  #header { position: absolute; left: 112px; right: 112px; top: 52px; display: flex; align-items: center; z-index: 3; }
+  #miniClock { font-size: 44px; font-weight: 300; letter-spacing: -.02em; opacity: 0; transition: opacity .3s ease; white-space: nowrap; }
+  body.ingrid #miniClock { opacity: .9; }
+  #pills { margin-left: auto; }
+  #blocks { position: absolute; left: 0; top: 0; width: 1920px; height: 680px; z-index: 2; transition: opacity .3s ease; }
+  body.ingrid #blocks { opacity: 0; }
+  body.wallpaper #blocks { text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+  #left { position: absolute; left: 112px; top: 52px; min-width: 0; }
+  #left.small #clockRow { align-items: baseline; }
+  #left.big #clockRow { flex-direction: column; align-items: flex-start; }
+  #left.big #divider { display: none; }
+  #left.big #date { margin-top: 18px; }
   #greeting { margin-left: 8px; font-size: 24px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: rgba(255,255,255,.55); white-space: nowrap; }
   #clockRow { display: flex; align-items: flex-end; margin-top: 6px; }
   #clock { font-size: 104px; font-weight: 300; letter-spacing: -.04em; line-height: .86; }
@@ -69,7 +119,7 @@
   #rail { position: absolute; left: 0; top: -230px; width: 1920px; transition: transform .5s cubic-bezier(.2,.8,.2,1); will-change: transform; }
 
   /* Above the hero: the quote of the day with its author's portrait on the left, the weather on the right. */
-  #quote { position: absolute; left: 108px; top: 300px; max-width: 1120px; display: flex; align-items: center; gap: 34px;
+  #quote { position: absolute; left: 108px; top: 300px; max-width: 1120px; box-sizing: border-box; display: flex; align-items: center; gap: 34px;
            transition: opacity .3s ease; }
   #quotePic { width: 116px; height: 116px; flex: none; border-radius: 50%; object-fit: cover; display: none;
               border: 3px solid rgba(255,255,255,.22); box-shadow: 0 10px 30px rgba(0,0,0,.55); }
@@ -79,7 +129,10 @@
   #quoteMeta { margin-top: 12px; display: flex; align-items: baseline; gap: 18px; white-space: nowrap; }
   #quoteBy { font-size: 24px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.55); }
   #quoteSrc { font-size: 24px; color: rgba(255,255,255,.3); }
-  #weather { position: absolute; right: 103px; top: 296px; text-align: right; transition: opacity .3s ease; }
+  #weather { position: absolute; right: 103px; top: 296px; text-align: right; transition: opacity .3s ease; box-sizing: border-box; }
+  #weather.small #wxInfo { display: none; }
+  #weather.small #wxTemp { font-size: 60px; }
+  #weather.small #wxIcon { width: 56px; height: 56px; }
   #wxTop { display: flex; align-items: center; justify-content: flex-end; gap: 18px; }
   #wxIcon { width: 76px; height: 76px; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
   #wxTemp { font-size: 88px; font-weight: 300; line-height: 1; letter-spacing: -.03em; }
@@ -87,7 +140,7 @@
 
   #hero { position: absolute; left: 108px; top: 476px; transition: opacity .3s ease; }
   #hero.hidden { opacity: 0; }
-  #heroName { font-size: 104px; font-weight: 300; letter-spacing: -.02em; line-height: 1; white-space: nowrap; }
+  #heroName { font-size: 104px; font-weight: 300; letter-spacing: -.02em; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #heroHint { margin: 22px 0 0 6px; font-size: 26px; font-weight: 400; letter-spacing: .04em; color: rgba(255,255,255,.5); white-space: nowrap; }
 
   #band { position: absolute; border-radius: calc(var(--tile-r) + var(--band-pad)); background: rgba(20,20,22,.85);
@@ -204,10 +257,7 @@
 <div class="backdrop" id="backB"></div>
 
 <div id="header">
-  <div id="left">
-    <div id="greeting"></div>
-    <div id="clockRow"><div id="clock"></div><div id="ampm"></div><div id="divider"></div><div id="date"></div></div>
-  </div>
+  <div id="miniClock"></div>
   <div id="pills">
     <div class="pill round" data-action="search"><svg viewBox="0 0 24 24"><path d="M10 3a7 7 0 0 1 5.6 11.2l5.6 5.6-1.4 1.4-5.6-5.6A7 7 0 1 1 10 3zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg></div>
     <div class="pill round" data-action="admin"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm8-2h2v2h-2v-2zm4 0h4v2h-4v-2zm-4 4h2v4h-2v-4zm4 2h4v2h-4v-2zm2-4h2v2h-2v-2z"/></svg></div>
@@ -217,12 +267,22 @@
   </div>
 </div>
 
+<!-- Above the dock: the clock, quote, weather, app name and widget cards, each where the admin panel's layout puts it
+     (a 12 x 6 grid, the same as the Chromecast's). The layer fades out while the rows are browsed. -->
+<div id="blocks">
+  <div id="left">
+    <div id="greeting"></div>
+    <div id="clockRow"><div id="clock"></div><div id="ampm"></div><div id="divider"></div><div id="date"></div></div>
+  </div>
+  <div id="quote" style="display:none"><img id="quotePic" alt=""><div><div id="quoteText"></div><div id="quoteMeta"><span id="quoteBy"></span><span id="quoteSrc"></span></div></div></div>
+  <div id="weather" style="display:none"><div id="wxTop"><svg id="wxIcon" viewBox="0 0 48 48"></svg><div id="wxTemp"></div></div><div id="wxInfo"></div></div>
+  <div id="hero"><div id="heroName"></div><div id="heroHint">OK to open&nbsp;&nbsp;·&nbsp;&nbsp;hold OK for options</div></div>
+  <div class="wslot" id="slot_widgets"></div><div class="wslot" id="slot_widgets2"></div><div class="wslot" id="slot_widgets3"></div>
+</div>
+<div id="wallCredit" style="display:none"></div>
+
 <div id="viewport">
   <div id="rail">
-    <div id="quote" style="display:none"><img id="quotePic" alt=""><div><div id="quoteText"></div><div id="quoteMeta"><span id="quoteBy"></span><span id="quoteSrc"></span></div></div></div>
-    <div id="weather" style="display:none"><div id="wxTop"><svg id="wxIcon" viewBox="0 0 48 48"></svg><div id="wxTemp"></div></div><div id="wxInfo"></div></div>
-    <div id="wallCredit" style="display:none"></div>
-    <div id="hero"><div id="heroName"></div><div id="heroHint">OK to open&nbsp;&nbsp;·&nbsp;&nbsp;hold OK for options</div></div>
     <div id="sections"></div>
     <div id="band"></div>
     <div id="tiles"></div>
@@ -276,15 +336,20 @@
     var h = d.getHours(), m = ('0' + d.getMinutes()).slice(-2);
     if (state.clock24) { $('clock').textContent = ('0' + h).slice(-2) + ':' + m; $('ampm').textContent = ''; }
     else { $('clock').textContent = ((h % 12) || 12) + ':' + m; $('ampm').textContent = h < 12 ? 'am' : 'pm'; }
-    // The date shortens (Wed, then Sep) only when it would run under the pills.
-    var day = DAYS[d.getDay()], month = MONTHS[d.getMonth()], pills = $('pills');
-    for (var fit = 0; fit < 3; fit++) {
+    $('miniClock').textContent = $('clock').textContent + ($('ampm').textContent ? ' ' + $('ampm').textContent : '');
+    // The date shortens (Wed, then Sep) when it would run out of its block or under the buttons; a one-row clock
+    // always has the short one.
+    var day = DAYS[d.getDay()], month = MONTHS[d.getMonth()], pills = $('pills'), box = $('left').getBoundingClientRect();
+    var maxRight = box.right;
+    if (pills.offsetWidth && box.top < pills.getBoundingClientRect().bottom) maxRight = Math.min(maxRight, pills.getBoundingClientRect().left - 24);
+    for (var fit = state.clockRows === 1 ? 2 : 0; fit < 3; fit++) {
       $('date').innerHTML = (fit ? day.slice(0, 3) : day) + '&nbsp;&nbsp;' + d.getDate() + ' ' + (fit > 1 ? month.slice(0, 3) : month);
-      if (!pills.offsetWidth || $('date').getBoundingClientRect().right + 24 <= pills.getBoundingClientRect().left) break;
+      if ($('date').getBoundingClientRect().right <= maxRight) break;
     }
     var g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
     $('greeting').textContent = state.greetingName ? g + ', ' + state.greetingName : g;
     showQuote();   // a new one at midnight
+    refreshWidgetTimes();   // countdowns
   }
 
   // ---------- quote of the day: from the internet through the helper (/api/quote, with the author's portrait);
@@ -301,7 +366,7 @@
   }
   function showQuote() {
     var box = $('quote');
-    if (!state.quotes) { box.style.display = 'none'; return; }
+    if (!state.quotes || !blockOn.quote) { box.style.display = 'none'; return; }
     var d = new Date(), day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
     if (day === quoteDay) return;
     quoteDay = day;
@@ -357,7 +422,7 @@
   var weatherTimer = 0;
   function loadWeather() {
     var box = $('weather');
-    if (state.static || !state.weather) { box.style.display = 'none'; return; }
+    if (state.static || !state.weather || !blockOn.weather) { box.style.display = 'none'; return; }
     load('/api/weather').then(function (w) {
       if (!w) { box.style.display = 'none'; return; }
       var label = 'Cloudy', icon = 'cloud';
@@ -370,6 +435,168 @@
       box.style.display = '';
     }, function () { box.style.display = 'none'; });
     if (!weatherTimer) weatherTimer = setInterval(loadWeather, 15 * 60 * 1000);
+  }
+
+  // ---------- the Home layout: where the clock, quote, weather, app name and widget cards sit above the dock ----------
+  // The admin panel's layout (the same as the Chromecast's): a 12 x 6 grid from (96, 40), cells 144 x 104.
+  var GX = 96, GY = 40, CW = 144, RH = 104;
+  var CLASSIC = { blocks: { clock: { x: 0, y: 0, w: 6, h: 2, on: true }, quote: { x: 0, y: 2, w: 8, h: 2, on: true },
+                            weather: { x: 9, y: 2, w: 3, h: 2, on: true }, hero: { x: 0, y: 4, w: 7, h: 2, on: true },
+                            widgets: { x: 8, y: 4, w: 4, h: 2, on: true } } };
+  var blockOn = { clock: true, quote: true, weather: true, hero: true };
+  function placeBlock(el, b, full) {
+    el.style.left = (GX + b.x * CW) + 'px'; el.style.top = (GY + b.y * RH) + 'px';
+    el.style.width = (b.w * CW) + 'px';
+    if (full) el.style.height = (b.h * RH) + 'px';
+  }
+  function applyLayout(lay) {
+    var blocks = (lay && lay.blocks) || CLASSIC.blocks;
+    var get = function (id) { return blocks[id] || CLASSIC.blocks[id] || null; };
+    // Clock: Small (one row) is time and date side by side; Big (three rows) a large time over the date.
+    var c = get('clock'), left = $('left');
+    blockOn.clock = c.on !== false;
+    left.style.display = blockOn.clock ? '' : 'none';
+    placeBlock(left, c);
+    left.className = c.h >= 3 ? 'big' : c.h === 1 ? 'small' : '';
+    state.clockRows = c.h;
+    $('greeting').style.display = c.h >= 2 ? '' : 'none';
+    $('greeting').style.fontSize = (c.h >= 3 ? 30 : 24) + 'px';
+    $('clock').style.fontSize = (c.h >= 3 ? 210 : c.h === 2 ? 104 : 64) + 'px';
+    $('ampm').style.fontSize = (c.h >= 3 ? 44 : c.h === 2 ? 30 : 22) + 'px';
+    $('date').style.fontSize = (c.h >= 3 ? 34 : c.h === 2 ? 28 : 22) + 'px';
+    // Quote: as wide as its block.
+    var q = get('quote'), qb = $('quote');
+    blockOn.quote = q.on !== false;
+    placeBlock(qb, q); qb.style.maxWidth = (q.w * CW - 24) + 'px';
+    $('quoteText').style.fontSize = (q.w >= 8 ? 38 : 32) + 'px';
+    // Weather: right-aligned in its block; Small leaves out the line under the temperature.
+    var w = get('weather'), wb = $('weather');
+    blockOn.weather = w.on !== false;
+    wb.style.right = 'auto'; placeBlock(wb, w);
+    wb.classList.toggle('small', w.h < 2);
+    // The app name: the dock app the remote is on.
+    var h = get('hero'), hb = $('hero');
+    blockOn.hero = h.on !== false;
+    placeBlock(hb, h); $('heroName').style.maxWidth = (h.w * CW) + 'px';
+    hb.style.display = blockOn.hero ? '' : 'none';
+    // Widget blocks: a four-row one shows two cards stacked.
+    SLOT_IDS.forEach(function (id) {
+      var s = slotOf(id), b = blocks[id];
+      s.on = !!b && b.on !== false;
+      s.cards = b ? Math.max(1, Math.floor(b.h / 2)) : 1;
+      s.pick = b && b.addons ? b.addons.slice() : [];
+      if (b) placeBlock(s.el, b);
+    });
+    lastMinute = -1; tick();
+    showQuote(); loadWeather();
+    renderSlots();
+  }
+
+  // ---------- widget cards (add-ons): the helper fetches their data; one card at a time per block, or two stacked ----------
+  var SLOT_IDS = ['widgets', 'widgets2', 'widgets3'], slots = {}, addonHome = { widgets: [] }, widgetTimer = 0;
+  function slotOf(id) { return slots[id] || (slots[id] = { id: id, el: $('slot_' + id), page: 0, timer: 0, shown: [], pick: [], on: false, cards: 1 }); }
+  function loadWidgets() {
+    if (state.static) return;
+    if (!widgetTimer) widgetTimer = setInterval(loadWidgets, 5 * 60 * 1000);
+    load('/api/addons/home').then(function (h) { addonHome = h || { widgets: [] }; renderSlots(); }, function () {});
+  }
+  function widgetsFor(s) {   // the ones picked for this block, or (none picked) every widget no other block picked
+    var all = addonHome.widgets || [], others = [];
+    SLOT_IDS.forEach(function (id) { var o = slots[id]; if (o && o !== s && o.on) others = others.concat(o.pick); });
+    if (s.pick.length) return s.pick.map(function (id) { return all.filter(function (w) { return w.id === id; })[0]; }).filter(Boolean);
+    return all.filter(function (w) { return others.indexOf(w.id) < 0; });
+  }
+  function renderSlots() { SLOT_IDS.forEach(function (id) { renderSlot(slotOf(id)); }); }
+  function renderSlot(s) {
+    clearTimeout(s.timer);
+    var list = widgetsFor(s);
+    if (!s.on || !list.length) { s.el.style.display = 'none'; s.shown = []; return; }
+    var k = Math.min(s.cards, list.length), pages = Math.ceil(list.length / k), p = s.page % pages;
+    var now = list.slice(p * k, p * k + k);
+    var swap = function () { fillSlot(s, now, p, pages); s.el.style.opacity = 1; };
+    if (s.el.style.display !== 'flex') { s.el.style.display = 'flex'; swap(); }
+    else { s.el.style.opacity = 0; setTimeout(swap, 300); }
+    if (pages > 1) s.timer = setTimeout(function () { s.page++; renderSlot(s); }, Math.max(4, addonHome.widget_seconds || 10) * 1000);
+  }
+  function fillSlot(s, now, page, pages) {
+    s.shown = now; s.shownPage = page; s.shownPages = pages;
+    s.el.innerHTML = '';
+    now.forEach(function (w, i) { s.el.appendChild(widgetCard(w, page, i === 0 ? pages : 0)); });
+  }
+  function refreshWidgetTimes() {   // the minute changed: countdowns, without moving on to the next card
+    SLOT_IDS.forEach(function (id) { var s = slots[id]; if (s && s.shown.length && s.el.style.display === 'flex') fillSlot(s, s.shown, s.shownPage, s.shownPages); });
+  }
+  function mk(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function until(ms) {   // "in 45 min", "in 3 h 20 min", "in 2 days"; "now" once it's time
+    var min = Math.floor((ms - Date.now()) / 60000);
+    if (min <= 0) return 'now';
+    if (min < 60) return 'in ' + min + ' min';
+    if (min < 1440) return 'in ' + Math.floor(min / 60) + ' h' + (min % 60 ? ' ' + (min % 60) + ' min' : '');
+    var days = Math.floor((min + 720) / 1440);
+    return 'in ' + days + (days === 1 ? ' day' : ' days');
+  }
+  function isToday(ms) { var a = new Date(), b = new Date(ms); return a.toDateString() === b.toDateString(); }
+  function hhmm(d) { return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  function widgetCard(w, at, count) {
+    var card = mk('div', 'wcard'), head = mk('div', 'whead');
+    var emo = mk('span', 'wemo', w.emoji || ''); emo.style.background = w.color || '#3a3a44'; head.appendChild(emo);
+    head.appendChild(mk('span', 'wtitle', w.title || ''));
+    for (var i = 0; count > 1 && i < count; i++) head.appendChild(mk('span', 'wdot' + (i === at ? ' on' : '')));
+    card.appendChild(head);
+    if (w.kind === 'matches' && w.matches && w.matches.length) fillMatches(card, w);
+    else if (w.kind === 'prayer' && w.times && w.names) fillPrayer(card, w);
+    else if (w.kind === 'headlines' && w.items) fillHeadlines(card, w);
+    else (w.lines || []).slice(0, 3).forEach(function (l) {
+      var line = mk('div', 'wline', l.text || '');
+      if (l.sub) { line.appendChild(document.createTextNode('   ')); line.appendChild(mk('span', 'sub' + (l.live ? ' live' : ''), l.sub)); }
+      card.appendChild(line);
+    });
+    return card;
+  }
+  function fillMatches(card, w) {   // home logo and name, the score or kick-off in the middle, the away side; live games marked
+    w.matches.slice(0, 2).forEach(function (m) {
+      var h = m.home || {}, a = m.away || {}, row = mk('div', 'wmatch'), mid = mk('div', 'mid');
+      var logo = function (url) { var i = mk('img'); i.alt = ''; if (url) i.src = url; else i.style.visibility = 'hidden'; return i; };
+      row.appendChild(logo(h.logo)); row.appendChild(mk('div', 'team home', h.name || ''));
+      if (m.state === 'pre') {
+        var d = new Date(m.start);
+        mid.appendChild(mk('div', 'big pre', (isToday(m.start) ? '' : DAYS[d.getDay()].slice(0, 3) + ' ') + hhmm(d)));
+        mid.appendChild(mk('div', 'small', until(m.start)));
+      } else {
+        mid.appendChild(mk('div', 'big', (h.score || '0') + ' – ' + (a.score || '0')));
+        mid.appendChild(m.state === 'in' ? mk('div', 'small live', 'Live ' + String(m.detail || '').replace(/[^0-9'+:]/g, '')) : mk('div', 'small', 'Full time'));
+      }
+      row.appendChild(mid);
+      row.appendChild(mk('div', 'team', a.name || '')); row.appendChild(logo(a.logo));
+      card.appendChild(row);
+    });
+  }
+  function fillPrayer(card, w) {   // the next prayer large with its countdown; all five below, the next one lit
+    var times = w.times, tomorrow = w.tomorrow, names = w.names, d = new Date();
+    var today = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+    if (today !== w.date && tomorrow) times = tomorrow;   // the day changed since the Mac last fetched
+    var now = hhmm(d), next = null, day = times;
+    for (var i = 0; i < names.length; i++) if (String(times[names[i]]) > now) { next = names[i]; break; }
+    var afterLast = !next;
+    if (afterLast) { next = names[0]; if (tomorrow) day = tomorrow; }
+    var at = String(day[next] || ''), hm = at.split(':'), when = new Date();
+    when.setHours(+hm[0], +hm[1], 0, 0); if (afterLast) when.setDate(when.getDate() + 1);
+    var row = mk('div', 'wnext');
+    row.appendChild(mk('span', 'n', next)); row.appendChild(mk('span', 't', at)); row.appendChild(mk('span', 'c', until(when.getTime())));
+    card.appendChild(row);
+    var strip = mk('div', 'wstrip');
+    names.forEach(function (n) {
+      var col = mk('div', n === next ? 'lit' : '');
+      col.appendChild(mk('div', 'a', n)); col.appendChild(mk('div', 'b', times[n] || ''));
+      strip.appendChild(col);
+    });
+    card.appendChild(strip);
+  }
+  function fillHeadlines(card, w) {   // the top story's picture beside the headlines
+    var row = mk('div', 'wnews'), col = mk('div', 'col');
+    if (w.image) { var img = mk('img'); img.alt = ''; img.src = w.image; row.appendChild(img); }
+    w.items.slice(0, 3).forEach(function (it, i) { col.appendChild(mk('div', i ? 'h2' : 'h1', (it && it.title) || '')); });
+    row.appendChild(col); card.appendChild(row);
   }
 
 
@@ -1080,7 +1307,9 @@
     state.quotes = s.quotes !== false; state.weather = !!s.weather; state.wallpaper = !!s.wallpaper;
     state.region = !!s.region;
     state.liveRefresh = s.live_refresh !== false;
-    quoteDay = -1; showQuote(); loadWeather(); loadWallpaper(); loadRegion(); startRevChecks();
+    quoteDay = -1; loadWallpaper(); loadRegion(); startRevChecks();
+    applyLayout(s.layout);   // places the blocks, then shows the quote and the weather in theirs
+    loadWidgets();
     state.sources = s.sources || [];
     state.browserCfg = s.browser || {};
     document.body.classList.toggle('static', state.static);

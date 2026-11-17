@@ -1171,7 +1171,8 @@ class Handler(SimpleHTTPRequestHandler):
                              "region": vpn_available(), "live_refresh": CONFIG.get("live_refresh", True) is not False,
                              "clock_24h": CONFIG.get("clock_24h", False), "sources": SOURCES.get(),
                              "removed_count": len(APPS.removed()), "takeover": takeover_on(), "browser": BROWSER,
-                             "order_saved": bool(APPS.order())})
+                             "order_saved": bool(APPS.order()),
+                             "layout": CONFIG.get("home_layout") or layout.PRESETS["classic"]})
             return
         if path == "/api/cc":
             self._json(200, chromecast_settings())

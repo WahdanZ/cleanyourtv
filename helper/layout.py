@@ -3,8 +3,8 @@ dock's and the rows' tiles are.
 
 A grid of 12 columns by 6 rows covers the screen above the dock, inside the edges some TVs cut off. Each block has
 a few allowed sizes (so its text always fits) and can be hidden; the top right (columns 7-11, rows 0-1) is kept for
-the buttons and the photo credit. Saved in config.json as "home_layout"; the Chromecast draws it, the admin panel's
-Layout tab edits it. The same presets and sizes are used by both, from here.
+the buttons and the photo credit. Saved in config.json as "home_layout"; the Chromecast and the TV draw it (the TV keeps its
+own dock), the admin panel's Chromecast tab edits it. The same presets and sizes are used by both, from here.
 
 There are three widget blocks. Each shows the widget add-ons picked for it ("addons"; none picked: every widget no
 other block has picked); a four-row one shows two cards stacked.

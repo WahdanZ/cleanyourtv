@@ -2,8 +2,8 @@
 
 Add-ons put more on the home screens: **widgets** (cards on Home), **rows** (a row of pictures that open
 something), **full-screen** pages (opened from a tile) and **quick actions** (a tile that does a few steps).
-They are switched on, set up and ordered in the admin panel (`/admin`, Add-ons tab). The Chromecast shows all
-four kinds; the TV shows the quote and the weather.
+They are added to Home and set up in the admin panel (`/admin`, Chromecast tab). The Chromecast shows all
+four kinds; the TV shows the widgets, the quote and the weather, in the same layout.
 
 Built-in add-ons are here, in `addons/`. Your own go in `data/addons/` (not in git); one with the same id as a
 built-in one replaces it. After adding a folder, press **Reload add-ons** in the admin panel.
