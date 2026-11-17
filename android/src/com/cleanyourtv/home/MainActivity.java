@@ -93,7 +93,7 @@ public class MainActivity extends Activity {
         return true;
     }
     // The Home layout grid (helper/layout.py): 12 x 6 cells of 144 x 104 from (96, 40), above the dock.
-    static final int GX = 96, GY = 40, CW = 144, RH = 104;
+    static final int GX = 96, GY = 54, CW = 144, RH = 104;   // the grid starts 5% from the top (the TV-safe edge)
     static final String[] CC_DOCK = {"com.netflix.ninja", "com.google.android.youtube.tv", "com.amazon.amazonvideo.livingroom", "com.disney.disneyplus"};
 
     final Handler ui = new Handler(Looper.getMainLooper());
@@ -237,6 +237,11 @@ public class MainActivity extends Activity {
     }
 
     TextView text(float px, int weight, int color, float spacingEm, boolean caps) {
+        // TV legibility (10-foot guidelines): no text under 22 px; soft white rather than pure white (less glare);
+        // white text fainter than ~74% raised to it (about 7:1 over the shaded wallpaper).
+        px = Math.max(px, 22);
+        if (color == Color.WHITE) color = 0xFFF2F2F2;
+        else if ((color & 0x00FFFFFF) == 0x00FFFFFF && (color >>> 24) >= 0x4C && (color >>> 24) < 0xBD) color = 0xBDFFFFFF;
         TextView t = new TextView(this);
         t.setTextSize(TypedValue.COMPLEX_UNIT_PX, px);
         t.setTypeface(font(weight));
@@ -502,6 +507,7 @@ public class MainActivity extends Activity {
         lastMinute = -1;   // the next tick draws the clock's style
         greeting.setVisibility(ch >= 2 ? View.VISIBLE : View.GONE);
         clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, ch >= 3 ? 210 : ch == 2 ? 104 : 64);
+        clock.setTypeface(font(ch == 1 ? 400 : 300));   // a light weight only where it is big
         ampm.setTextSize(TypedValue.COMPLEX_UNIT_PX, ch >= 3 ? 44 : ch == 2 ? 30 : 22);
         date.setTextSize(TypedValue.COMPLEX_UNIT_PX, ch >= 3 ? 34 : ch == 2 ? 28 : 22);
         clockDivider.setVisibility(ch >= 3 ? View.GONE : View.VISIBLE);
@@ -519,6 +525,7 @@ public class MainActivity extends Activity {
         boolean small = wx.optInt("h", 2) < 2;
         wxInfo.setVisibility(small ? View.GONE : View.VISIBLE);
         wxTemp.setTextSize(TypedValue.COMPLEX_UNIT_PX, small ? 60 : 88);
+        wxTemp.setTypeface(font(small ? 400 : 300));
         ViewGroup.LayoutParams il = wxIcon.getLayoutParams();
         il.width = il.height = small ? 56 : 76;
         wxIcon.setLayoutParams(il);
@@ -936,7 +943,7 @@ public class MainActivity extends Activity {
             View t = tiles.get(i);
             float s = lift ? 1.16f : on ? (i < pos.size() ? focusScale(pos.get(i)) : 1.1f) : 1f;
             if (t.getScaleX() != s || t.getTranslationY() != (lift ? -14 : 0))
-                t.animate().scaleX(s).scaleY(s).translationY(lift ? -14 : 0).setDuration(280).setInterpolator(new OvershootInterpolator(1.4f)).start();
+                t.animate().scaleX(s).scaleY(s).translationY(lift ? -14 : 0).setDuration(220).setInterpolator(decel).start();
             t.setTranslationZ(on ? 2 : 0);
         }
         for (int i = 0; i < names.size(); i++) {
@@ -947,7 +954,7 @@ public class MainActivity extends Activity {
         boolean inDock = !top && index < dockSize;
         Pos p = index < pos.size() ? pos.get(index) : null;
         int shift = top || inDock || p == null ? 0 : FOCUS_Y - p.y;
-        rail.animate().translationY(-RAIL_TOP + shift).setDuration(500).setInterpolator(decel).start();
+        rail.animate().translationY(-RAIL_TOP + shift).setDuration(300).setInterpolator(decel).start();
         boolean browsing = shift != 0;
         topShade2.animate().alpha(browsing ? 1f : 0f).setDuration(400).start();
         blocksLayer.animate().alpha(browsing ? 0f : 1f).setDuration(browsing ? 200 : 400).start();
@@ -982,7 +989,7 @@ public class MainActivity extends Activity {
             glass.setTranslationX(x); glass.setTranslationY(y);
             glassPlaced = true;
         } else {
-            glass.animate().translationX(x).translationY(y).setDuration(420).setInterpolator(new OvershootInterpolator(.9f)).start();
+            glass.animate().translationX(x).translationY(y).setDuration(280).setInterpolator(decel).start();
         }
         glass.animate().alpha(1f).setDuration(200).start();
     }
@@ -1283,7 +1290,7 @@ public class MainActivity extends Activity {
         eb.setColor(parseColor(w.optString("color"), 0xFF3A3A44));
         emo.setBackground(eb);
         head.addView(emo, new LinearLayout.LayoutParams(38, 38));
-        TextView title = text(21, 500, white(.7), .12f, true);
+        TextView title = text(24, 500, white(.74), .12f, true);
         title.setText(w.optString("title"));
         LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         tl.leftMargin = 14;
@@ -1439,7 +1446,7 @@ public class MainActivity extends Activity {
         TextView nm = text(40, 500, Color.WHITE, 0, false);
         nm.setText(next);
         row.addView(nm);
-        TextView tm = text(40, 300, white(.9), 0, false);
+        TextView tm = text(40, 400, white(.9), 0, false);
         tm.setText("  " + at);
         row.addView(tm);
         TextView cd = text(22, 400, white(.6), 0, false);
@@ -2516,7 +2523,7 @@ public class MainActivity extends Activity {
         }
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        TextView app = text(20, 500, white(.7), .1f, true);
+        TextView app = text(24, 500, white(.74), .1f, true);
         app.setText(p == null ? "♫  Now playing" : (p.optString("state").equals("playing") ? "▶  " : "❚❚  ") + p.optString("name"));
         col.addView(app);
         TextView t = text(small ? 24 : 28, 500, Color.WHITE, 0, false);
@@ -2530,7 +2537,7 @@ public class MainActivity extends Activity {
         }
         npTime = null;
         if (p != null && !small) {
-            npTime = text(20, 400, white(.55), 0, false);
+            npTime = text(24, 400, white(.74), 0, false);
             col.addView(npTime, below(6));
         }
         npBox.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));

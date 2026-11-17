@@ -15,7 +15,7 @@
     --band-pad: 28px; --dock-top: 698px;
   }
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
-  body { font-family: Outfit, OutfitLocal, sans-serif; color: #fff; -webkit-font-smoothing: antialiased; }
+  body { font-family: Outfit, OutfitLocal, sans-serif; color: #f2f2f2; -webkit-font-smoothing: antialiased; }
 
   /* A calm, steady background. Behind the hero only, the focused dock app's icon, blown up from a few pixels
      (a blur at no cost), glows faintly: two layers so one can fade into the next. */
@@ -49,7 +49,7 @@
   .eb.sel { border: 4px solid #fff; box-shadow: 0 0 0 6px rgba(255,255,255,.18); }
   .eb.move { border-color: #4ade80; box-shadow: 0 0 0 6px rgba(74,222,128,.25); }
   .eb.bad { border-color: #ff6b6b; box-shadow: 0 0 0 6px rgba(255,107,107,.25); }
-  .elabel { position: absolute; left: 10px; bottom: -48px; font-size: 22px; font-weight: 500; white-space: nowrap; background: rgba(0,0,0,.75);
+  .elabel { position: absolute; left: 10px; bottom: -48px; font-size: 24px; font-weight: 500; white-space: nowrap; background: rgba(0,0,0,.75);
             padding: 6px 14px; border-radius: 12px; display: none; text-shadow: none; }
   .eb.sel .elabel { display: block; }
   .eb.above .elabel { bottom: auto; top: -50px; }   /* above the block: its content may run past its bottom edge */
@@ -69,11 +69,11 @@
   .npcard { display: flex; align-items: center; gap: 22px; flex: 1; }
   .np-art { width: 192px; height: 108px; object-fit: cover; border-radius: 14px; flex: none; background: rgba(255,255,255,.08); }
   .np-col { flex: 1; min-width: 0; }
-  .np-app { font-size: 20px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .np-app { font-size: 24px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .np-t { margin-top: 8px; font-size: 28px; font-weight: 500; line-height: 1.22; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .np-t.one { -webkit-line-clamp: 1; margin-top: 4px; font-size: 24px; }
-  .np-s { margin-top: 4px; font-size: 22px; color: rgba(255,255,255,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .np-time { margin-top: 6px; font-size: 20px; color: rgba(255,255,255,.55); font-variant-numeric: tabular-nums; }
+  .np-s { margin-top: 4px; font-size: 24px; color: rgba(255,255,255,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .np-time { margin-top: 6px; font-size: 24px; color: rgba(255,255,255,.74); font-variant-numeric: tabular-nums; }
 
   /* Widget cards (add-ons): one per block, or two stacked in a four-row block. */
   .wslot { position: absolute; display: none; flex-direction: column; gap: 16px; transition: opacity .3s ease; }
@@ -81,13 +81,13 @@
            box-sizing: border-box; text-shadow: none; }
   .whead { display: flex; align-items: center; gap: 14px; }
   .wemo { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex: none; }
-  .wtitle { flex: 1; min-width: 0; font-size: 21px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.7);
+  .wtitle { flex: 1; min-width: 0; font-size: 24px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.7);
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .wdot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.28); margin-left: 7px; flex: none; }
   .wdot.on { width: 10px; height: 10px; background: rgba(255,255,255,.9); }
   .wline { margin-top: 8px; font-size: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: rgba(255,255,255,.92); }
   .wline:first-of-type { margin-top: 12px; }
-  .wline .sub { color: rgba(255,255,255,.5); }
+  .wline .sub { color: rgba(255,255,255,.74); }
   .wline .sub.live { color: #ff6b6b; }
   .wmatch { display: flex; align-items: center; margin-top: 10px; }
   .wmatch img { width: 34px; height: 34px; object-fit: contain; flex: none; }
@@ -96,36 +96,37 @@
   .wmatch .mid { width: 150px; text-align: center; flex: none; }
   .wmatch .big { font-size: 28px; font-weight: 600; }
   .wmatch .big.pre { font-size: 24px; font-weight: 500; }
-  .wmatch .small { font-size: 17px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.55); }
+  .wmatch .small { font-size: 22px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.74); }
   .wmatch .small.live { color: #fff; background: #e53935; border-radius: 8px; padding: 2px 10px; display: inline-block; }
   .wnext { margin-top: 10px; display: flex; align-items: baseline; gap: 14px; white-space: nowrap; }
   .wnext .n { font-size: 40px; font-weight: 500; }
-  .wnext .t { font-size: 40px; font-weight: 300; color: rgba(255,255,255,.9); }
-  .wnext .c { font-size: 22px; color: rgba(255,255,255,.6); }
+  .wnext .t { font-size: 40px; font-weight: 400; color: rgba(255,255,255,.9); }
+  .wnext .c { font-size: 26px; color: rgba(255,255,255,.74); }
   .wstrip { margin-top: 10px; display: flex; }
   .wstrip > div { flex: 1; text-align: center; padding: 6px 0 8px; border-radius: 14px; }
   .wstrip > div.lit { background: rgba(255,255,255,.16); }
-  .wstrip .a { font-size: 17px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.5); }
-  .wstrip .b { font-size: 23px; color: rgba(255,255,255,.8); }
+  .wstrip .a { font-size: 22px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.74); }
+  .wstrip .b { font-size: 26px; color: rgba(255,255,255,.8); }
   .wstrip .lit .a, .wstrip .lit .b { color: #fff; }
   .wnews { margin-top: 12px; display: flex; gap: 18px; }
   .wnews img { width: 176px; height: 120px; object-fit: cover; border-radius: 12px; flex: none; background: rgba(255,255,255,.08); margin-top: 4px; }
   .wnews .col { flex: 1; min-width: 0; }
   .wnews .h1 { font-size: 25px; font-weight: 500; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .wnews .h2 { margin-top: 6px; font-size: 22px; color: rgba(255,255,255,.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wnews .h2 { margin-top: 6px; font-size: 24px; color: rgba(255,255,255,.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #wallCredit { position: absolute; right: 112px; top: 150px; z-index: 2; max-width: 680px; text-align: right; font-size: 24px;
-                color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity .3s ease; }
+                color: rgba(255,255,255,.74); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity .3s ease; }
 
   /* Header: greeting, clock and date on the left, pills on the right. */
   #header { position: absolute; left: 112px; right: 112px; top: 52px; display: flex; align-items: center; z-index: 3; }
-  #miniClock { font-size: 44px; font-weight: 300; letter-spacing: -.02em; opacity: 0; transition: opacity .3s ease; white-space: nowrap; }
+  #miniClock { font-size: 44px; font-weight: 400; letter-spacing: -.02em; opacity: 0; transition: opacity .3s ease; white-space: nowrap; }
   body.ingrid #miniClock { opacity: .9; }
   #pills { margin-left: auto; }
-  #blocks { position: absolute; left: 0; top: 0; width: 1920px; height: 680px; z-index: 2; transition: opacity .3s ease; }
+  #blocks { position: absolute; left: 0; top: 0; width: 1920px; height: 690px; z-index: 2; transition: opacity .3s ease; }
   body.ingrid #blocks { opacity: 0; }
   body.wallpaper #blocks { text-shadow: 0 1px 6px rgba(0,0,0,.6); }
   #left { position: absolute; left: 112px; top: 52px; min-width: 0; }
   #left.small #clockRow { align-items: baseline; }
+  #left.small #clock { font-weight: 400; }
   #left.big #clockRow { flex-direction: column; align-items: flex-start; }
   #left.big #divider { display: none; }
   #left.big #date { margin-top: 18px; }
@@ -152,16 +153,16 @@
   .cs-words i { color: #f5b971; }
   .cs-wx { display: inline-flex; align-items: center; gap: .3em; margin-left: .8em; text-transform: none; letter-spacing: 0; }
   .cs-wx svg { width: 1.3em; height: 1.3em; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
-  #greeting { margin-left: 8px; font-size: 24px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: rgba(255,255,255,.55); white-space: nowrap; }
+  #greeting { margin-left: 8px; font-size: 24px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: rgba(255,255,255,.74); white-space: nowrap; }
   #clockRow { display: flex; align-items: flex-end; margin-top: 6px; }
   #clock { font-size: 104px; font-weight: 300; letter-spacing: -.04em; line-height: .86; }
   #ampm { margin: 0 0 6px 12px; font-size: 30px; font-weight: 500; letter-spacing: .08em; color: rgba(255,255,255,.7); text-transform: uppercase; }
   #divider { width: 2px; height: 52px; margin: 0 32px 0 32px; background: rgba(255,255,255,.2); }
-  #date { margin-bottom: 8px; font-size: 28px; font-weight: 400; letter-spacing: .14em; color: rgba(255,255,255,.65); text-transform: uppercase; white-space: nowrap; }
+  #date { margin-bottom: 8px; font-size: 28px; font-weight: 400; letter-spacing: .14em; color: rgba(255,255,255,.74); text-transform: uppercase; white-space: nowrap; }
 
   #pills { display: flex; gap: 16px; margin-bottom: 8px; }
   .pill { height: 72px; padding: 0 28px 0 24px; border-radius: 36px; display: flex; align-items: center; gap: 12px;
-          font-size: 27px; font-weight: 500; color: #fff; box-sizing: border-box;
+          font-size: 27px; font-weight: 500; color: #f2f2f2; box-sizing: border-box;
           background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.08));
           border: 2px solid rgba(255,255,255,.22);
           transition: transform .2s ease, background-color .2s ease; }
@@ -172,7 +173,7 @@
   /* Everything below the header scrolls in one rail; the viewport clips it under the header with a soft fade. */
   #viewport { position: absolute; left: 0; right: 0; top: 230px; bottom: 0; overflow: hidden;
               -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 70px); mask-image: linear-gradient(180deg, transparent 0, #000 70px); }
-  #rail { position: absolute; left: 0; top: -230px; width: 1920px; transition: transform .5s cubic-bezier(.2,.8,.2,1); will-change: transform; }
+  #rail { position: absolute; left: 0; top: -230px; width: 1920px; transition: transform .3s cubic-bezier(.2,.8,.2,1); will-change: transform; }
 
   /* Above the hero: the quote of the day with its author's portrait on the left, the weather on the right. */
   #quote { position: absolute; left: 108px; top: 300px; max-width: 1120px; box-sizing: border-box; display: flex; align-items: center; gap: 34px;
@@ -183,32 +184,32 @@
   #quoteText { font-family: "Playfair Display", Georgia, serif; font-style: italic; font-size: 38px; line-height: 1.3;
                color: rgba(255,255,255,.93); }
   #quoteMeta { margin-top: 12px; display: flex; align-items: baseline; gap: 18px; white-space: nowrap; }
-  #quoteBy { font-size: 24px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.55); }
-  #quoteSrc { font-size: 24px; color: rgba(255,255,255,.3); }
+  #quoteBy { font-size: 24px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.74); }
+  #quoteSrc { font-size: 24px; color: rgba(255,255,255,.74); }
   #weather { position: absolute; right: 103px; top: 296px; text-align: right; transition: opacity .3s ease; box-sizing: border-box; }
   #weather.small #wxInfo { display: none; }
-  #weather.small #wxTemp { font-size: 60px; }
+  #weather.small #wxTemp { font-size: 60px; font-weight: 400; }
   #weather.small #wxIcon { width: 56px; height: 56px; }
   #wxTop { display: flex; align-items: center; justify-content: flex-end; gap: 18px; }
   #wxIcon { width: 76px; height: 76px; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
   #wxTemp { font-size: 88px; font-weight: 300; line-height: 1; letter-spacing: -.03em; }
-  #wxInfo { margin-top: 12px; font-size: 26px; letter-spacing: .04em; color: rgba(255,255,255,.55); white-space: nowrap; }
+  #wxInfo { margin-top: 12px; font-size: 26px; letter-spacing: .04em; color: rgba(255,255,255,.74); white-space: nowrap; }
 
   #hero { position: absolute; left: 108px; top: 476px; transition: opacity .3s ease; }
   #hero.hidden { opacity: 0; }
   #heroName { font-size: 104px; font-weight: 300; letter-spacing: -.02em; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #heroHint { margin: 22px 0 0 6px; font-size: 26px; font-weight: 400; letter-spacing: .04em; color: rgba(255,255,255,.5); white-space: nowrap; }
+  #heroHint { margin: 22px 0 0 6px; font-size: 26px; font-weight: 400; letter-spacing: .04em; color: rgba(255,255,255,.74); white-space: nowrap; }
 
   #band { position: absolute; border-radius: calc(var(--tile-r) + var(--band-pad)); background: rgba(20,20,22,.85);
           border: 2px solid rgba(255,255,255,.12); box-sizing: border-box; }
 
   /* Row titles in the grid ("Free TV", "Streaming & music"…). */
   .section { position: absolute; font-size: 26px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase;
-             color: rgba(255,255,255,.5); white-space: nowrap; }
+             color: rgba(255,255,255,.74); white-space: nowrap; }
 
   .tile { position: absolute; width: var(--tile-w); height: var(--tile-h); border-radius: var(--tile-r); overflow: hidden;
           background: #1c1c1e; display: flex; align-items: center; justify-content: center;
-          transition: transform .28s cubic-bezier(.2,.9,.3,1.2); }
+          transition: transform .22s cubic-bezier(.2,.8,.2,1); }
   .tile { background-size: 100% 100%; }
   /* The square icon's left and right edges fade into the stretched backdrop, so no seam shows. */
   .tile img { height: 100%; width: auto; display: block;
@@ -256,7 +257,7 @@
   #menu.open { opacity: 1; transform: translate(-50%, -50%); }
   #scrim { position: absolute; inset: 0; z-index: 6; background: rgba(0,0,0,.6); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
   #scrim.on { opacity: 1; }
-  #menu .title { padding: 18px 32px 14px; font-size: 26px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.55); }
+  #menu .title { padding: 18px 32px 14px; font-size: 26px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.74); }
   #menu .row { height: 84px; padding: 0 32px; border-radius: 28px; display: flex; align-items: center;
                font-size: 32px; color: rgba(255,255,255,.88); transition: background-color .15s ease; }
   #menu .row.focus { background: rgba(255,255,255,.96); color: #111; }
@@ -265,7 +266,7 @@
   #browser { position: absolute; inset: 0; z-index: 8; opacity: 0; pointer-events: none; transition: opacity .22s ease;
              background: radial-gradient(circle 1300px at 22% 18%, rgba(251,84,43,.2), rgba(251,84,43,0) 70%), #060607; }
   #browser.open { opacity: 1; }
-  #browser .label { position: absolute; font-size: 26px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.55); }
+  #browser .label { position: absolute; font-size: 26px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.74); }
   #field { position: absolute; left: 160px; top: 120px; width: 1600px; height: 112px; padding: 0 48px; border-radius: 56px; box-sizing: border-box;
            display: flex; align-items: center; gap: 28px; font-size: 44px; white-space: nowrap; overflow: hidden;
            background: rgba(255,255,255,.1); border: 2px solid rgba(255,255,255,.25); }
@@ -287,19 +288,19 @@
   #links .chip { height: 80px; padding: 0 34px; border-radius: 40px; display: flex; align-items: center; font-size: 30px; font-weight: 500;
                  background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.07)); border: 2px solid rgba(255,255,255,.2); }
   #links .chip.focus { background: rgba(255,255,255,.96); color: #111; border-color: transparent; transform: scale(1.06); }
-  #browser .hint { position: absolute; left: 160px; top: 1000px; font-size: 24px; color: rgba(255,255,255,.45); }
+  #browser .hint { position: absolute; left: 160px; top: 1000px; font-size: 24px; color: rgba(255,255,255,.74); }
 
   /* The QR button: the admin panel's address for a phone, as a QR code. */
   #adminBox { position: absolute; left: 50%; top: 50%; width: 1180px; padding: 48px 56px; border-radius: 40px; z-index: 7;
               background: linear-gradient(180deg, #2a2a2e, #161618); border: 2px solid rgba(255,255,255,.2); box-sizing: border-box;
               display: none; transform: translate(-50%, -50%); text-align: center; }
   #adminBox.open { display: block; }
-  #adminBox .title { font-size: 26px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.55); }
+  #adminBox .title { font-size: 26px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.74); }
   #adminBox canvas { display: block; margin: 0 auto 14px; border-radius: 18px; }
   #adminBox .qrs { display: flex; justify-content: center; gap: 40px; margin: 28px 0 22px; }
   #adminBox .qrs div { text-align: center; font-size: 28px; font-weight: 500; }
   #adminBox .url { font-size: 34px; font-weight: 500; }
-  #adminBox .hint2 { margin-top: 14px; font-size: 26px; color: rgba(255,255,255,.55); }
+  #adminBox .hint2 { margin-top: 14px; font-size: 26px; color: rgba(255,255,255,.74); }
 
   #toast { position: absolute; left: 50%; bottom: 60px; transform: translate(-50%, 20px); padding: 22px 40px; border-radius: 40px;
            background: rgba(30,30,34,.92); border: 2px solid rgba(255,255,255,.15); font-size: 28px; opacity: 0;
@@ -454,7 +455,7 @@
     var h = d.getHours(), m = d.getMinutes(), mm = ('0' + m).slice(-2);
     var hh = state.clock24 ? ('0' + h).slice(-2) : String((h % 12) || 12), ap = state.clock24 ? '' : (h < 12 ? 'am' : 'pm');
     var day = DAYS[d.getDay()], month = MONTHS[d.getMonth()];
-    var px = function (n) { return Math.round(n * k) + 'px'; };
+    var px = function (n) { var v = Math.round(n * k); if (n <= 40) v = Math.max(v, 24); return v + 'px'; };   // labels: never under 24 px
     var html = '';
     if (style === 'bold') {
       html = '<div class="cs-bold" style="font-size:' + px(124) + '">' + hh + ':' + mm + (ap ? '<span class="cs-ap" style="font-size:' + px(30) + '">' + ap + '</span>' : '') + '</div>' +
@@ -573,7 +574,7 @@
 
   // ---------- the Home layout: where the clock, quote, weather, app name and widget cards sit above the dock ----------
   // The admin panel's layout (the same as the Chromecast's): a 12 x 6 grid from (96, 40), cells 144 x 104.
-  var GX = 96, GY = 40, CW = 144, RH = 104;
+  var GX = 96, GY = 54, CW = 144, RH = 104;   // the grid starts 5% from the top (the TV-safe edge)
   var CLASSIC = { blocks: { clock: { x: 0, y: 0, w: 6, h: 2, on: true }, quote: { x: 0, y: 2, w: 8, h: 2, on: true },
                             weather: { x: 9, y: 2, w: 3, h: 2, on: true }, hero: { x: 0, y: 4, w: 7, h: 2, on: true },
                             widgets: { x: 8, y: 4, w: 4, h: 2, on: true } } };
@@ -597,8 +598,8 @@
     $('greeting').style.display = c.h >= 2 ? '' : 'none';
     $('greeting').style.fontSize = (c.h >= 3 ? 30 : 24) + 'px';
     $('clock').style.fontSize = (c.h >= 3 ? 210 : c.h === 2 ? 104 : 64) + 'px';
-    $('ampm').style.fontSize = (c.h >= 3 ? 44 : c.h === 2 ? 30 : 22) + 'px';
-    $('date').style.fontSize = (c.h >= 3 ? 34 : c.h === 2 ? 28 : 22) + 'px';
+    $('ampm').style.fontSize = (c.h >= 3 ? 44 : c.h === 2 ? 30 : 24) + 'px';
+    $('date').style.fontSize = (c.h >= 3 ? 34 : c.h === 2 ? 28 : 24) + 'px';
     // Quote: as wide as its block.
     var q = get('quote'), qb = $('quote');
     blockOn.quote = q.on !== false;
@@ -1107,9 +1108,9 @@
     backFront = next;
   }
 
-  // ---------- glass highlight on a spring (stiffness 260, damping ratio 0.58, as the launcher) ----------
+  // ---------- glass highlight on a spring: stiff and critically damped, so it arrives in about 0.3 s without overshooting ----------
   var spring = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, running: false, placed: false, last: 0 };
-  var K = 260, C = 2 * 0.58 * Math.sqrt(K);
+  var K = 420, C = 2 * 1.0 * Math.sqrt(K);
   function glassTo(i) {
     var p = pos[i], gw = p.w * 1.1 + 24, gh = p.h * 1.1 + 24;
     spring.tx = p.x + p.w / 2 - gw / 2;

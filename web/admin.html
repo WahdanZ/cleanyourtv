@@ -1040,7 +1040,7 @@
   $('delay').oninput = function () { var n = parseInt(this.value, 10); if (n >= 0 && n <= 30) { draft.power_on_delay_seconds = n; dirty(); } };
   // ---------- the Chromecast studio: its Home drawn as it looks today; tap anything on it to change it ----------
   // The same numbers as the Chromecast app: the grid starts at (96, 40) on a 1920 x 1080 screen, cells 144 x 104.
-  var GX = 96, GY = 40, CW = 144, RH = 104, SW = 1920, SH = 1080;
+  var GX = 96, GY = 54, CW = 144, RH = 104, SW = 1920, SH = 1080;   // the grid starts 5% from the top, as on the screens
   var sel = { kind: 'none' };   // what the side panel shows: none | block | dock | wall | addon | addons
   var SD = 'cc';                // the screen the studio edits: 'cc' (Chromecast) or 'tv'; the layout and widgets are shared
   function showStudio(dev) {

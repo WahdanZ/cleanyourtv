@@ -50,6 +50,9 @@ PRESETS = {
     "dashboard": {"name": "Dashboard", "blocks": {
         "clock": _b(0, 0, 3, 1), "weather": _b(3, 0, 2, 1), "widgets": _b(0, 2, 5, 4), "widgets2": _b(7, 2, 5, 4),
         "quote": _b(0, 2, 8, 2, False), "hero": _b(0, 4, 7, 2, False)}},
+    "calm": {"name": "Calm", "blocks": {   # little on screen: the clock, the weather and one widget card
+        "clock": _b(0, 1, 6, 2), "weather": _b(9, 2, 3, 2), "widgets": _b(8, 4, 4, 2),
+        "quote": _b(0, 4, 6, 2, False), "hero": _b(0, 4, 7, 2, False)}},
     "photo-frame": {"name": "Photo frame", "blocks": {
         "clock": _b(0, 0, 3, 1), "weather": _b(3, 0, 2, 1), "quote": _b(0, 2, 8, 2, False),
         "widgets": _b(8, 4, 4, 2, False), "hero": _b(0, 4, 7, 2, False)}},
