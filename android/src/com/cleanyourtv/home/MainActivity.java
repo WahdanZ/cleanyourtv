@@ -182,6 +182,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         resumed = true;
+        AdbKeeper.watch(this);
         ui.post(tick);
         if (quoteEach) { quoteDay = -1; showQuote(); }   // back on Home: the next quote
         if (area.equals("screen") && screenKind.equals("slideshow")) ui.postDelayed(slideNext, 4000);

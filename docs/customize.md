@@ -104,6 +104,18 @@ In the admin panel (best as an app on your phone's Home screen, see [setup/helpe
   direction and its pointer keeps moving that way until you lift your finger, like holding the remote's arrow
   (`chromecast.trackpad_arrow_apps` in `config.json` lists these apps).
 - **Now playing** (the ♫ button): what's playing on the Chromecast, with play/pause, back and forward.
+  **Controls in my phone's notifications** puts the same in the phone's notifications and lock screen (the page plays
+  a silent sound to get them, so music playing on the phone pauses; tap the button again to remove them). Best on
+  Android in Chrome; on an iPhone, in Safari with the page left open.
+- **Phone shortcuts** (Settings): a secret link per button (TV on/off, Chromecast wake/sleep, play/pause, volume,
+  open an app, VPN country) for the phone's Lock Screen, Control Center or widgets, without opening the panel. On an
+  iPhone: a Shortcut with *Get Contents of URL*; on Android: the HTTP Shortcuts app. The panel shows the steps, a
+  **Try** button and **New links** (the old ones stop working). They work at home only. *TV: turn on* uses Wake-on-LAN
+  (turn on *Wake on LAN / Wi-Fi* in the TV's network settings).
+  The phone's own volume buttons can't be used: a web page never gets them (with Now playing in the notifications,
+  they change the phone's volume). Use the panel's volume buttons or the volume shortcuts.
+- **Messages** show at the bottom of the screen: grey for news, red for errors (with **Reconnect** when the
+  Chromecast's link dropped).
 - **QR codes** on Home (the **Admin** pill, top right): point your phone at one to open the panel, the remote or the
   player, no typing.
 

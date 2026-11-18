@@ -52,6 +52,16 @@
   .row:first-child { border-top: 0; }
   .row .grow { flex: 1; min-width: 0; }
   .row small, .hint { color: var(--muted); font-size: 13px; display: block; }
+  .qk .row { flex-wrap: wrap; }
+  .qk .row .btn { padding: 8px 12px; min-height: 38px; font-size: 14px; }
+  .qk select { max-width: 100%; }
+  .qk .row.pickrow > .grow { flex-basis: 100%; }
+  .qk .pick { display: flex; gap: 8px; flex: 1 1 220px; min-width: 0; }
+  .qk .pick select { flex: 1; min-width: 0; }
+  .qk details { padding: 4px 16px 14px; border-top: 1px solid var(--line); }
+  .qk summary { cursor: pointer; padding: 12px 0 6px; font-weight: 600; }
+  .qk ol { margin: 6px 0 0; padding-left: 20px; color: var(--text); font-size: 14px; line-height: 1.5; }
+  .qk code { font-size: 12px; word-break: break-all; }
   .hint { margin: 8px 4px 0; }
   input[type=text], input[type=number], input[type=password], input[type=search], input[type=url], select {
     font: inherit; color: var(--text); background: var(--soft); border: 1px solid var(--line); border-radius: 10px;
@@ -131,6 +141,26 @@
   .toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 60; padding: 12px 18px; border-radius: 12px;
            background: var(--text); color: var(--bg); font-size: 15px; max-width: calc(100% - 32px); display: none; }
   .toast.open { display: block; }
+  /* errors: a snackbar at the bottom, until closed or 10 s, with Reconnect when the Chromecast link dropped */
+  .snack { position: fixed; left: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 70; max-width: 460px;
+           width: calc(100% - 36px); display: flex; align-items: center; gap: 10px; padding: 12px 10px 12px 14px;
+           border-radius: 12px; background: #2b1717; color: #fff; border-left: 4px solid var(--bad);
+           box-shadow: 0 8px 28px rgba(0,0,0,.35); font-size: 15px; line-height: 1.35;
+           transform: translateY(calc(100% + 40px)); opacity: 0; transition: transform .22s ease, opacity .22s ease; pointer-events: none; }
+  .snack.open { transform: none; opacity: 1; pointer-events: auto; }
+  .snack .ic { flex: none; color: #ff8a8a; font-size: 18px; }
+  .snack.info { background: #26272b; border-left-color: var(--accent); }
+  .snack.info .ic { display: none; }
+  .snack .msg { flex: 1; min-width: 0; }
+  .snack button { flex: none; font: inherit; font-weight: 700; border: 0; background: none; cursor: pointer; padding: 8px 10px;
+                  border-radius: 8px; color: #8fb3ff; }
+  .snack button.x { color: #ffffffb0; font-weight: 400; padding: 8px; }
+  .snack button:disabled { opacity: .5; }
+  body.unsaved .snack { bottom: calc(92px + env(safe-area-inset-bottom)); }
+  @media (max-width: 900px) {
+    .snack { left: 12px; width: calc(100% - 24px); bottom: calc(74px + env(safe-area-inset-bottom)); }
+    body.unsaved .snack { bottom: calc(140px + env(safe-area-inset-bottom)); }
+  }
   .login { max-width: 380px; margin: 12vh auto 0; }
   .login h1 { margin-bottom: 6px; }
   .login p { color: var(--muted); margin: 0 0 18px; }
@@ -498,6 +528,10 @@
   .ctl.main { width: 80px; height: 80px; background: var(--text); color: var(--bg); }
   .remote .ctl.main svg { width: 36px; height: 36px; }
   .pl-vol { display: flex; justify-content: center; gap: 36px; margin: 8px 0 6px; }
+  .pl-notif { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 10px 0 2px; padding: 11px 14px;
+              border-radius: 12px; border: 1px solid var(--line); background: none; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
+  .pl-notif svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .pl-notif.on { border-color: var(--accent); color: var(--accent); }
   .vol { border: 0; background: none; color: var(--muted); width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center;
          justify-content: center; cursor: pointer; touch-action: manipulation; }
   .remote .vol svg { width: 24px; height: 24px; }
@@ -685,6 +719,7 @@
           <button class="vol" data-k="mute" aria-label="Mute"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM17 9l4 6M21 9l-4 6"/></svg></button>
           <button class="vol" data-k="volup" data-repeat aria-label="Volume up"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM17 12h4M19 10v4"/></svg></button>
         </div>
+        <button class="pl-notif" id="npNotif" data-only="cc"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><span id="npNotifTx">Controls in my phone's notifications</span></button>
       </div>
     </div>
     <button class="fab" id="rmFab" aria-label="Remote"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="2.2"/><path d="M10 13h4M10 16h4"/></svg></button>
@@ -760,6 +795,10 @@
         <div class="row"><div class="grow">Sign out of this device</div><button class="btn danger" id="logout">Sign out</button></div>
       </div>
       <p class="hint">Every save keeps a copy of the previous settings (data/config-backups, the last 20).</p>
+      <h2>Phone shortcuts</h2>
+      <p class="hint" style="margin:0 4px 10px">A link per button, for your phone's lock screen, Control Center or widgets: opening it does the
+        action, without this panel. They work at home (on the Wi-Fi). Anyone with a link can press that button, so keep them to yourself.</p>
+      <div class="card qk" id="quick"></div>
     </div>
   </section>
 </div>
@@ -768,7 +807,7 @@
   <button class="btn" id="discard">Discard</button><button class="btn primary" id="save">Save</button></div></div>
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet"></div>
-<div class="toast" id="toast"></div>
+<div class="snack" id="snack" role="alert"><span class="ic">⚠</span><span class="msg" id="snackMsg"></span><button id="snackAct" hidden></button><button class="x" id="snackX" aria-label="Close">✕</button></div>
 
 <script>
 (function () {
@@ -795,11 +834,32 @@
       });
     });
   }
-  var toastTimer;
+  // Every message: a snackbar at the bottom, where a thumb is (toast: news, grey; snack: errors, red).
   function toast(msg, ms) {
-    $('toast').textContent = msg; $('toast').classList.add('open');
-    clearTimeout(toastTimer); toastTimer = setTimeout(function () { $('toast').classList.remove('open'); }, ms || 3500);
+    var act = $('snackAct');
+    $('snackMsg').textContent = msg; act.hidden = true;
+    $('snack').classList.add('info'); $('snack').classList.add('open');
+    clearTimeout(snackTimer); snackTimer = setTimeout(closeSnack, Math.max(ms || 0, 4000));
   }
+  // Errors: a snackbar at the bottom. One about the Chromecast's link gets a Reconnect button.
+  var snackTimer;
+  function snack(msg, ms) {
+    msg = String(msg || 'Something went wrong.');
+    var act = $('snackAct'), link = /chromecast/i.test(msg) && /connect|wireless debugging|pair|reach/i.test(msg);
+    $('snackMsg').textContent = msg;
+    act.hidden = !link; act.disabled = false; act.textContent = 'Reconnect';
+    act.onclick = function () {
+      act.disabled = true; act.textContent = 'Connecting…';
+      api('/api/admin/cc-connect', {}).then(function (r) {
+        if (r && r.ok) { closeSnack(); toast('The Chromecast is connected again.'); if (typeof rmShowStatus === 'function') rmShowStatus(); }
+        else snack((r && r.error) || 'Still not connected.');
+      }, function (e) { snack(e.message); });
+    };
+    $('snack').classList.remove('info'); $('snack').classList.add('open');
+    clearTimeout(snackTimer); snackTimer = setTimeout(closeSnack, ms || (link ? 15000 : 10000));
+  }
+  function closeSnack() { clearTimeout(snackTimer); $('snack').classList.remove('open'); }
+  $('snackX').onclick = closeSnack;
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
@@ -862,7 +922,7 @@
       if (first) first.click();
     }
   }
-  function renderAll() { renderLayout(); renderStatus(); renderVpn(); renderEditor('tv'); renderEditor('cc'); renderAddons(); renderHome(); renderWall(); renderSystem(); }
+  function renderAll() { renderLayout(); renderStatus(); renderVpn(); renderEditor('tv'); renderEditor('cc'); renderAddons(); renderHome(); renderWall(); renderSystem(); renderQuick(); }
 
   function regionName(id) {
     var r = (S.regions || []).filter(function (x) { return x.id === id; })[0];
@@ -916,7 +976,7 @@
     api('/api/region', { region: r.id }).then(function (res) {
       if (!res.ok) throw new Error(res.error || 'no answer');
       return api('/api/admin/state').then(function (s) { S.region = s.region; S.vpn_server = s.vpn_server; });
-    }).then(function () { toast(r.name + ': done.'); }, function (e) { toast('Could not switch: ' + e.message, 6000); })
+    }).then(function () { toast(r.name + ': done.'); }, function (e) { snack('Could not switch: ' + e.message); })
       .then(function () { renderVpn(); renderStatus(); });
   }
 
@@ -1963,7 +2023,7 @@
             b.onclick = function () { set({ city: p.city, lat: p.lat, lon: p.lon }); line.textContent = p.city; results.innerHTML = ''; q.value = ''; };
             results.appendChild(b);
           });
-        }, function (e) { toast('Search failed: ' + e.message); });
+        }, function (e) { snack('Search failed: ' + e.message); });
       };
       go.onclick = find; q.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); find(); } };
       row.appendChild(q); row.appendChild(go);
@@ -2008,7 +2068,7 @@
         rf.onclick = function () {
           rf.disabled = true;
           api('/api/admin/addon-refresh', { id: id }).then(function (r) { S.addons = r.addons; renderAddons(); renderInspector(); toast(a.name + ': refreshed.'); },
-                                                        function (e) { toast(e.message); rf.disabled = false; });
+                                                        function (e) { snack(e.message); rf.disabled = false; });
         };
         st.appendChild(rf); body.appendChild(st);
       }
@@ -2095,7 +2155,7 @@
   $('wallNext').onclick = function () {
     var b = this; b.disabled = true; toast('Getting another photo…', 60000);
     api('/api/admin/wallpaper-next', {}).then(function (r) { S.wallpaper.now = r.now; renderWall(); drawCanvas(); toast('New photo. Home shows it the next time it opens.'); },
-      function (e) { toast('No other photo: ' + e.message, 6000); renderWall(); });
+      function (e) { snack('No other photo: ' + e.message); renderWall(); });
   };
   $('wallFile').onchange = function () {
     var files = Array.prototype.slice.call(this.files || []); this.value = '';
@@ -2107,7 +2167,7 @@
             headers: { 'X-CYT': '1', 'Content-Type': f.type || 'application/octet-stream' }, body: f })
         .then(function (r) { return r.json(); })
         .then(function (j) { if (!j.ok) throw new Error(j.error || 'failed'); S.wallpaper.own.push(j.name); S.wallpaper.own.sort(); done++; renderWall(); },
-              function (e) { toast(f.name + ': ' + e.message, 5000); })
+              function (e) { snack(f.name + ': ' + e.message); })
         .then(next);
     };
     next();
@@ -2197,6 +2257,98 @@
     if (lastDrag && lastDrag.suppressClick && e.target.closest && e.target.closest('.app')) { e.stopPropagation(); e.preventDefault(); }
   }, true);
 
+  // ---------- phone shortcuts: a secret link per action (the helper's /q/<secret>/<action>) ----------
+  function copyText(t) {
+    var done = function () { toast('Link copied. Paste it into the shortcut.'); };
+    if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(t).then(done, function () { copyOld(t) && done(); }); return; }
+    if (copyOld(t)) done(); else snack('Couldn\'t copy: press and hold the link to copy it.');
+  }
+  function copyOld(t) {   // the panel is plain http at home, where the clipboard API isn't offered
+    var a = document.createElement('textarea'); a.value = t; a.setAttribute('readonly', ''); a.style.position = 'fixed'; a.style.opacity = '0';
+    document.body.appendChild(a); a.focus(); a.select(); a.setSelectionRange(0, t.length);
+    var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+    a.remove(); return ok;
+  }
+  function quickTry(action) {
+    fetch(S.quick_base + encodeURIComponent(action)).then(function (r) { return r.text().then(function (t) { (r.ok ? toast : snack)(t); }); },
+      function () { snack('The helper didn\'t answer.'); });
+  }
+  function renderQuick() {
+    var box = $('quick'); if (!box || !S.quick_base) return;
+    box.innerHTML = '';
+    var row = function (label, action, sub) {
+      var r = el('div', 'row'), g = el('div', 'grow', label);
+      if (sub) g.appendChild(el('small', '', sub));
+      var c = el('button', 'btn', 'Copy link'), t = el('button', 'btn', 'Try');
+      c.onclick = function () { copyText(S.quick_base + encodeURIComponent(typeof action === 'function' ? action() : action)); };
+      t.onclick = function () { quickTry(typeof action === 'function' ? action() : action); };
+      r.appendChild(g); r.appendChild(c); r.appendChild(t); box.appendChild(r); return r;
+    };
+    var D = S.devices || {};
+    if (D.tv) {
+      row('TV: turn on', 'tv-on', 'Over Wake-on-LAN: on the TV, turn on Settings > Network > Wake on LAN / Wi-Fi');
+      row('TV: turn off', 'tv-off');
+      row('TV: Home', 'tv-home'); row('TV: play / pause', 'tv-play');
+      row('TV: volume up', 'tv-volup'); row('TV: volume down', 'tv-voldown'); row('TV: mute', 'tv-mute');
+    }
+    if (D.cc) {
+      row('Chromecast: wake', 'cc-wake', 'The TV usually turns on and switches to it');
+      row('Chromecast: sleep', 'cc-power');
+      row('Chromecast: Home', 'cc-home'); row('Chromecast: play / pause', 'cc-play'); row('Chromecast: next', 'cc-next');
+      row('Chromecast: volume up', 'cc-volup'); row('Chromecast: volume down', 'cc-voldown');
+    }
+    // open an app
+    var devs = [D.tv && 'tv', D.cc && 'cc'].filter(Boolean);
+    if (devs.length) {
+      var r = el('div', 'row pickrow'), pick = el('div', 'pick'), dsel = el('select'), asel = el('select');
+      devs.forEach(function (d) { var o = el('option', '', d === 'tv' ? 'TV' : 'Chromecast'); o.value = d; dsel.appendChild(o); });
+      var fill = function () {
+        asel.innerHTML = ''; var d = dsel.value, dock = lay(d).dock || [];
+        appsOf(d).filter(function (a) { return a.id.indexOf('addon:') !== 0; }).sort(function (a, b) {
+          var da = dock.indexOf(a.id), db = dock.indexOf(b.id);
+          if (da >= 0 || db >= 0) return (da < 0 ? 99 : da) - (db < 0 ? 99 : db);
+          return displayName(d, a.id).localeCompare(displayName(d, b.id));
+        }).forEach(function (a) { var o = el('option', '', displayName(d, a.id)); o.value = a.id; asel.appendChild(o); });
+      };
+      dsel.onchange = fill; fill();
+      var g = el('div', 'grow', 'Open an app'); r.appendChild(g);
+      pick.appendChild(dsel); pick.appendChild(asel); r.appendChild(pick);
+      var act = function () { return dsel.value + '-open-' + asel.value; };
+      var c = el('button', 'btn', 'Copy link'), t = el('button', 'btn', 'Try');
+      c.onclick = function () { copyText(S.quick_base + encodeURIComponent(act())); };
+      t.onclick = function () { quickTry(act()); };
+      r.appendChild(c); r.appendChild(t); box.appendChild(r);
+    }
+    if (D.vpn && (S.regions || []).length) {
+      var vr = el('div', 'row pickrow'), vp = el('div', 'pick'), vsel = el('select');
+      S.regions.forEach(function (x) { var o = el('option', '', x.name); o.value = x.id; vsel.appendChild(o); });
+      vr.appendChild(el('div', 'grow', 'VPN country')); vp.appendChild(vsel); vr.appendChild(vp);
+      var vc = el('button', 'btn', 'Copy link'), vt = el('button', 'btn', 'Try');
+      vc.onclick = function () { copyText(S.quick_base + 'vpn-' + vsel.value); };
+      vt.onclick = function () { toast('Switching the VPN… (up to 20 seconds)', 20000); quickTry('vpn-' + vsel.value); };
+      vr.appendChild(vc); vr.appendChild(vt); box.appendChild(vr);
+    }
+    var how = el('details');
+    how.innerHTML = '<summary>Put them on your phone</summary>' +
+      '<b>iPhone</b><ol><li>Copy a link here.</li><li>Shortcuts app &gt; <b>+</b> &gt; Add Action &gt; <b>Get Contents of URL</b>; paste the link. ' +
+      'Add <b>Show Result</b> after it to see what happened. Name the shortcut (e.g. "TV off").</li>' +
+      '<li>Lock Screen: touch and hold it &gt; Customize &gt; Lock Screen &gt; tap the button at the bottom left or right (or + in the controls row) &gt; <b>Shortcut</b> &gt; pick yours. ' +
+      'Control Center: swipe down &gt; + &gt; Add a Control &gt; Shortcut. Home Screen: add a Shortcuts widget. (iOS 18 for Lock Screen and Control Center.)</li></ol>' +
+      '<b>Android</b><ol><li>Install <b>HTTP Shortcuts</b> (free, Play Store).</li><li>+ &gt; Regular shortcut; paste the link as the URL (method GET); ' +
+      'name it. Response handling: show it as a toast.</li><li>Home Screen: hold the shortcut &gt; Place on home screen, or add an HTTP Shortcuts widget. ' +
+      'Quick Settings: edit the tiles and drag in an HTTP Shortcuts tile, then pick the shortcut.</li></ol>';
+    box.appendChild(how);
+    var nr = el('div', 'row'), ng = el('div', 'grow', 'New secret');
+    ng.appendChild(el('small', '', 'Makes new links: every old one stops working (for a lost phone).'));
+    var nb = el('button', 'btn danger', 'New links');
+    nb.onclick = function () {
+      if (!confirm('Make new links? Every shortcut you already made stops working until you paste its new link.')) return;
+      api('/api/admin/quick-new', {}).then(function (r) { S.quick_base = r.quick_base; renderQuick(); toast('New links made. The old ones no longer work.'); },
+        function (e) { snack(e.message); });
+    };
+    nr.appendChild(ng); nr.appendChild(nb); box.appendChild(nr);
+  }
+
   // ---------- system ----------
   function renderSystem() {
     var box = $('sysStatus'); box.innerHTML = '';
@@ -2211,7 +2363,7 @@
       var act = b.getAttribute('data-act');
       api('/api/admin/action', { do: act }).then(function () {
         if (act === 'restart') waitForHelper('Restarted.'); else toast('Opening Home on the TV…');
-      }, function (e) { toast(e.message); });
+      }, function (e) { snack(e.message); });
     };
   });
   $('logout').onclick = function () { api('/api/admin/logout', {}).then(function () { showLogin(true); }); };
@@ -2222,8 +2374,8 @@
   function sendKey(dev, key, text) {
     if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
     return api('/api/admin/remote', text != null ? { device: dev, text: text } : { device: dev, key: key })
-      .then(function (r) { if (r && r.ok === false) toast(r.error || 'It didn\'t take it.'); return r; },
-            function (e) { toast(e.message, 5000); });
+      .then(function (r) { if (r && r.ok === false) snack(r.error || 'It didn\'t take it.'); return r; },
+            function (e) { snack(e.message); });
   }
   // Now playing (Chromecast): what its media sessions say; the time ticks along here between checks.
   var np = { timer: 0, tick: 0, pos: 0, at: 0, playing: false };
@@ -2246,6 +2398,7 @@
     if (!S || !S.cc_ip) return;
     api('/api/admin/now-playing').then(function (r) {
       var card = $('npCard'), p = r && r.playing;
+      mnPaint(r && r.ok ? (p || null) : undefined);
       if (r && r.ok && (lastNp === undefined || JSON.stringify(lastNp) !== JSON.stringify(p || null))) { lastNp = p || null; drawCanvas(); }
       $('npFab').classList.toggle('live', !!(p && p.state === 'playing'));
       paintMainNp(r);
@@ -2278,6 +2431,7 @@
       if (rmDev === 'tv') t = st.tv.on === true ? 'The TV is on.' : st.tv.on === false ? 'The TV looks off: it may not answer until it\'s on.' : 'Can\'t tell whether the TV is on.';
       else t = !st.cc.linked ? st.cc.why : st.cc.awake ? 'The Chromecast is on.' : 'The Chromecast is asleep: Wake turns it on (the TV may switch to it).';
       $('rmStatus').textContent = t;
+      if (rmDev === 'cc' && !st.cc.linked && st.cc.why) snack(st.cc.why);
     }, function () { $('rmStatus').textContent = ''; });
   }
   Array.prototype.forEach.call(document.querySelectorAll('#rmSwitch button'), function (b) {
@@ -2319,8 +2473,8 @@
     var where = rmDev === 'tv' ? 'the TV' : 'the Chromecast';
     toast('Opening ' + label + ' on ' + where + '…', 6000);
     api('/api/admin/launch', Object.assign({ device: rmDev }, what)).then(function (r) {
-      if (r && r.ok === false) toast(r.error || 'It didn\'t open.', 6000); else toast(label + ' is opening on ' + where + '.');
-    }, function (e) { toast(e.message, 6000); });
+      if (r && r.ok === false) snack(r.error || 'It didn\'t open.'); else toast(label + ' is opening on ' + where + '.');
+    }, function (e) { snack(e.message); });
   }
   $('rmFind').oninput = renderRmApps;
   $('rmUrlGo').onclick = function () {
@@ -2348,9 +2502,9 @@
           : 'Drag: move the pointer<br>Tap: click · Hold: long press<br>Two fingers (or the mouse wheel): scroll';
         tp.classList.toggle('arrows', r.mode === 'arrows');
       }
-      if (r && r.ok === false) { if (!pad.told) { pad.told = true; toast(r.error || 'The pointer did not answer.', 7000); setTimeout(function () { pad.told = false; }, 8000); } return; }
+      if (r && r.ok === false) { if (!pad.told) { pad.told = true; snack(r.error || 'The pointer did not answer.'); setTimeout(function () { pad.told = false; }, 8000); } return; }
       padFlush();
-    }, function (e) { pad.busy = false; toast(e.message, 5000); });
+    }, function (e) { pad.busy = false; snack(e.message); });
   }
   var tp = $('tpad');
   tp.addEventListener('pointerdown', function (e) {
@@ -2559,6 +2713,70 @@
     head.addEventListener('pointerup', end);
     head.addEventListener('pointercancel', end);
   });
+  // ---------- Now playing in the phone's notifications (and lock screen) ----------
+  // A web page gets media controls there only while it plays sound itself: so a silent loop plays here, and the
+  // controls (play/pause, previous, next) go to the Chromecast. Browsers start sound only after a tap, so it starts
+  // from the button, or from the first tap on the page when it was on last time. It takes the phone's audio focus
+  // like any player does (music playing on the phone pauses).
+  var mn = { on: false, audio: null, want: false, poll: 0 };
+  try { mn.want = localStorage.getItem('cyt-np-notif') === '1'; } catch (e) {}
+  function silentWav(sec) {
+    var rate = 8000, n = rate * sec, b = new ArrayBuffer(44 + n), v = new DataView(b), i;
+    function str(o, t) { for (var k = 0; k < t.length; k++) v.setUint8(o + k, t.charCodeAt(k)); }
+    str(0, 'RIFF'); v.setUint32(4, 36 + n, true); str(8, 'WAVE'); str(12, 'fmt '); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate, true);
+    v.setUint16(32, 1, true); v.setUint16(34, 8, true); str(36, 'data'); v.setUint32(40, n, true);
+    for (i = 0; i < n; i++) v.setUint8(44 + i, 128);
+    return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+  }
+  function mnKey(k) { return function () { sendKey('cc', k); setTimeout(npRefresh, 900); }; }
+  function mnButton() {
+    $('npNotif').classList.toggle('on', mn.on);
+    $('npNotifTx').textContent = mn.on ? 'In your notifications: tap to remove' : 'Controls in my phone\'s notifications';
+  }
+  function mnStart(quiet) {
+    if (!('mediaSession' in navigator)) { if (!quiet) snack('This browser can\'t put controls in the notifications.'); return; }
+    if (!mn.audio) { mn.audio = new Audio(silentWav(10)); mn.audio.loop = true; }
+    mn.audio.play().then(function () {
+      mn.on = true; mn.want = true;
+      try { localStorage.setItem('cyt-np-notif', '1'); } catch (e) {}
+      var ms = navigator.mediaSession, set = function (a, f) { try { ms.setActionHandler(a, f); } catch (e) {} };
+      set('play', mnKey('play')); set('pause', mnKey('play'));
+      set('previoustrack', mnKey('prev')); set('nexttrack', mnKey('next'));   // no seek ones: iPhones then show ±10 s instead
+      set('stop', function () { mnStop(); });
+      clearInterval(mn.poll); mn.poll = setInterval(function () { if (document.hidden) npRefresh(); }, 8000);
+      mnButton(); npRefresh();
+      if (!quiet) toast('Now playing is in your notifications and on the lock screen.');
+    }, function () { if (!quiet) snack('The phone didn\'t let the page play: tap the button again.'); });
+  }
+  function mnStop() {
+    mn.on = false; mn.want = false; clearInterval(mn.poll);
+    try { localStorage.setItem('cyt-np-notif', '0'); } catch (e) {}
+    if (mn.audio) mn.audio.pause();
+    try { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; } catch (e) {}
+    mnButton();
+  }
+  // p: what's playing; null: nothing; undefined: couldn't tell (keep what's shown)
+  function mnPaint(p) {
+    if (!mn.on || p === undefined) return;
+    var ms = navigator.mediaSession;
+    try {
+      if (!p) { ms.metadata = new MediaMetadata({ title: 'Nothing is playing', artist: 'Chromecast' }); ms.playbackState = 'paused'; return; }
+      var art = new URL(p.icon, location.href).href;
+      if (!ms.metadata || ms.metadata.title !== (p.title || p.name) || ms.metadata.artist !== (p.subtitle || p.name))
+        ms.metadata = new MediaMetadata({ title: p.title || p.name, artist: p.subtitle || p.name, album: p.name + ' · Chromecast',
+                                          artwork: [{ src: art, sizes: '192x192' }, { src: art, sizes: '512x512' }] });
+      ms.playbackState = p.state === 'playing' ? 'playing' : 'paused';
+    } catch (e) {}
+  }
+  $('npNotif').onclick = function () { if (mn.on) { mnStop(); toast('Removed from the notifications.'); } else mnStart(false); };
+  // On last time: back on with the first tap (a browser plays sound only after one).
+  document.addEventListener('pointerdown', function first() {
+    if (!S) return;   // still signing in: the next tap
+    document.removeEventListener('pointerdown', first, true);
+    if (mn.want && !mn.on && S.cc_ip) mnStart(true);
+  }, true);
+
   // In the background, a look every 20 s whether the Chromecast is playing: the player's button shows it.
   setInterval(function () { if (!document.hidden && S && !document.body.classList.contains('remote-open')) npRefresh(); }, 20000);
 
@@ -2623,7 +2841,7 @@
       var where = draft.live_refresh ? 'Saved. On the screens in a few seconds.' : 'Saved. The TV and Chromecast show it the next time Home opens.';
       if (r && r.live) load().then(function () { toast(where, 4000); });   // applied without a restart
       else waitForHelper(where);
-    }, function (e) { toast('Not saved: ' + e.message, 6000); }).then(function () { $('save').disabled = false; });
+    }, function (e) { snack('Not saved: ' + e.message); }).then(function () { $('save').disabled = false; });
   };
   // The helper restarts after a save; wait for it to answer again, then reload what it has.
   function waitForHelper(msg) {
@@ -2633,7 +2851,7 @@
       tries++;
       fetch('/api/admin/hello', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.json(); })
         .then(function (h) { if (Date.now() - t0 < 1500) throw 0; return load().then(function () { toast(msg, 5000); }); })
-        .catch(function () { if (tries < 30) setTimeout(poll, 1000); else toast('The helper did not come back. Check its computer.', 8000); });
+        .catch(function () { if (tries < 30) setTimeout(poll, 1000); else snack('The helper did not come back. Check its computer.', 20000); });
     };
     var t0 = Date.now();
     setTimeout(poll, 2000);
@@ -2646,7 +2864,7 @@
   fetch('/api/admin/hello', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (h) {
     pageCode = h.code || 0;
     if (h.signed_in) load(); else showLogin(h.password_set);
-  }, function () { toast('Cannot reach the helper.', 10000); });
+  }, function () { snack('Cannot reach the helper: is its computer on?', 20000); });
   // A panel left open (or kept as an app on a phone) picks up a new version of itself: reloads when nothing is unsaved.
   function checkCode() {
     if (document.hidden || !pageCode) return;

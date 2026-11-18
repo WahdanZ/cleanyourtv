@@ -33,6 +33,11 @@ Put its address in `config.json`:
 "chromecast": { "ip": "192.168.1.60" }
 ```
 
+Leave Wireless debugging on: the remote, the trackpad, Now playing and *Real screen* use it. Android turns it off
+after a restart or a Wi-Fi drop, and it gets a new port each time; the launcher turns it back on by itself (the
+helper gives it the permission for that over adb, once), and the helper finds the new port and connects again. If
+it still drops, the admin panel shows the error at the bottom with a **Reconnect** button.
+
 Give it a fixed address so this stays right (in the router, or on the Chromecast: *Network & Internet >* your
 Wi-Fi *> IP settings*). Then pair once and connect:
 
@@ -92,7 +97,10 @@ weather, widgets and the photo update again when the helper is back.
 ## Troubleshooting
 
 - **`build.sh install` says the Chromecast is not connected:** `android/cc.sh connect`. Wireless debugging turns
-  itself off after a Wi-Fi change or a restart of the Chromecast; turn it on again.
+  itself off after a Wi-Fi change or a restart of the Chromecast; the launcher turns it back on once the helper has
+  been connected to it one time. If it is still off, turn it on again by hand.
+- **The remote says it can't find Wireless debugging:** it is off on the Chromecast (*Settings > System > Developer
+  options > Wireless debugging*). Turn it on, then press **Reconnect** in the panel.
 - **Pairing works but connect fails on a Mac:** run the commands from Terminal, not from an editor's built-in
   terminal (macOS's Local Network permission).
 - **The Home button still opens Google TV:** `android/cc.sh home` again; a Google TV update may have reset it.

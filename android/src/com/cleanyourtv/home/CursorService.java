@@ -66,6 +66,7 @@ public class CursorService extends AccessibilityService {
         try { wm.addView(pointer, lp); } catch (Exception ignored) { }
         running = true;
         new Thread(this::serve, "trackpad").start();
+        AdbKeeper.watch(this);   // this service starts at boot: switch Wireless debugging back on
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) { }
@@ -156,7 +157,7 @@ public class CursorService extends AccessibilityService {
         x = Math.max(0, Math.min(screenW - 1, x + dx));
         y = Math.max(0, Math.min(screenH - 1, y + dy));
         show();
-        lp.x = Math.round(x); lp.y = Math.round(y);
+        lp.x = Math.round(x - Arrow.TIP_X); lp.y = Math.round(y - Arrow.TIP_Y);   // the tip is where it clicks
         try { wm.updateViewLayout(pointer, lp); } catch (Exception ignored) { }
     }
 
@@ -179,23 +180,28 @@ public class CursorService extends AccessibilityService {
         dispatchGesture(g, null, null);
     }
 
-    /** The pointer: a white arrow with a dark edge and a soft shadow, its tip at the top left corner. */
+    /** The pointer: a dark arrow with a white edge and a soft shadow (like a Mac's), seen on light and dark screens. */
     static final class Arrow extends View {
-        static final int W = 44, H = 56;
-        final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG), edge = new Paint(Paint.ANTI_ALIAS_FLAG);
+        static final float K = 0.7f;                          // size on a 1920x1080 screen
+        static final int W = Math.round(46 * K), H = Math.round(58 * K);
+        static final float TIP_X = 6 * K, TIP_Y = 5 * K;      // where the tip is in the view
+        final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG), fill = new Paint(Paint.ANTI_ALIAS_FLAG);
         final Path shape = new Path();
         Arrow(Context c) {
             super(c);
-            fill.setColor(Color.WHITE);
-            fill.setShadowLayer(6, 0, 2, 0x99000000);
-            edge.setColor(0xFF111111);
-            edge.setStyle(Paint.Style.STROKE);
-            edge.setStrokeWidth(3);
+            float[] pts = {0, 0, 0, 37, 9.5f, 28.5f, 15.5f, 42.5f, 22, 39.7f, 16, 26, 29, 26};   // tip at 0,0
+            shape.moveTo(TIP_X + pts[0] * K, TIP_Y + pts[1] * K);
+            for (int i = 2; i < pts.length; i += 2) shape.lineTo(TIP_X + pts[i] * K, TIP_Y + pts[i + 1] * K);
+            shape.close();
+            edge.setColor(Color.WHITE);                       // the white edge, with the shadow under all of it
+            edge.setStyle(Paint.Style.FILL_AND_STROKE);
+            edge.setStrokeWidth(3.5f * K);
             edge.setStrokeJoin(Paint.Join.ROUND);
-            shape.moveTo(3, 3); shape.lineTo(3, 42); shape.lineTo(13, 32); shape.lineTo(21, 50);
-            shape.lineTo(29, 46); shape.lineTo(21, 29); shape.lineTo(35, 29); shape.close();
-            setLayerType(LAYER_TYPE_SOFTWARE, null);   // for the shadow
+            edge.setShadowLayer(3.5f * K, 0, 1.5f * K, 0x80000000);
+            fill.setColor(0xFF141414);
+            fill.setStyle(Paint.Style.FILL);
+            setLayerType(LAYER_TYPE_SOFTWARE, null);          // for the shadow
         }
-        @Override protected void onDraw(Canvas c) { c.drawPath(shape, fill); c.drawPath(shape, edge); }
+        @Override protected void onDraw(Canvas c) { c.drawPath(shape, edge); c.drawPath(shape, fill); }
     }
 }

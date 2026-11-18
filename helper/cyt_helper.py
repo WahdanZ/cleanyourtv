@@ -763,6 +763,38 @@ COUNTRY_NAMES = {"us": "USA", "gb": "UK", "ca": "Canada", "eg": "Egypt", "ae": "
                  "ch": "Switzerland", "sa": "Saudi Arabia", "tr": "Turkey", "in": "India", "br": "Brazil"}
 VPN_COUNTRIES = [str(c).lower() for c in CONFIG.get("vpn_countries", ["us", "gb"]) if len(str(c)) == 2 and str(c).isalpha()]
 VPN_HOME_NAME = CONFIG.get("vpn_home_name", "Home")
+# Every country NordVPN has servers in (about 150), so the admin panel can offer them all, not just the short list
+# above. Kept in data/ so it works offline; refreshed from Nord's public API once a week in the background. The short
+# names above (USA, UK, UAE...) win over Nord's long ones.
+NORD_COUNTRIES = DATA / "nord-countries.json"
+_SHORT_NAMES = dict(COUNTRY_NAMES)
+
+
+def _merge_country_names(names: dict):
+    clean = {str(k).lower(): str(v)[:40] for k, v in names.items()
+             if len(str(k)) == 2 and str(k).isalpha() and str(v).strip()}
+    COUNTRY_NAMES.update({**clean, **_SHORT_NAMES})   # same dict object: /api/state and admin see it at once
+
+
+def _refresh_nord_countries():
+    try:
+        with urllib.request.urlopen("https://api.nordvpn.com/v1/servers/countries", timeout=20) as r:
+            names = {c["code"]: c["name"] for c in json.load(r)}
+        if len(names) < 20:
+            raise ValueError(f"only {len(names)} countries")
+        NORD_COUNTRIES.write_text(json.dumps(names, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+        _merge_country_names(names)
+        log(f"vpn: {len(names)} NordVPN countries loaded")
+    except Exception as e:   # offline, or Nord changed its API: keep the saved or built-in list
+        log(f"vpn: could not refresh NordVPN countries ({e})")
+
+
+try:
+    _merge_country_names(json.loads(NORD_COUNTRIES.read_text(encoding="utf-8")))
+except (OSError, ValueError):
+    pass
+if not NORD_COUNTRIES.exists() or time.time() - NORD_COUNTRIES.stat().st_mtime > 7 * 86400:
+    threading.Thread(target=_refresh_nord_countries, daemon=True).start()
 
 
 STARTED = int(time.time())
@@ -975,7 +1007,8 @@ def admin_state() -> dict:
             "cc": cc, "cc_ip": CC_IPS and sorted(CC_IPS)[0] or "", "regions": regions() if vpn_available() else [],
             "region": now, "vpn_server": server if now not in (None, "off") else "", "country_names": COUNTRY_NAMES,
             "tv_on": HOME_WATCH.up, "started": STARTED,
-            "devices": {"tv": VIDAA, "cc": bool(CC_IPS), "vpn": vpn_available()}, "addons": ADDONS.status(), "addons_broken": ADDONS.broken,
+            "devices": {"tv": VIDAA, "cc": bool(CC_IPS), "vpn": vpn_available()}, "quick_base": quick_base(),
+            "addons": ADDONS.status(), "addons_broken": ADDONS.broken,
             "layout_spec": layout.spec(), "preview": layout_preview(),
             "wallpaper": {"now": wallpaper_meta(), "sources": WALLPAPER_SOURCES, "own": own_wallpapers(),
                           "active": {"source": WALLPAPER_SOURCE, "market": WALLPAPER_MARKET, "pick": WALLPAPER_PICK}}}
@@ -1024,18 +1057,83 @@ def _adb() -> str | None:
     return None
 
 
-def _cc_serial() -> tuple[str | None, str | None, str]:
-    """(adb, the Chromecast's debugging serial, why not): the link the screenshot and the remote use."""
+_cc_link = {"lock": threading.Lock(), "tried": 0.0, "why": ""}
+
+
+def _cc_find_serial(adb: str, ips: list) -> str | None:
+    out = subprocess.run([adb, "devices"], capture_output=True, text=True, timeout=10).stdout
+    return next((ln.split()[0] for ln in out.splitlines()[1:]
+                 if ln.split()[-1:] == ["device"] and any(ln.startswith(ip + ":") for ip in ips)), None)
+
+
+def _cc_reconnect(adb: str, ips: list, force: bool = False) -> str:
+    """Wireless debugging gets a new port after the Chromecast restarts or the Wi-Fi drops, and adb loses it.
+    Find the new port over mDNS (as android/cc.sh connect does) and connect again. At most once every 20 seconds,
+    unless forced (the panel's Reconnect button). Answers why it failed, or ""."""
+    with _cc_link["lock"]:
+        if not force and time.time() - _cc_link["tried"] < 20:
+            return _cc_link["why"] or "The Chromecast isn't connected."
+        _cc_link["tried"] = time.time()
+        why = ""
+        try:
+            subprocess.run([adb, "start-server"], capture_output=True, timeout=15)
+            listed = subprocess.run([adb, "devices"], capture_output=True, text=True, timeout=10).stdout
+            for ln in listed.splitlines()[1:]:   # the old port, left "offline"
+                w = ln.split()
+                if len(w) == 2 and w[1] in ("offline", "unauthorized") and any(w[0].startswith(ip + ":") for ip in ips):
+                    subprocess.run([adb, "disconnect", w[0]], capture_output=True, timeout=10)
+            tries = 4 if force else 2   # mDNS needs a moment after adb's server starts
+            for attempt in range(tries):
+                found = subprocess.run([adb, "mdns", "services"], capture_output=True, text=True, timeout=10).stdout
+                addr = next((w for ln in found.splitlines() if "_adb-tls-connect" in ln for w in ln.split()
+                             if any(w.startswith(ip + ":") for ip in ips)), None)
+                if addr:
+                    r = subprocess.run([adb, "connect", addr], capture_output=True, text=True, timeout=12)
+                    log(f"chromecast: adb connect {addr}: {(r.stdout + r.stderr).strip()[:120]}")
+                    if _cc_find_serial(adb, ips):
+                        why = ""
+                        break
+                    why = "The Chromecast refused the connection: pair it again (android/cc.sh pair)."
+                else:
+                    why = ("Can't find the Chromecast's Wireless debugging. On the Chromecast: Settings > System > "
+                           "Developer options > Wireless debugging: on.")
+                if attempt < tries - 1:
+                    time.sleep(1.5)
+        except Exception as e:
+            why = f"Couldn't reconnect to the Chromecast: {e}"
+        _cc_link["why"] = why
+        return why
+
+
+def _cc_serial(force: bool = False) -> tuple[str | None, str | None, str]:
+    """(adb, the Chromecast's debugging serial, why not): the link the screenshot and the remote use.
+    Reconnects by itself when adb lost it."""
     adb = _adb()
     if not adb:
         return None, None, "adb isn't installed on this computer."
-    out = subprocess.run([adb, "devices"], capture_output=True, text=True, timeout=10).stdout
     ips = [CC_IPS] if isinstance(CC_IPS, str) else list(CC_IPS or [])
-    serial = next((ln.split()[0] for ln in out.splitlines()[1:]
-                   if ln.split()[-1:] == ["device"] and any(ln.startswith(ip + ":") for ip in ips)), None)
+    serial = None if force else _cc_find_serial(adb, ips)
     if not serial:
-        return adb, None, "The Chromecast isn't connected: run android/cc.sh connect."
+        why = _cc_reconnect(adb, ips, force)
+        serial = _cc_find_serial(adb, ips)
+        if not serial:
+            return adb, None, why or "The Chromecast isn't connected."
+    if not _cc_link.get("kept"):
+        _cc_link["kept"] = True
+        threading.Thread(target=_cc_keep_debugging, args=(adb, serial), daemon=True).start()
     return adb, serial, ""
+
+
+def _cc_keep_debugging(adb: str, serial: str) -> None:
+    """Let the launcher switch Wireless debugging back on by itself after a restart or a Wi-Fi drop (AdbKeeper).
+    Android turns it off then, and only adb can grant this permission. Once per helper run; harmless when granted."""
+    try:
+        r = subprocess.run([adb, "-s", serial, "shell", "pm", "grant", "com.cleanyourtv.home",
+                            "android.permission.WRITE_SECURE_SETTINGS"], capture_output=True, text=True, timeout=15)
+        out = (r.stdout + r.stderr).strip()
+        log("chromecast: keep Wireless debugging on: " + (out[:120] or "granted"))
+    except Exception as e:
+        log(f"chromecast: keep Wireless debugging on: {e}")
 
 
 # ---------- the remote (admin panel): the TV's keys over its remote channel, the Chromecast's over its debugging link ----------
@@ -1435,6 +1533,124 @@ def remote_status() -> dict:
     return out
 
 
+# ---------- phone shortcuts: one secret link per action, for the phone's lock screen, Control Center or widgets ----------
+# GET http://<helper>:8765/q/<secret>/<action>  (an iPhone Shortcut's "Get Contents of URL", Android's HTTP Shortcuts).
+# Only from home (this computer's network, like the admin panel); the secret is the whole sign-in, so the panel can
+# make a new one, which stops the old links.
+QUICK_KEYS = {"tv": ("power", "home", "mute", "volup", "voldown", "play", "back", "input"),
+              "cc": ("wake", "power", "home", "play", "next", "prev", "mute", "volup", "voldown", "back")}
+
+
+def quick_token(new: bool = False) -> str:
+    f = DATA / "quick-token"
+    if not new:
+        try:
+            t = f.read_text().strip()
+            if len(t) >= 16:
+                return t
+        except OSError:
+            pass
+    import secrets
+    DATA.mkdir(exist_ok=True)
+    t = secrets.token_urlsafe(18)
+    f.write_text(t)
+    try:
+        f.chmod(0o600)
+    except OSError:
+        pass
+    return t
+
+
+def quick_base() -> str:
+    return f"http://{own_ip()}:{CONFIG.get('port', 8765)}/q/{quick_token()}/"
+
+
+def _tv_mac() -> str:
+    """The TV's network card, for Wake-on-LAN: "tv_mac" in config.json, or what this computer saw while it was on."""
+    mac = str(CONFIG.get("tv_mac", "")).strip().lower()
+    f = DATA / "tv-mac"
+    if not mac:
+        try:
+            out = subprocess.run(["/usr/sbin/arp", "-n", tv_host()], capture_output=True, text=True, timeout=5).stdout
+            m = re.search(r"(([0-9a-f]{1,2}[:-]){5}[0-9a-f]{1,2})", out, re.I)
+            if m:
+                mac = ":".join(x.zfill(2) for x in re.split(r"[:-]", m.group(1).lower()))
+                f.write_text(mac)
+        except Exception:
+            pass
+    if not mac:
+        try:
+            mac = f.read_text().strip()
+        except OSError:
+            pass
+    return mac
+
+
+def tv_wake() -> str:
+    """Wake-on-LAN for the TV (it needs *Wake on LAN/Wi-Fi* on in its network settings). Answers why not, or ""."""
+    mac = _tv_mac()
+    if not re.fullmatch(r"([0-9a-f]{2}:){5}[0-9a-f]{2}", mac or ""):
+        return "Don't know the TV's network address yet: turn it on once with its remote while the helper runs."
+    packet = b"\xff" * 6 + bytes.fromhex(mac.replace(":", "")) * 16
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as so:
+        so.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        for to in ("255.255.255.255", own_ip().rsplit(".", 1)[0] + ".255", tv_host()):
+            for port in (9, 7):
+                try:
+                    so.sendto(packet, (to, port))
+                except OSError:
+                    pass
+    return ""
+
+
+def quick_action(action: str) -> dict:
+    """What a phone shortcut asked for: tv-<key>, tv-on, tv-off, cc-<key>, tv-open-<app>, cc-open-<app>, vpn-<country>."""
+    dev, _, rest = action.partition("-")
+    if dev == "vpn":
+        if not vpn_available() or rest not in [r["id"] for r in regions()]:
+            return {"ok": False, "error": "No such VPN country here."}
+        _auto_vpn["prev"] = None   # a choice by hand: no app switches it back
+        if region_now() != rest:
+            region_set(rest)
+        return {"ok": True, "said": "VPN: " + next(r["name"] for r in regions() if r["id"] == rest)}
+    if dev == "tv" and not VIDAA or dev == "cc" and not CC_IPS or dev not in ("tv", "cc"):
+        return {"ok": False, "error": "No such device here."}
+    name = "the TV" if dev == "tv" else "the Chromecast"
+    if rest.startswith("open-"):
+        app = rest[5:]
+        r = remote_open(dev, app_id=app)
+        label = app
+        try:
+            if dev == "cc":
+                label = (CHROMECAST.get("rename") or {}).get(app) or \
+                    next((a.get("name") for a in ADMIN.cc_apps().get("apps", []) if a.get("id") == app), app)
+            else:
+                label = (APPS.get(app) or {}).get("name", app)
+        except Exception:
+            pass
+        return r if r.get("ok") is False else {"ok": True, "said": f"Opening {label} on {name}."}
+    if dev == "tv" and rest == "on":
+        if HOME_WATCH.up:
+            _tv_mac()   # learnt while it's on, for waking it later
+            return {"ok": True, "said": "The TV is already on."}
+        why = tv_wake()
+        return {"ok": not why, "said": "Waking the TV…", "error": why}
+    if dev == "tv" and rest == "off":
+        if HOME_WATCH.up is False:
+            return {"ok": True, "said": "The TV is already off."}
+        _tv_mac()   # learnt while it's on, for "tv-on"
+        remote_press("tv", "power")
+        return {"ok": True, "said": "The TV is turning off."}
+    if rest not in QUICK_KEYS[dev]:
+        return {"ok": False, "error": "No such button."}
+    r = remote_press(dev, rest)
+    said = {"wake": "Waking the Chromecast.", "power": "The Chromecast is going to sleep." if dev == "cc" else "Power on the TV.",
+            "home": f"Home on {name}.", "play": f"Play / pause on {name}.", "next": "Next.", "prev": "Previous.",
+            "mute": f"Mute on {name}.", "volup": f"Volume up on {name}.", "voldown": f"Volume down on {name}.",
+            "back": f"Back on {name}.", "input": "Input on the TV."}.get(rest, "Done.")
+    return r if r.get("ok") is False else {"ok": True, "said": said}
+
+
 def cc_screenshot() -> tuple[bytes | None, str]:
     """A picture of the Chromecast's screen right now, over wireless debugging. Never wakes it."""
     adb = _adb()
@@ -1688,6 +1904,9 @@ class Handler(SimpleHTTPRequestHandler):
         if ip in CC_IPS and (path in CC_PATHS or path.startswith("/fonts/") or path.startswith("/api/addons/")
                              or path.startswith("/api/cc-icon/")):
             return True
+        # A phone shortcut's link: from home only; it carries its own secret (checked in do_GET).
+        if path.startswith("/q/") and (ip == "127.0.0.1" or ip.rsplit(".", 1)[0] == own_ip().rsplit(".", 1)[0]):
+            return True
         # A phone or computer at home may use the VPN page and its switch, and nothing else.
         if urlsplit(self.path).path in ("/vpn", "/api/region") and ip.rsplit(".", 1)[0] == own_ip().rsplit(".", 1)[0]:
             return True
@@ -1714,6 +1933,27 @@ class Handler(SimpleHTTPRequestHandler):
         if not self._allowed():
             return
         path = urlsplit(self.path).path
+        if path.startswith("/q/"):
+            from urllib.parse import unquote
+            import hmac
+            _, _, tok, *act = path.split("/", 3)
+            if not hmac.compare_digest(tok.encode(), quick_token().encode()) or not act:
+                self.send_error(403)
+                return
+            action = unquote(act[0]).strip("/")
+            try:
+                r = quick_action(action)
+            except Exception as e:
+                r = {"ok": False, "error": str(e) or "It didn't work."}
+            log(f"shortcut {action}: {r.get('said') or r.get('error')}")
+            # Plain text: a Shortcut can show it as it is.
+            body = ((r.get("said") or "Done.") if r.get("ok") else ("Didn't work: " + (r.get("error") or "?"))).encode()
+            self.send_response(200 if r.get("ok") else 502)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if path == "/api/state":
             threading.Thread(target=APPS.refresh_if_stale, daemon=True).start()
             self._json(200, {"apps": APPS.for_launcher(), "dock_size": len(CONFIG.get("dock", [])),
@@ -2041,6 +2281,15 @@ class Handler(SimpleHTTPRequestHandler):
                 self._json(400, {"ok": False, "error": str(e)})
             except (ConnectionError, OSError, subprocess.TimeoutExpired) as e:
                 self._json(502, {"ok": False, "error": "Couldn't reach it: " + str(e)})
+        elif path == "/api/admin/quick-new":
+            quick_token(new=True)
+            self._json(200, {"ok": True, "quick_base": quick_base()})
+        elif path == "/api/admin/cc-connect":
+            if not CC_IPS:
+                self._json(400, {"ok": False, "error": "No Chromecast in config.json."})
+            else:
+                _, serial, why = _cc_serial(force=True)
+                self._json(200, {"ok": bool(serial), "error": why})
         elif path == "/api/admin/pointer":
             try:
                 self._json(200, pointer_send(data.get("ops") or []))

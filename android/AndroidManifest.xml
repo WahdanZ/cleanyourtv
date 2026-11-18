@@ -6,6 +6,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- To list the installed TV apps for the tiles. -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <!-- To switch Wireless debugging back on after a restart or a Wi-Fi drop (AdbKeeper). Only works once the
+         helper grants it over adb; it can't be granted any other way. -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
