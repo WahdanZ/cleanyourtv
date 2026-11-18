@@ -226,6 +226,9 @@ cp config.example.json config.json      # set tv_name to the TV's network name
 python helper/cyt_helper.py
 ```
 
+Optional: `python -m pip install cryptography` adds a secure (https) address for the admin panel and phone
+notifications ([setup/helper.md](docs/setup/helper.md#4-the-admin-panel)).
+
 On first run Windows asks whether to allow Python on the network: allow it, or the TV can't reach the helper. Open `http://localhost:8765/` in a browser: you should see the launcher with your TV's apps. `python tools/tile.py list` prints the app ids for the config:
 
 | Config key | What it is |

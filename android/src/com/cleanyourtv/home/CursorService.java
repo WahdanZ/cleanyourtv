@@ -14,9 +14,26 @@ import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
+import android.content.Intent;
+import android.media.AudioManager;
+import android.net.Uri;
+import android.os.PowerManager;
+import android.os.SystemClock;
+
+import android.content.ComponentName;
+import android.graphics.Bitmap;
+import android.media.MediaMetadata;
+import android.media.session.MediaController;
+import android.media.session.MediaSessionManager;
+import android.media.session.PlaybackState;
+import android.util.Base64;
 
 import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.util.List;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -33,6 +50,10 @@ import java.net.Socket;
  * Then one command per line:  m dx dy  (move)   p  (where is it: answers "pos x y")   h  (hide);
  * and  c  (click)   l  (long press)   s dx dy  (scroll) as accessibility gestures, which Google TV ignores: there the
  * helper asks "p" and taps over adb instead.
+ * Without adb (Wireless debugging off) the remote comes here too:  k <key>  (arrows, ok, back, home, volume, media,
+ * wake, power)   o <package>  (open an app)   u <address>  (open a web address).
+ * Now playing (with MediaWatch allowed):  np  answers "np {json}" (app, title, length, position…)
+ * art  answers "art <base64 jpeg>" (or "art -")   seek <ms>  jumps there.
  * It does nothing else: no events are read, nothing is collected.
  */
 public class CursorService extends AccessibilityService {
@@ -128,6 +149,8 @@ public class CursorService extends AccessibilityService {
                     sock.getOutputStream().write(("pos " + Math.round(x) + " " + Math.round(y) + "\n").getBytes());
                     continue;
                 }
+                if (p[0].equals("np")) { sock.getOutputStream().write(("np " + nowPlaying() + "\n").getBytes("UTF-8")); continue; }
+                if (p[0].equals("art")) { sock.getOutputStream().write(("art " + art() + "\n").getBytes()); continue; }
                 ui.post(() -> run(p));
             }
         } catch (Exception ignored) { }
@@ -142,7 +165,153 @@ public class CursorService extends AccessibilityService {
             case "l": show(); tap(true); break;
             case "s": show(); scroll(num(p, 1), num(p, 2)); break;
             case "h": hide.run(); break;
+            case "k": if (p.length > 1) key(p[1]); break;
+            case "o": if (p.length > 1) open(p[1]); break;
+            case "u": if (p.length > 1) openUrl(p[1]); break;
+            case "seek": { MediaController m = top(); if (m != null) m.getTransportControls().seekTo((long) num(p, 1)); break; }
             default: break;
+        }
+    }
+
+    /** A remote key without adb: the arrows, OK, Back and Home as accessibility actions (Android 13+), the rest
+     *  through the audio service and the media session in front. */
+    void key(String k) {
+        int ga = -1;
+        switch (k) {
+            case "up": ga = GLOBAL_ACTION_DPAD_UP; break;
+            case "down": ga = GLOBAL_ACTION_DPAD_DOWN; break;
+            case "left": ga = GLOBAL_ACTION_DPAD_LEFT; break;
+            case "right": ga = GLOBAL_ACTION_DPAD_RIGHT; break;
+            case "ok": ga = GLOBAL_ACTION_DPAD_CENTER; break;
+            case "back": ga = GLOBAL_ACTION_BACK; break;
+            case "home": ga = GLOBAL_ACTION_HOME; break;
+            case "power": ga = GLOBAL_ACTION_LOCK_SCREEN; break;
+            default: break;
+        }
+        if (ga >= 0) { performGlobalAction(ga); return; }
+        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        // As the remote's volume key does (FLAG_FROM_KEY, hidden): only then does Android pass it on to the TV over
+        // HDMI-CEC, where the Chromecast's own volume is fixed at full.
+        int vf = AudioManager.FLAG_SHOW_UI | 0x1000;
+        switch (k) {
+            case "volup": am.adjustSuggestedStreamVolume(AudioManager.ADJUST_RAISE, AudioManager.USE_DEFAULT_STREAM_TYPE, vf); break;
+            case "voldown": am.adjustSuggestedStreamVolume(AudioManager.ADJUST_LOWER, AudioManager.USE_DEFAULT_STREAM_TYPE, vf); break;
+            case "mute": am.adjustSuggestedStreamVolume(AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.USE_DEFAULT_STREAM_TYPE, vf); break;
+            case "play": case "pause": media(am, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE); break;
+            case "next": media(am, KeyEvent.KEYCODE_MEDIA_NEXT); break;
+            case "prev": media(am, KeyEvent.KEYCODE_MEDIA_PREVIOUS); break;
+            case "rew": media(am, KeyEvent.KEYCODE_MEDIA_REWIND); break;
+            case "ff": media(am, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD); break;
+            case "stop": media(am, KeyEvent.KEYCODE_MEDIA_STOP); break;
+            case "wake": wake(); break;
+            default: break;
+        }
+    }
+
+    void media(AudioManager am, int code) {
+        long t = SystemClock.uptimeMillis();
+        am.dispatchMediaKeyEvent(new KeyEvent(t, t, KeyEvent.ACTION_DOWN, code, 0));
+        am.dispatchMediaKeyEvent(new KeyEvent(t, t, KeyEvent.ACTION_UP, code, 0));
+    }
+
+    @SuppressWarnings("deprecation")
+    void wake() {
+        try {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            PowerManager.WakeLock w = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "cyt:wake");
+            w.acquire(3000);
+        } catch (Exception ignored) { }
+    }
+
+    void open(String pkg) {
+        try {
+            Intent i = getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
+            if (i == null) i = getPackageManager().getLaunchIntentForPackage(pkg);
+            if (i == null) return;
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+            startActivity(i);
+        } catch (Exception ignored) { }
+    }
+
+    void openUrl(String url) {
+        try {
+            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+        } catch (Exception ignored) { }
+    }
+
+    /** The media session in front: the first one playing, else the first one paused. */
+    MediaController top() {
+        try {
+            MediaSessionManager msm = (MediaSessionManager) getSystemService(Context.MEDIA_SESSION_SERVICE);
+            List<MediaController> all = msm.getActiveSessions(new ComponentName(this, MediaWatch.class));
+            MediaController paused = null;
+            for (MediaController m : all) {
+                PlaybackState st = m.getPlaybackState();
+                if (st == null) continue;
+                if (st.getState() == PlaybackState.STATE_PLAYING) return m;
+                if (paused == null && st.getState() == PlaybackState.STATE_PAUSED) paused = m;
+            }
+            return paused;
+        } catch (SecurityException e) {
+            return null;
+        }
+    }
+
+    String nowPlaying() {
+        JSONObject o = new JSONObject();
+        try {
+            MediaSessionManager msm = (MediaSessionManager) getSystemService(Context.MEDIA_SESSION_SERVICE);
+            msm.getActiveSessions(new ComponentName(this, MediaWatch.class));
+        } catch (SecurityException e) {
+            try { o.put("error", "no access"); } catch (Exception ignored) { }
+            return o.toString();
+        } catch (Exception ignored) { }
+        try {
+            MediaController m = top();
+            if (m == null) return o.put("playing", false).toString();
+            PlaybackState st = m.getPlaybackState();
+            MediaMetadata md = m.getMetadata();
+            boolean playing = st.getState() == PlaybackState.STATE_PLAYING;
+            long pos = st.getPosition();
+            if (playing && st.getLastPositionUpdateTime() > 0)
+                pos += (long) ((SystemClock.elapsedRealtime() - st.getLastPositionUpdateTime()) * st.getPlaybackSpeed());
+            o.put("playing", true).put("app", m.getPackageName()).put("state", playing ? "playing" : "paused")
+             .put("position", Math.max(0, pos));
+            if (md != null) {
+                String title = md.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE);
+                if (title == null) title = md.getString(MediaMetadata.METADATA_KEY_TITLE);
+                String sub = md.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE);
+                if (sub == null) sub = md.getString(MediaMetadata.METADATA_KEY_ARTIST);
+                if (sub == null) sub = md.getString(MediaMetadata.METADATA_KEY_ALBUM);
+                o.put("title", title == null ? "" : title).put("subtitle", sub == null ? "" : sub)
+                 .put("duration", Math.max(0, md.getLong(MediaMetadata.METADATA_KEY_DURATION)))
+                 .put("art", picture(md) != null);
+            }
+        } catch (Exception ignored) { }
+        return o.toString();
+    }
+
+    static Bitmap picture(MediaMetadata md) {
+        Bitmap b = md.getBitmap(MediaMetadata.METADATA_KEY_ART);
+        if (b == null) b = md.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
+        if (b == null) b = md.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
+        return b;
+    }
+
+    /** The picture of what's playing, as a JPEG at most 512 px wide, in base64; "-" when there is none. */
+    String art() {
+        try {
+            MediaController m = top();
+            Bitmap b = m == null || m.getMetadata() == null ? null : picture(m.getMetadata());
+            if (b == null) return "-";
+            if (b.getWidth() > 512) b = Bitmap.createScaledBitmap(b, 512, Math.max(1, b.getHeight() * 512 / b.getWidth()), true);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            b.compress(Bitmap.CompressFormat.JPEG, 82, out);
+            return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+        } catch (Exception e) {
+            return "-";
         }
     }
 

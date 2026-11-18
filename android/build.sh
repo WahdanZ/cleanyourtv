@@ -45,4 +45,17 @@ if [ "${1:-}" = install ]; then
   dev=$("$ADB" devices | awk -v ip="$cc" 'index($1, ip ":") == 1 && $2 == "device" {print $1; exit}')
   [ -n "$dev" ] || { echo "The Chromecast is not connected: ./cc.sh connect"; exit 1; }
   "$ADB" -s "$dev" install -r build/home.apk
+  # An update stops the pointer service (the trackpad, and the remote without adb): out of the list and back in
+  # restarts it. Only when it was on; and let the launcher keep Wireless debugging on (AdbKeeper).
+  svc=com.cleanyourtv.home/com.cleanyourtv.home.CursorService
+  cur=$("$ADB" -s "$dev" shell settings get secure enabled_accessibility_services | tr -d '\r')
+  case ":$cur:" in *":$svc:"*)
+    rest=$(printf '%s' "$cur" | tr ':' '\n' | { grep -vx "$svc" || true; } | paste -sd: -)
+    "$ADB" -s "$dev" shell settings put secure enabled_accessibility_services "${rest:-null}"
+    "$ADB" -s "$dev" shell settings put secure enabled_accessibility_services "${rest:+$rest:}$svc"
+    echo "Pointer service restarted." ;;
+  esac
+  "$ADB" -s "$dev" shell pm grant com.cleanyourtv.home android.permission.WRITE_SECURE_SETTINGS 2>/dev/null || true
+  # what's playing, with its length and picture, for the phone's Now playing (MediaWatch)
+  "$ADB" -s "$dev" shell cmd notification allow_listener com.cleanyourtv.home/com.cleanyourtv.home.MediaWatch 2>/dev/null || true
 fi

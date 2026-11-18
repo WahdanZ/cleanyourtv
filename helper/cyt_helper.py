@@ -57,6 +57,7 @@ import admin  # noqa: E402
 import qr  # noqa: E402
 import addons  # noqa: E402
 import layout  # noqa: E402
+import secure  # noqa: E402
 
 WEB = ROOT / "web"
 DATA = ROOT / "data"
@@ -1008,6 +1009,7 @@ def admin_state() -> dict:
             "region": now, "vpn_server": server if now not in (None, "off") else "", "country_names": COUNTRY_NAMES,
             "tv_on": HOME_WATCH.up, "started": STARTED,
             "devices": {"tv": VIDAA, "cc": bool(CC_IPS), "vpn": vpn_available()}, "quick_base": quick_base(),
+            "scenes": scenes(), "https": https_state(),
             "addons": ADDONS.status(), "addons_broken": ADDONS.broken,
             "layout_spec": layout.spec(), "preview": layout_preview(),
             "wallpaper": {"now": wallpaper_meta(), "sources": WALLPAPER_SOURCES, "own": own_wallpapers(),
@@ -1102,6 +1104,8 @@ def _cc_reconnect(adb: str, ips: list, force: bool = False) -> str:
         except Exception as e:
             why = f"Couldn't reconnect to the Chromecast: {e}"
         _cc_link["why"] = why
+        if why:
+            notify("cc-link", "The Chromecast's remote link dropped", why, every=6 * 3600)
         return why
 
 
@@ -1132,6 +1136,9 @@ def _cc_keep_debugging(adb: str, serial: str) -> None:
                             "android.permission.WRITE_SECURE_SETTINGS"], capture_output=True, text=True, timeout=15)
         out = (r.stdout + r.stderr).strip()
         log("chromecast: keep Wireless debugging on: " + (out[:120] or "granted"))
+        # what's playing with its length and picture (MediaWatch), for the phone's Now playing
+        subprocess.run([adb, "-s", serial, "shell", "cmd", "notification", "allow_listener",
+                        "com.cleanyourtv.home/com.cleanyourtv.home.MediaWatch"], capture_output=True, text=True, timeout=15)
     except Exception as e:
         log(f"chromecast: keep Wireless debugging on: {e}")
 
@@ -1218,6 +1225,94 @@ def _pointer_connect():
     sock.settimeout(5)
     _pointer["rf"] = sock.makefile("rb")
     return sock
+
+
+def _cc_service(line: str) -> str:
+    """One command to the launcher's pointer service (it listens without adb): "" when sent, else why not.
+    The remote's way in when Wireless debugging is off."""
+    if not CC_IPS or any(ch in line for ch in "\r\n"):
+        return "no Chromecast"
+    with _pointer["lock"]:
+        for attempt in (0, 1):
+            try:
+                if _pointer["sock"] is None:
+                    _pointer["sock"] = _pointer_connect()
+                _pointer["sock"].sendall((line + "\n").encode())
+                return ""
+            except (OSError, ConnectionError) as e:
+                try:
+                    if _pointer["sock"]:
+                        _pointer["sock"].close()
+                except OSError:
+                    pass
+                _pointer["sock"] = None
+                why = str(e)
+    return why
+
+
+def _cc_ask(cmd: str, timeout: float = 4) -> str | None:
+    """A question to the launcher's service that has a one-line answer ("np", "art"): the answer, or None."""
+    if not CC_IPS:
+        return None
+    word = cmd.split()[0]
+    with _pointer["lock"]:
+        for attempt in (0, 1):
+            try:
+                if _pointer["sock"] is None:
+                    _pointer["sock"] = _pointer_connect()
+                so = _pointer["sock"]
+                so.sendall((cmd + "\n").encode())
+                so.settimeout(timeout)
+                line = _pointer["rf"].readline().decode("utf-8", "replace").rstrip("\r\n")
+                so.settimeout(5)
+                head, _, rest = line.partition(" ")
+                return rest if head == word else None
+            except (OSError, ConnectionError):
+                try:
+                    if _pointer["sock"]:
+                        _pointer["sock"].close()
+                except OSError:
+                    pass
+                _pointer["sock"] = None
+    return None
+
+
+_np_art = {"key": None, "data": None}
+
+
+def cc_now_playing_art(key: str) -> bytes | None:
+    """The picture of what's playing (the video's thumbnail, the album cover), from the launcher; kept per title."""
+    if key and key == _np_art["key"] and _np_art["data"]:
+        return _np_art["data"]
+    raw = _cc_ask("art", 8)
+    if not raw or raw == "-":
+        return None
+    import base64
+    try:
+        data = base64.b64decode(raw)
+    except ValueError:
+        return None
+    _np_art.update(key=key, data=data)
+    return data
+
+
+def _cc_np_launcher() -> dict | None:
+    """What's playing, from the launcher's MediaWatch: with the length and the picture, and without adb."""
+    raw = _cc_ask("np")
+    try:
+        j = json.loads(raw) if raw else None
+    except ValueError:
+        j = None
+    if not isinstance(j, dict) or j.get("error"):
+        return None
+    if not j.get("playing"):
+        return {"ok": True, "playing": None}
+    app = str(j.get("app", ""))
+    names = {a["id"]: a.get("name", a["id"]) for a in ADMIN.cc_apps().get("apps", [])}
+    pick = {"app": app, "state": j.get("state", ""), "title": j.get("title", ""), "subtitle": j.get("subtitle", ""),
+            "position": int(j.get("position", 0) / 1000), "duration": int(j.get("duration", 0) / 1000),
+            "art": bool(j.get("art")), "name": names.get(app, app.rsplit(".", 1)[-1]), "icon": f"/api/admin/icon/cc/{app}"}
+    return {"ok": True, "playing": pick, "via": "launcher"}
 
 
 def _pointer_shell(cmd: str):
@@ -1400,7 +1495,14 @@ def now_playing_cached() -> dict:
 
 def cc_now_playing() -> dict:
     """What the Chromecast is playing, from its media sessions: the app, title, artist or channel, playing or paused,
-    and how far in. The session the media buttons go to wins; else the first one playing."""
+    and how far in. The session the media buttons go to wins; else the first one playing.
+    From the launcher when it may read the media sessions (it knows the length and the picture too), else over adb."""
+    try:
+        got = _cc_np_launcher()
+        if got is not None:
+            return got
+    except Exception as e:
+        log(f"now playing (launcher): {e}")
     adb, serial, why = _cc_serial()
     if not serial:
         return {"ok": False, "error": why}
@@ -1462,6 +1564,8 @@ def remote_press(device: str, key: str = "", text: str = "") -> dict:
         raise ValueError("unknown device")
     adb, serial, why = _cc_serial()
     if not serial:
+        if not text and key in CC_KEYS and not _cc_service(f"k {key}"):
+            return {"ok": True, "via": "launcher"}   # Wireless debugging is off: the launcher's service did it
         return {"ok": False, "error": why}
     if text:   # typed on the phone, into whatever box has focus on the Chromecast
         clean = "".join(ch for ch in str(text)[:200] if ch.isprintable()).replace(" ", "%s")
@@ -1503,6 +1607,11 @@ def remote_open(device: str, app_id: str = "", url: str = "") -> dict:
         raise ValueError("unknown device")
     adb, serial, why = _cc_serial()
     if not serial:
+        ok_app = bool(app_id) and re.match(r"^[A-Za-z0-9_.]+$", app_id)
+        if (url or ok_app) and not _cc_service(f"u {url}" if url else f"o {app_id}"):
+            if not url:
+                vpn_for_app(app_id)
+            return {"ok": True, "via": "launcher"}
         return {"ok": False, "error": why}
     if url:   # its app if one takes such links (YouTube, Netflix…), else the browser
         cmd = ["shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", shlex.quote(url)]
@@ -1528,8 +1637,11 @@ def remote_status() -> dict:
             power = subprocess.run([adb, "-s", serial, "shell", "dumpsys power | grep -m1 mWakefulness"],
                                    capture_output=True, text=True, timeout=10).stdout
             out["cc"].update(linked=True, awake="Awake" in power)
+        elif CC_IPS and not _cc_service("z"):   # (a no-op) Wireless debugging is off, but the launcher answers
+            out["cc"].update(linked=True, limited=True, why="")
     except subprocess.TimeoutExpired:
         out["cc"]["why"] = "The Chromecast didn't answer in time."
+    out["sleep"] = sleep_state()
     return out
 
 
@@ -1603,9 +1715,347 @@ def tv_wake() -> str:
     return ""
 
 
+# ---------- scenes: several shortcut actions in a row, one tap ("Movie night": wake the Chromecast, VPN US, Netflix) ----------
+SCENES_FILE = DATA / "scenes.json"
+_STEP = re.compile(r"^((tv|cc)-[a-z]+|(tv|cc)-open-[A-Za-z0-9_.:-]+|vpn-[a-z]+|wait-\d{1,2}|sleep-(\d{1,3}|end|off)|scene-[a-z0-9]+)$")
+
+
+def scenes() -> list:
+    try:
+        v = json.loads(SCENES_FILE.read_text(encoding="utf-8"))
+        return v if isinstance(v, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def save_scenes(v) -> list:
+    if not isinstance(v, list) or len(v) > 20:
+        raise ValueError("at most 20 scenes")
+    out, ids = [], set()
+    for sc in v:
+        if not isinstance(sc, dict):
+            raise ValueError("bad scene")
+        name = str(sc.get("name", "")).strip()[:40]
+        sid = re.sub(r"[^a-z0-9]+", "", str(sc.get("id") or name).lower())[:24] or "scene"
+        base, n = sid, 2
+        while sid in ids:
+            sid, n = f"{base}{n}", n + 1
+        ids.add(sid)
+        steps = [str(x) for x in (sc.get("steps") or [])][:12]
+        bad = [x for x in steps if not _STEP.match(x)]
+        if not name or not steps or bad:
+            raise ValueError(f"{name or 'A scene'}: " + ("needs a name" if not name else "needs a step" if not steps else f"unknown step {bad[0]}"))
+        out.append({"id": sid, "name": name, "icon": str(sc.get("icon", ""))[:4], "steps": steps})
+    SCENES_FILE.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+    return out
+
+
+def run_scene(sid: str) -> dict:
+    sc = next((x for x in scenes() if x["id"] == sid), None)
+    if not sc:
+        return {"ok": False, "error": "No such scene."}
+
+    def go():
+        for st in sc["steps"]:
+            try:
+                if st.startswith("wait-"):
+                    time.sleep(int(st[5:]))
+                    continue
+                r = quick_action(st)
+                if not r.get("ok"):
+                    log(f"scene {sc['name']}: {st}: {r.get('error')}")
+            except Exception as e:
+                log(f"scene {sc['name']}: {st}: {e}")
+            # a device waking up takes a few seconds before it takes the next step
+            time.sleep(5 if st in ("cc-wake", "tv-on") else 1.2)
+        log(f"scene {sc['name']}: done")
+    threading.Thread(target=go, daemon=True).start()
+    return {"ok": True, "said": f"{sc['name']}: on its way."}
+
+
+# ---------- HTTPS for the panel and phone notifications (helper/secure.py; needs the "cryptography" package) ----------
+HTTPS_PORT = int(CONFIG.get("https_port", int(CONFIG.get("port", 8765)) + 1))
+CERTS = secure.Certs(DATA, log) if secure.AVAILABLE else None
+PUSH = secure.Push(DATA, log, str(CONFIG.get("push_contact", "mailto:helper@example.com"))) if secure.AVAILABLE else None
+_notified = {}
+
+
+def notify(key: str, title: str, body: str = "", every: float = 0, **kw):
+    """A notification to the phones that asked for them; `every`: at most once in that many seconds per key."""
+    if not PUSH or not PUSH.subs():
+        return
+    if every and time.time() - _notified.get(key, 0) < every:
+        return
+    _notified[key] = time.time()
+    PUSH.send_later(title, body, tag=key, **kw)
+
+
+def https_state() -> dict:
+    return {"on": bool(CERTS), "port": HTTPS_PORT, "url": f"https://{own_ip()}:{HTTPS_PORT}/admin",
+            "push_key": PUSH.public_key() if PUSH else "", "phones": len(PUSH.subs()) if PUSH else 0}
+
+
+def https_serve():
+    """The same helper on HTTPS_PORT, with this home's own certificate (the TV and the Chromecast stay on http)."""
+    if not CERTS:
+        log("https: off (pip install cryptography to turn it on)")
+        return
+    try:
+        ctx = CERTS.context(own_ip())
+        srv = ThreadingHTTPServer(("0.0.0.0", HTTPS_PORT), partial(Handler, directory=str(WEB)))
+        # the handshake in the request's own thread, so a slow phone doesn't hold up the others
+        srv.socket = ctx.wrap_socket(srv.socket, server_side=True, do_handshake_on_connect=False)
+        log(f"https: the panel is also at https://<this computer's ip>:{HTTPS_PORT}/admin")
+        srv.serve_forever()
+    except Exception as e:
+        log(f"https: {e}")
+
+
+# ---------- watch stats: what played on the Chromecast and for how long, per day (kept here only, 90 days) ----------
+STATS_FILE = DATA / "watch-stats.json"
+STATS_EVERY = 30
+_stats = {"data": None, "dirty": False, "saved": 0.0, "lock": threading.Lock()}
+
+
+def _stats_load() -> dict:
+    if _stats["data"] is None:
+        try:
+            _stats["data"] = json.loads(STATS_FILE.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            _stats["data"] = {"days": {}}
+    return _stats["data"]
+
+
+def _stats_add(p: dict, secs: float):
+    day = time.strftime("%Y-%m-%d")
+    with _stats["lock"]:
+        d = _stats_load()["days"].setdefault(day, {"apps": {}, "titles": {}})
+        app = p.get("app", "")
+        d["apps"][app] = round(d["apps"].get(app, 0) + secs)
+        title = (p.get("title") or "").strip()
+        if title:
+            k = (app + "|" + title)[:300]
+            t = d["titles"].setdefault(k, {"app": app, "title": title[:200], "sub": (p.get("subtitle") or "")[:120], "secs": 0})
+            t["secs"] = round(t["secs"] + secs)
+            t["last"] = int(time.time())
+        days = _stats["data"]["days"]
+        for old in sorted(days)[:-90]:
+            del days[old]
+        _stats["dirty"] = True
+        if time.time() - _stats["saved"] > 120:
+            _stats_save()
+
+
+def _stats_save():
+    if _stats["dirty"]:
+        tmp = STATS_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(_stats["data"], ensure_ascii=False), encoding="utf-8")
+        tmp.replace(STATS_FILE)
+        _stats.update(dirty=False, saved=time.time())
+
+
+def _tv_screen() -> tuple[str, str]:
+    """(key, name) for what the TV shows now: an app, Live TV, an input, its home screen; ("", "") when off."""
+    if not (VIDAA and HOME_WATCH.up):
+        return "", ""
+    st = HOME_WATCH.last_state or {}
+    kind = str(st.get("statetype", ""))
+    if kind == "sourceswitch":
+        src = str(st.get("sourceid") or st.get("sourcename") or "input")
+        return "src:" + src, str(st.get("displayname") or st.get("sourcename") or src)
+    if kind == "livetv":
+        return "livetv", "Live TV"
+    if kind == "app":
+        name = str(st.get("name") or st.get("url") or "app")
+        if HOME_WATCH.open_apps:   # the DIAL apps say exactly which one (Netflix, YouTube, Prime Video)
+            dial = sorted(HOME_WATCH.open_apps)[0]
+            name = {"AmazonInstantVideo": "Prime Video"}.get(dial, dial)
+        low = name.lower()
+        if "cythome" in low or "launcher" in low or low in ("home", "remote_launcher"):
+            return "home", "Home screen"
+        return "app:" + low[:60], name[:60]
+    if kind in ("remote_launcher", "launcher", "home"):
+        return "home", "Home screen"
+    return ("other:" + kind[:30], kind.replace("_", " ").capitalize()) if kind else ("", "")
+
+
+def _stats_add_tv(key: str, name: str, secs: float):
+    day = time.strftime("%Y-%m-%d")
+    with _stats["lock"]:
+        data = _stats_load()
+        d = data["days"].setdefault(day, {"apps": {}, "titles": {}})
+        tv = d.setdefault("tv", {})
+        x = tv.setdefault(key, {"name": name, "secs": 0})
+        x["name"], x["secs"] = name, round(x["secs"] + secs)
+        _stats["dirty"] = True
+        if time.time() - _stats["saved"] > 120:
+            _stats_save()
+
+
+def stats_loop():
+    """Every 30 s: what the TV shows (while it's on), and what the Chromecast plays: 30 s more for each."""
+    last = time.time()
+    while True:
+        time.sleep(STATS_EVERY)
+        now = time.time()
+        gap, last = min(now - last, STATS_EVERY * 2), now
+        playing = None
+        try:
+            p = now_playing_cached().get("playing") if CC_IPS else None
+            if p and p.get("state") == "playing":
+                playing = p
+                _stats_add(p, gap)
+        except Exception as e:
+            log(f"watch stats: {e}")
+        try:
+            key, name = _tv_screen()
+            if key:
+                if playing and key.startswith("src:"):   # the TV shows an input while the Chromecast plays: that's its input
+                    with _stats["lock"]:
+                        _stats_load()["cc_input"] = key
+                _stats_add_tv(key, name, gap)
+        except Exception as e:
+            log(f"watch stats (TV): {e}")
+
+
+def stats_report(days: int = 7) -> dict:
+    """Totals for the last `days` days: per app, per day, and the titles watched longest."""
+    days = max(1, min(90, int(days)))
+    with _stats["lock"]:
+        all_days = dict(_stats_load()["days"])
+    want = [time.strftime("%Y-%m-%d", time.localtime(time.time() - i * 86400)) for i in range(days)][::-1]
+    names = {a["id"]: a.get("name", a["id"]) for a in ADMIN.cc_apps().get("apps", [])}
+    rename = CHROMECAST.get("rename") or {}
+    apps, titles, per_day = {}, {}, []
+    for day in want:
+        d = all_days.get(day) or {"apps": {}, "titles": {}}
+        per_day.append({"day": day, "secs": sum(d["apps"].values())})
+        for a, v in d["apps"].items():
+            apps[a] = apps.get(a, 0) + v
+        for k, t in d["titles"].items():
+            x = titles.setdefault(k, dict(t, secs=0))
+            x["secs"] += t["secs"]
+            x["last"] = max(x.get("last", 0), t.get("last", 0))
+    app_list = [{"app": a, "name": rename.get(a) or names.get(a, a.rsplit(".", 1)[-1]), "secs": v,
+                 "icon": f"/api/admin/icon/cc/{a}"} for a, v in sorted(apps.items(), key=lambda kv: -kv[1]) if v >= 60]
+    top = sorted(titles.values(), key=lambda t: -t["secs"])[:15]
+    for t in top:
+        t["name"] = rename.get(t["app"]) or names.get(t["app"], t["app"].rsplit(".", 1)[-1])
+    # the TV: per screen (apps, Live TV, inputs; the Chromecast's input by name), and per day
+    tv, tv_day = {}, []
+    # the input the Chromecast is on: "tv_input" in the chromecast settings, else what was seen (an input on while it played)
+    cc_in = ("src:" + str(CHROMECAST["tv_input"])) if CHROMECAST.get("tv_input") else _stats_load().get("cc_input", "")
+    for day in want:
+        d = (all_days.get(day) or {}).get("tv") or {}
+        tv_day.append({"day": day, "secs": sum(x["secs"] for x in d.values())})
+        for k, x in d.items():
+            y = tv.setdefault(k, {"key": k, "name": x["name"], "secs": 0})
+            y["secs"] += x["secs"]
+    tv_names = {str(a.get("name", "")).lower(): str(a.get("appId")) for a in APPS.apps} if VIDAA else {}
+    tv_list = []
+    for x in sorted(tv.values(), key=lambda v: -v["secs"]):
+        if x["secs"] < 60:
+            continue
+        if x["key"] == cc_in:
+            x["name"], x["icon"] = f"Chromecast ({x['name']})", ""
+            x["cc"] = True
+        else:
+            aid = tv_names.get(x["name"].lower())
+            x["icon"] = f"/api/admin/icon/tv/{aid}" if aid else ""
+        tv_list.append(x)
+    return {"days": days, "total": sum(apps.values()), "apps": app_list, "per_day": per_day,
+            "titles": [t for t in top if t["secs"] >= 60],
+            "tv": {"on": bool(VIDAA), "total": sum(x["secs"] for x in tv.values()), "per_day": tv_day, "screens": tv_list},
+            "cc": bool(CC_IPS)}
+
+
+# ---------- sleep timer: the TV and the Chromecast off after a while, or once the video has stopped ----------
+SLEEP = {"at": 0.0, "end": False, "seen": False, "since": 0.0, "thread": None, "v": ""}
+SLEEP_AFTER_STOP = 90   # seconds of nothing playing (in "end of video" mode) before turning off
+
+
+def sleep_state() -> dict:
+    left = max(0, int(SLEEP["at"] - time.time())) if SLEEP["at"] else 0
+    return {"on": bool(SLEEP["at"]), "end": SLEEP["end"] and bool(SLEEP["at"]), "left": left,
+            "v": SLEEP["v"] if SLEEP["at"] else "off"}
+
+
+def sleep_set(v: str) -> dict:
+    v = str(v).strip().lower()
+    if v in ("off", "0", ""):
+        SLEEP.update(at=0.0, end=False)
+        log("sleep timer: off")
+        return sleep_state()
+    if v == "end":
+        SLEEP.update(at=time.time() + 4 * 3600, end=True, seen=False, since=0.0, v="end", warned=False)   # at the latest in 4 hours
+    else:
+        try:
+            m = int(v)
+        except ValueError:
+            raise ValueError("minutes, end or off")
+        if not 1 <= m <= 600:
+            raise ValueError("1 to 600 minutes")
+        SLEEP.update(at=time.time() + m * 60, end=False, v=str(m), warned=False)
+    log("sleep timer: " + ("when the video ends" if SLEEP["end"] else f"in {v} min"))
+    if not (SLEEP["thread"] and SLEEP["thread"].is_alive()):
+        SLEEP["thread"] = threading.Thread(target=_sleep_loop, daemon=True)
+        SLEEP["thread"].start()
+    return sleep_state()
+
+
+def _sleep_loop():
+    while SLEEP["at"]:
+        time.sleep(10)
+        if not SLEEP["at"]:
+            return
+        now = time.time()
+        if SLEEP["end"] and CC_IPS:
+            try:
+                p = now_playing_cached().get("playing")
+            except Exception:
+                p = None
+            if p and p.get("state") == "playing":
+                SLEEP.update(seen=True, since=0.0)
+            elif SLEEP["seen"]:
+                SLEEP["since"] = SLEEP["since"] or now
+                if now - SLEEP["since"] >= SLEEP_AFTER_STOP:
+                    SLEEP["at"] = now
+        if SLEEP["at"] and not SLEEP.get("warned") and (SLEEP["at"] - now <= 70 or
+                                                        (SLEEP["end"] and SLEEP["since"] and now - SLEEP["since"] >= SLEEP_AFTER_STOP - 70)):
+            SLEEP["warned"] = True
+            notify("sleep", "The TV turns off in about a minute", "Sleep timer", url="/admin",
+                   actions=[{"id": "keep", "title": "Keep watching", "post": "/api/admin/sleep", "body": {"set": "off"}}])
+        if SLEEP["at"] and now >= SLEEP["at"]:
+            SLEEP.update(at=0.0, end=False)
+            _sleep_now()
+
+
+def _sleep_now():
+    """The TV first (its power key toggles, so only while it's on), then the Chromecast to sleep."""
+    log("sleep timer: turning off")
+    try:
+        if VIDAA and HOME_WATCH.up:
+            remote_press("tv", "power")
+            time.sleep(3)
+    except Exception as e:
+        log(f"sleep timer: TV: {e}")
+    try:
+        if CC_IPS:
+            remote_press("cc", "power")
+    except Exception as e:
+        log(f"sleep timer: Chromecast: {e}")
+
+
 def quick_action(action: str) -> dict:
-    """What a phone shortcut asked for: tv-<key>, tv-on, tv-off, cc-<key>, tv-open-<app>, cc-open-<app>, vpn-<country>."""
+    """What a phone shortcut asked for: tv-<key>, tv-on, tv-off, cc-<key>, tv-open-<app>, cc-open-<app>, vpn-<country>,
+    scene-<id>."""
     dev, _, rest = action.partition("-")
+    if dev == "scene":
+        return run_scene(rest)
+    if dev == "sleep":
+        st = sleep_set(rest)
+        return {"ok": True, "said": "Sleep timer off." if not st["on"] else "Turning off when the video ends."
+                if st["end"] else f"Turning off in {round(st['left'] / 60)} min."}
     if dev == "vpn":
         if not vpn_available() or rest not in [r["id"] for r in regions()]:
             return {"ok": False, "error": "No such VPN country here."}
@@ -1673,6 +2123,56 @@ def cc_screenshot() -> tuple[bytes | None, str]:
         return png, ""
     except subprocess.TimeoutExpired:
         return None, "The Chromecast didn't answer in time."
+
+
+# ---------- live screen (admin panel): a frame about every second while someone looks, as a small JPEG ----------
+_live = {"jpg": None, "at": 0.0, "want": 0.0, "why": "", "thread": None, "lock": threading.Lock()}
+
+
+def _live_loop():
+    import tempfile
+    tmp = Path(tempfile.gettempdir()) / f"cyt-live-{os.getpid()}"
+    try:
+        while time.time() - _live["want"] < 6:   # stops 6 s after the panel's last ask
+            png, why = cc_screenshot()
+            if not png:
+                _live.update(why=why, jpg=None, at=time.time())
+                time.sleep(2)
+                continue
+            src, dst = tmp.with_suffix(".png"), tmp.with_suffix(".jpg")
+            src.write_bytes(png)
+            r = subprocess.run(["/usr/bin/sips", "-s", "format", "jpeg", "-s", "formatOptions", "70", "-Z", "960", str(src),
+                                "--out", str(dst)], capture_output=True, timeout=10) if Path("/usr/bin/sips").exists() else None
+            jpg = dst.read_bytes() if r is not None and r.returncode == 0 and dst.exists() else None
+            _live.update(jpg=jpg or png, why="", at=time.time())
+    finally:
+        _live["thread"] = None
+
+
+def cc_live_frame(after: float = 0) -> tuple[bytes | None, str]:
+    """The newest frame (starts the capture loop when idle): one newer than `after` (the panel's last), waiting up to
+    4 s for it, so the panel never fetches the same picture twice."""
+    _live["want"] = time.time()
+    with _live["lock"]:
+        if not (_live["thread"] and _live["thread"].is_alive()):
+            _live.update(jpg=None, why="")
+            _live["thread"] = threading.Thread(target=_live_loop, daemon=True)
+            _live["thread"].start()
+    for _ in range(40):
+        if (_live["jpg"] and _live["at"] > after) or _live["why"]:
+            break
+        time.sleep(0.1)
+    return _live["jpg"], _live["why"] or ("" if _live["jpg"] else "No picture yet.")
+
+
+def cc_tap(fx: float, fy: float) -> dict:
+    """A tap on the live screen: the same spot on the Chromecast (its screen is 1920 by 1080 here)."""
+    adb, serial, why = _cc_serial()
+    if not serial:
+        return {"ok": False, "error": why}
+    x, y = int(max(0, min(1, fx)) * 1919), int(max(0, min(1, fy)) * 1079)
+    r = subprocess.run([adb, "-s", serial, "shell", "input", "tap", str(x), str(y)], capture_output=True, text=True, timeout=10)
+    return {"ok": r.returncode == 0, "error": "" if r.returncode == 0 else "The Chromecast didn't take the tap."}
 
 
 def vpn_for_app(app_id: str):
@@ -1899,7 +2399,7 @@ class Handler(SimpleHTTPRequestHandler):
             return True
         path = urlsplit(self.path).path
         if (ip == "127.0.0.1" or ip.rsplit(".", 1)[0] == own_ip().rsplit(".", 1)[0]) and \
-                (path == "/admin" or path.startswith("/api/admin/")):
+                (path in ("/admin", "/admin-sw.js", "/ca.crt", "/home-helper-ca.crt") or path.startswith("/api/admin/")):
             return True
         if ip in CC_IPS and (path in CC_PATHS or path.startswith("/fonts/") or path.startswith("/api/addons/")
                              or path.startswith("/api/cc-icon/")):
@@ -2006,6 +2506,27 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path == "/admin":
             self._send((WEB / "admin.html").read_bytes(), "text/html; charset=utf-8")
+            return
+        if path == "/admin-sw.js":   # the panel's service worker: shows the notifications
+            body = (WEB / "admin-sw.js").read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript; charset=utf-8")
+            self.send_header("Service-Worker-Allowed", "/")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if path in ("/ca.crt", "/home-helper-ca.crt"):   # this home's certificate authority, to install on a phone (public)
+            if not CERTS:
+                self.send_error(404)
+                return
+            body = CERTS.ca_der()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-x509-ca-cert")
+            self.send_header("Content-Disposition", 'attachment; filename="home-helper-ca.crt"')
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
             return
         if path.startswith("/api/admin/"):
             self._admin_get(path)
@@ -2175,13 +2696,91 @@ class Handler(SimpleHTTPRequestHandler):
                 self.send_error(404)
                 return
             self._send(f.read_bytes(), "image/jpeg")
+        elif path == "/api/admin/stats":
+            try:
+                n = int(parse_qs(urlsplit(self.path).query).get("days", ["7"])[0])
+            except ValueError:
+                n = 7
+            self._json(200, stats_report(n))
+        elif path == "/api/admin/silence.wav":
+            # Silence exactly as long as what's playing, for the phone's lock screen: iPhones draw the progress bar from
+            # the sound the page itself plays. Made on the fly (8 kHz, 16-bit, mono), with byte ranges for seeking.
+            try:
+                sec = max(10, min(6 * 3600, int(parse_qs(urlsplit(self.path).query).get("sec", ["600"])[0])))
+            except ValueError:
+                sec = 600
+            data_len = sec * 16000
+            header = (b"RIFF" + (36 + data_len).to_bytes(4, "little") + b"WAVEfmt " + (16).to_bytes(4, "little")
+                      + (1).to_bytes(2, "little") + (1).to_bytes(2, "little") + (8000).to_bytes(4, "little")
+                      + (16000).to_bytes(4, "little") + (2).to_bytes(2, "little") + (16).to_bytes(2, "little")
+                      + b"data" + data_len.to_bytes(4, "little"))
+            total = len(header) + data_len
+            start, end = 0, total - 1
+            m = re.match(r"bytes=(\d*)-(\d*)", self.headers.get("Range", "") or "")
+            if m and (m.group(1) or m.group(2)):
+                if m.group(1):
+                    start = int(m.group(1))
+                    end = min(int(m.group(2)), total - 1) if m.group(2) else total - 1
+                else:
+                    start = max(0, total - int(m.group(2)))
+                if start >= total:
+                    self.send_response(416)
+                    self.send_header("Content-Range", f"bytes */{total}")
+                    self.end_headers()
+                    return
+            n = end - start + 1
+            self.send_response(206 if m and (m.group(1) or m.group(2)) else 200)
+            self.send_header("Content-Type", "audio/wav")
+            self.send_header("Accept-Ranges", "bytes")
+            if m and (m.group(1) or m.group(2)):
+                self.send_header("Content-Range", f"bytes {start}-{end}/{total}")
+            self.send_header("Content-Length", str(n))
+            self.end_headers()
+            try:
+                pos = start
+                if pos < len(header):
+                    chunk = header[pos:min(len(header), end + 1)]
+                    self.wfile.write(chunk)
+                    pos += len(chunk)
+                zeros = bytes(65536)
+                while pos <= end:
+                    k = min(len(zeros), end + 1 - pos)
+                    self.wfile.write(zeros[:k])
+                    pos += k
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+        elif path == "/api/admin/np-art":
+            data = cc_now_playing_art(parse_qs(urlsplit(self.path).query).get("t", [""])[0])
+            if not data:
+                self.send_error(404)
+                return
+            self._send(data, "image/jpeg")
         elif path == "/api/admin/now-playing":
             try:
-                self._json(200, cc_now_playing())
+                tv_key, tv_name = _tv_screen() if VIDAA else ("", "")
+                self._json(200, dict(cc_now_playing(), sleep=sleep_state(),
+                                     tv={"on": bool(tv_key), "screen": tv_name, "cc": bool(tv_key) and tv_key == (
+                                         "src:" + str(CHROMECAST.get("tv_input")) if CHROMECAST.get("tv_input") else _stats_load().get("cc_input", ""))}))
             except subprocess.TimeoutExpired:
                 self._json(200, {"ok": False, "error": "The Chromecast didn't answer in time."})
         elif path == "/api/admin/remote-status":
             self._json(200, remote_status())
+        elif path == "/api/admin/cc-live":
+            try:
+                after = float(parse_qs(urlsplit(self.path).query).get("after", ["0"])[0])
+            except ValueError:
+                after = 0
+            frame, why = cc_live_frame(after)
+            if frame:
+                body = frame
+                self.send_response(200)
+                self.send_header("Content-Type", "image/jpeg" if frame[:2] == b"\xff\xd8" else "image/png")
+                self.send_header("X-Frame-At", str(_live["at"]))
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                self._json(409, {"ok": False, "error": why})
         elif path == "/api/admin/cc-screen":
             png, why = cc_screenshot()
             if png:
@@ -2281,6 +2880,47 @@ class Handler(SimpleHTTPRequestHandler):
                 self._json(400, {"ok": False, "error": str(e)})
             except (ConnectionError, OSError, subprocess.TimeoutExpired) as e:
                 self._json(502, {"ok": False, "error": "Couldn't reach it: " + str(e)})
+        elif path == "/api/admin/cc-tap":
+            try:
+                self._json(200, cc_tap(float(data.get("x", -1)), float(data.get("y", -1))))
+            except (TypeError, ValueError):
+                self._json(400, {"ok": False, "error": "bad spot"})
+        elif path == "/api/admin/push-sub":
+            if not PUSH:
+                self._json(400, {"ok": False, "error": "Notifications need the cryptography package on the helper."})
+            else:
+                try:
+                    n = PUSH.add(data.get("sub") or {}, str(data.get("label", "")))
+                    self._json(200, {"ok": True, "phones": n})
+                except ValueError as e:
+                    self._json(400, {"ok": False, "error": str(e)})
+        elif path == "/api/admin/push-off":
+            if PUSH:
+                PUSH.remove(str(data.get("endpoint", "")))
+            self._json(200, {"ok": True})
+        elif path == "/api/admin/push-test":
+            n = PUSH.send("Notifications work", "From your home helper.", tag="test") if PUSH else 0
+            self._json(200, {"ok": n > 0, "sent": n, "error": "" if n else "No phone got it: switch notifications on there first."})
+        elif path == "/api/admin/np-seek":
+            try:
+                sec = max(0, int(data.get("sec", 0)))
+            except (TypeError, ValueError):
+                sec = 0
+            why = _cc_service(f"seek {sec * 1000}")
+            _np_cache["at"] = 0
+            self._json(200, {"ok": not why, "error": why and "The Chromecast's launcher didn't answer."})
+        elif path == "/api/admin/sleep":
+            try:
+                self._json(200, {"ok": True, "sleep": sleep_set(str(data.get("set", "off")))})
+            except ValueError as e:
+                self._json(400, {"ok": False, "error": str(e)})
+        elif path == "/api/admin/scenes":
+            try:
+                self._json(200, {"ok": True, "scenes": save_scenes(data.get("scenes"))})
+            except ValueError as e:
+                self._json(400, {"ok": False, "error": str(e)})
+        elif path == "/api/admin/scene-run":
+            self._json(200, run_scene(str(data.get("id", ""))))
         elif path == "/api/admin/quick-new":
             quick_token(new=True)
             self._json(200, {"ok": True, "quick_base": quick_base()})
@@ -2662,6 +3302,7 @@ class HomeWatch(threading.Thread):
         self.sleeping = False       # in network standby ("fake_sleep"), as last asked
         self.slept = False          # this absence was a standby, not a dropped connection
         self.state_at = 0.0
+        self.last_state = {}
         self.unanswered = 0
 
     def asleep(self) -> bool:
@@ -2674,6 +3315,7 @@ class HomeWatch(threading.Thread):
                 state = None
             if state is not None:
                 self.sleeping = str(state.get("statetype", "")).startswith("fake_sleep")
+                self.last_state = state   # what's on screen (an app, Live TV, an input): for the watch time
                 self.unanswered = 0
             else:
                 self.unanswered += 1
@@ -2840,12 +3482,15 @@ def main():
     threading.Thread(target=YT.home, daemon=True).start()          # warm the YouTube start screen
     threading.Thread(target=keep_ytdlp_fresh, daemon=True).start()
     threading.Thread(target=ADDONS.loop, daemon=True).start()
+    if CC_IPS or VIDAA:
+        threading.Thread(target=stats_loop, daemon=True).start()
     log("home takeover " + ("on" if takeover_on() else "off (VIDAA's own home)") +
         ": the launcher opens when the TV comes on or Netflix, YouTube or Prime Video closes")
     port = int(CONFIG.get("port", 8765))
     # On Windows, address reuse lets a second helper share the port with one still running; fail instead.
     ThreadingHTTPServer.allow_reuse_address = os.name != "nt"
     server = ThreadingHTTPServer(("0.0.0.0", port), partial(Handler, directory=str(WEB)))
+    threading.Thread(target=https_serve, daemon=True).start()
     log(f"launcher on http://<this computer's ip>:{port}/  (serving {WEB})")
     wallpaper_meta()   # fetch today's photo and quote now, so they're ready before the TV first asks
     threading.Thread(target=quote_of_day, daemon=True).start()

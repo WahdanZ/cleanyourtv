@@ -11,7 +11,7 @@ or with the TV remote. A save shows on the TV and the Chromecast within about 3 
 | **VPN** | The country now, a button per country, and which countries the TV's Region menu offers. Only with a VPN set up ([setup/vpn.md](setup/vpn.md)) |
 | **TV** | A picture of the TV's Home. Tap anything on it to change it: the clock, a widget block, the dock, the wallpaper |
 | **Chromecast** | The same for the Chromecast, plus its dock and rows, names, hidden apps, the VPN country per app, and **Real screen** (a photo of what the Chromecast shows now) |
-| **Settings** | Your name for the greeting, 24-hour clock, the weather's city, the wallpaper, the TV's Home takeover; then status, open Home on the TV, restart the helper, sign out. Every save keeps a copy of the settings before it (the last 20, in `data/config-backups`) |
+| **Settings** | Your name for the greeting, 24-hour clock, the weather's city, the wallpaper, the TV's Home takeover; then status, open Home on the TV, restart the helper, sign out; the secure address and notifications, scenes, phone shortcuts. Every save keeps a copy of the settings before it (the last 20, in `data/config-backups`) |
 
 Each tab shows only when you have that device: no Chromecast in `config.json`, no Chromecast tab; `"vidaa": false`,
 no TV tab; no VPN, no VPN tab. On a phone the tabs move to the bottom of the screen.
@@ -94,7 +94,7 @@ On the Chromecast, hold **OK** on an app to move it or take it off Home.
 
 In the admin panel (best as an app on your phone's Home screen, see [setup/helper.md](setup/helper.md)):
 
-- **Remote** (the Home tab, or the round button at the bottom right on other tabs): arrows, OK, Back, Home, volume, for the TV or the Chromecast. Home goes
+- **Remote** (the Home tab, or the round button at the bottom right on other tabs): arrows, OK, Back, Home, volume, for the TV or the Chromecast. On the Chromecast the button at the end of the top row swaps the arrows for the trackpad (and back), in the same spot. Home goes
   to our launcher. **Apps**: open any app on either device, or type a web address (a YouTube link opens in YouTube).
 - **Trackpad** (Chromecast: above the remote's buttons): a pointer over any app, handy in a browser or on a
   website. Drag to move it, tap to click, hold for a long press, two fingers (or a mouse wheel) to scroll. The first
@@ -103,8 +103,26 @@ In the admin panel (best as an app on your phone's Home screen, see [setup/helpe
   and ignore clicks, like BrowseHere, switch the trackpad to **arrow mode** by themselves: a tap sends OK; touch and slide a little in a
   direction and its pointer keeps moving that way until you lift your finger, like holding the remote's arrow
   (`chromecast.trackpad_arrow_apps` in `config.json` lists these apps).
-- **Now playing** (the ♫ button): what's playing on the Chromecast, with play/pause, back and forward.
-  **Controls in my phone's notifications** puts the same in the phone's notifications and lock screen (the page plays
+- **Live screen** (Chromecast, above the trackpad): the Chromecast's screen about once a second; tap on it to click
+  there. Video apps (YouTube, Netflix…) show black: they block screen pictures; the remote and the pointer still work.
+- **Without Wireless debugging** the Chromecast's remote keeps working through the launcher: arrows, OK, Back, Home,
+  volume (to the TV over HDMI-CEC), play/pause and opening apps. Typing, Wake, the live screen and trackpad clicks
+  need Wireless debugging.
+- **Watch time** (the Home tab, at the bottom; today, 7 or 30 days):
+  - **TV:** how long it was on, per day and per screen: each app, Live TV, each input (the Chromecast's input is
+    found by itself and named so, or set it: `"tv_input": "HDMI2"` under `chromecast` in `config.json`), the home screen.
+  - **Chromecast:** how long something played, per day and per app, and the titles watched most.
+  Counted every 30 seconds; kept on the helper's computer only (`data/watch-stats.json`, 90 days).
+- **Scenes** (Settings, then buttons on the Home tab): several steps with one tap, e.g. *Movie night*: wake the
+  Chromecast, VPN to the US, open Netflix. Steps: any remote button, open an app, a VPN country, the sleep timer, a
+  wait. Each scene gets a phone shortcut link too.
+- **Sleep timer** (in Now playing): 30 min, 1 h, 1½ h, or a minute and a half after the video stops. The TV turns
+  off, then the Chromecast goes to sleep. Also as a phone shortcut and a scene step.
+- **Now playing** (the ♫ button): what's playing on the Chromecast, with the video's picture, how far in and how
+  long it is (tap the bar to jump), play/pause, back and forward.
+  **Controls in my phone's notifications** puts the same in the phone's notifications and lock screen, with the
+  picture and the progress bar (drag it to jump). When nothing plays on the Chromecast but the TV is on, it shows what
+  the TV shows (with a made-up one-hour bar: the TV doesn't say how long things are) and its buttons go to the TV (the page plays
   a silent sound to get them, so music playing on the phone pauses; tap the button again to remove them). Best on
   Android in Chrome; on an iPhone, in Safari with the page left open.
 - **Phone shortcuts** (Settings): a secret link per button (TV on/off, Chromecast wake/sleep, play/pause, volume,

@@ -76,6 +76,22 @@ phone at home. Everything in [customize.md](../customize.md) is done there.
 screen, with the remote and the player one tap away. On Android, Chrome's *Add to Home screen* works too, but opens
 with an address bar (Android installs full-screen apps only from https pages); the ⤢ button at the top hides it.
 
+**Secure address and notifications (optional):** with the `cryptography` package the helper also serves the panel
+at `https://<helper ip>:8766/admin` (`https_port` in `config.json`), with a certificate from a small certificate
+authority it makes for your home (`data/tls/`; it never leaves your computer). There the panel installs as a real
+app on Android, copies links in one tap, and sends notifications even when it's closed (the sleep timer about to turn
+things off, with *Keep watching*; the Chromecast's link dropping). On an iPhone, notifications need the panel added
+to the Home Screen from its secure address (iOS 16.4 or newer).
+
+```bash
+.venv/bin/python -m pip install cryptography      # then restart the helper
+```
+
+Then *Settings > Secure address and notifications* in the panel: install the certificate on the phone once (the
+steps are there), open the secure address, and switch notifications on. Notifications go through Google's or
+Apple's push service, encrypted for your phone; `push_contact` in `config.json` is the contact address sent with
+them (a placeholder by default).
+
 The panel is only reachable from your home network, and only after signing in. The TV and the Chromecast reach only
 the pages they need.
 

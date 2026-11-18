@@ -10,6 +10,8 @@
          helper grants it over adb; it can't be granted any other way. -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- The remote's Wake without adb (CursorService). -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
@@ -44,6 +46,17 @@
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
             <meta-data android:name="android.accessibilityservice" android:resource="@xml/cursor_service" />
+        </service>
+            <!-- Lets CursorService read what's playing (length, position, picture) for the phone's Now playing. The helper
+             allows it over adb; it reads no notifications. -->
+        <service
+            android:name=".MediaWatch"
+            android:exported="true"
+            android:label="Home now playing"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
         </service>
     </application>
 </manifest>

@@ -82,9 +82,14 @@ names, hidden apps, the layout of the clock, widgets and the rest, add-ons, the 
 Chromecast within a few seconds. On the Chromecast itself: hold OK on an app to move or remove it, or open the ✎ pill
 (top right) to rearrange Home with the remote.
 
+The launcher has two small services the helper switches on over adb: **Home now playing** (it lets the launcher
+see what's playing, its length and picture, for the phone's Now playing; it reads no notifications) and the pointer
+service below. `build.sh install` restarts both after an update.
+
 The phone remote's **Trackpad** uses a small pointer service in the launcher (an accessibility service, listed as
 "Home trackpad" under *Settings > System > Accessibility*); the helper switches it on over adb the first time you use
-the trackpad, and it listens on port 8791 for the helper only (with a key the helper gives it).
+the trackpad, and it listens on port 8791 for the helper only (with a key the helper gives it). It also takes the
+remote's keys when Wireless debugging is off.
 
 The app asks the helper for its settings, apps and widgets; only the paths it needs are open to the Chromecast's
 address (it can't reach the admin panel or control the TV).

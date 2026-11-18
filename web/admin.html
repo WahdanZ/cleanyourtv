@@ -56,6 +56,51 @@
   .qk .row .btn { padding: 8px 12px; min-height: 38px; font-size: 14px; }
   .qk select { max-width: 100%; }
   .qk .row.pickrow > .grow { flex-basis: 100%; }
+  /* watch time (Home tab) */
+  .wt { margin-top: 26px; }
+  .wt-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .wt-head .main-h { margin: 0; flex: 1; }
+  .wt-range { display: flex; gap: 6px; }
+  .wt-range button { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--text); cursor: pointer; }
+  .wt-range button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .wt .card { padding: 16px; margin-top: 10px; }
+  .wt-total { font-size: 34px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .wt-total small { display: block; font-size: 13px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+  .wt-days { display: flex; align-items: flex-end; gap: 2px; height: 72px; margin-top: 14px; border-bottom: 1px solid var(--line); position: relative; }
+  .wt-days .d { flex: 1; height: 100%; display: flex; align-items: flex-end; cursor: default; }
+  .wt-days .d i { display: block; width: 100%; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 0; }
+  .wt-days .d:hover i, .wt-days .d.hl i { opacity: .75; }
+  .wt-days .d.zero i { background: var(--line); height: 2px !important; }
+  .wt-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .wt-tip { position: absolute; bottom: calc(100% + 6px); transform: translateX(-50%); background: var(--text); color: var(--bg); font-size: 12px;
+            padding: 4px 8px; border-radius: 8px; white-space: nowrap; pointer-events: none; }
+  .wt-app { display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 10px; padding: 7px 0; }
+  .wt-app img, .wt-app .ph { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; background: var(--line); }
+  .wt-app .ph { display: grid; place-items: center; font-size: 17px; }
+  .wt-app .nm { font-size: 14px; min-width: 0; }
+  .wt-app .bar { height: 6px; border-radius: 0 4px 4px 0; background: var(--accent); margin-top: 5px; }
+  .wt-app .v { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .wt-t { display: flex; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .wt-t:first-child { border-top: 0; }
+  .wt-t .tt { flex: 1; min-width: 0; }
+  .wt-t .tt b { font-weight: 600; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wt-t .tt small { color: var(--muted); font-size: 12px; }
+  .wt-t .v { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .scn-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 14px; }
+  .scn-row button { font: inherit; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 14px;
+                    border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; min-height: 48px; }
+  .scn-row button .ic { font-size: 20px; line-height: 1; }
+  .scn-ed { padding: 14px 16px; border-top: 1px solid var(--line); display: grid; gap: 10px; }
+  .scn-ed:first-child { border-top: 0; }
+  .scn-ed .top { display: flex; gap: 8px; }
+  .scn-ed .top input.ic { width: 56px; text-align: center; font-size: 20px; }
+  .scn-ed .top input.nm { flex: 1; min-width: 0; }
+  .scn-ed .step { display: flex; gap: 6px; align-items: center; }
+  .scn-ed .step .n { width: 20px; color: var(--muted); font-size: 13px; text-align: right; }
+  .scn-ed .step select { flex: 1; min-width: 0; }
+  .scn-ed .step button, .scn-ed .acts .btn { padding: 8px 12px; min-height: 38px; font-size: 14px; }
+  .scn-ed .step button { font: inherit; border: 1px solid var(--line); background: none; color: var(--text); border-radius: 10px; cursor: pointer; }
+  .scn-ed .acts { display: flex; flex-wrap: wrap; gap: 8px; }
   .qk .pick { display: flex; gap: 8px; flex: 1 1 220px; min-width: 0; }
   .qk .pick select { flex: 1; min-width: 0; }
   .qk details { padding: 4px 16px 14px; border-top: 1px solid var(--line); }
@@ -406,12 +451,23 @@
           align-items: center; justify-content: center; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.6; cursor: crosshair; }
   .tpad.active { background: var(--soft); }
   .tpad.arrows { border-color: var(--accent); }
-  .remote.cc .tpad { display: flex; }   /* the Chromecast: trackpad and buttons together */
-  .remote.cc .dpad { width: 220px; height: 220px; }
-  .remote.cc .dk.up, .remote.cc .dk.down, .remote.cc .dk.left, .remote.cc .dk.right { width: 68px; height: 68px; }
-  .remote.cc .dk.up, .remote.cc .dk.down { margin-left: -34px; }
-  .remote.cc .dk.left, .remote.cc .dk.right { margin-top: -34px; }
-  .remote.cc .dk.ok { width: 84px; height: 84px; margin: -42px 0 0 -42px; }
+  /* the Chromecast: the arrows or the trackpad in the same spot, switched by the button in the top row */
+  body.pad-touch .remote.cc .tpad { display: flex; height: 270px; margin-bottom: 4px; }
+  body.pad-touch .remote.cc .dpad { display: none; }
+  .rm-btn.padsw { display: none; }
+  .remote.cc .rm-btn.padsw { display: inline-flex; }
+  body.pad-touch .rm-btn.padsw { color: var(--accent); border-color: var(--accent); }
+  .live { display: none; margin-bottom: 10px; }
+  .remote.cc .live { display: block; }
+  .live .lbtn { font: inherit; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px;
+                border: 1px solid var(--line); background: none; color: var(--text); cursor: pointer; }
+  .live .lbtn.on { border-color: var(--accent); color: var(--accent); }
+  .live .frame { position: relative; margin-top: 8px; border-radius: 16px; overflow: hidden; background: #000; aspect-ratio: 16 / 9; cursor: crosshair; }
+  .live .frame img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .live .frame .msg { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; color: #ccc; font-size: 14px; }
+  .live .frame .dot { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 2px solid #fff;
+                      background: rgba(76,141,255,.5); pointer-events: none; animation: livedot .5s ease-out forwards; }
+  @keyframes livedot { to { transform: scale(1.8); opacity: 0; } }
   .rm-row { display: flex; gap: 12px; justify-content: center; }
   .rm-btn { font: inherit; min-width: 64px; height: 64px; border-radius: 22px; border: 1px solid var(--line); background: var(--card); color: var(--text);
             display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 0 16px; touch-action: manipulation; }
@@ -517,6 +573,10 @@
   .pl-hero.noimg .pl-cover img { display: none; } .pl-hero.noimg .pl-tv { display: block; }
   .pl-title { font-size: 19px; font-weight: 650; line-height: 1.25; max-width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .pl-sub { color: var(--muted); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pl-bar { width: min(320px, 100%); height: 18px; margin: 10px auto 0; display: flex; align-items: center; cursor: pointer; touch-action: none; }
+  .pl-bar::before { content: ''; flex: 1; height: 4px; border-radius: 4px; background: var(--line); }
+  .pl-bar { position: relative; }
+  .pl-bar i { position: absolute; left: 0; top: 7px; height: 4px; border-radius: 4px; background: var(--accent); width: 0; }
   .pl-meta { margin-top: 4px; font-size: 12px; color: var(--muted); letter-spacing: .04em; font-variant-numeric: tabular-nums; }
   .pl-meta span:empty { display: none; }
   .pl-meta span + span::before { content: "·"; margin: 0 6px; }
@@ -528,6 +588,13 @@
   .ctl.main { width: 80px; height: 80px; background: var(--text); color: var(--bg); }
   .remote .ctl.main svg { width: 36px; height: 36px; }
   .pl-vol { display: flex; justify-content: center; gap: 36px; margin: 8px 0 6px; }
+  .pl-sleep { margin: 14px 0 0; text-align: center; }
+  .pl-sleep .lbl { display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .pl-sleep .chips { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; }
+  .pl-sleep .chips button { font: inherit; font-size: 14px; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line);
+                            background: none; color: var(--text); cursor: pointer; }
+  .pl-sleep .chips button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .pl-sleep .txt { font-size: 13px; color: var(--muted); margin-top: 6px; min-height: 18px; }
   .pl-notif { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 10px 0 2px; padding: 11px 14px;
               border-radius: 12px; border: 1px solid var(--line); background: none; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
   .pl-notif svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -599,7 +666,16 @@
       <div class="main-head" id="mainHead"></div>
       <div class="main-cols">
         <div id="mainRemote"></div>
-        <div id="mainApps"><h2 class="main-h">Apps</h2></div>
+        <div id="mainApps"><div id="mainScenes" hidden><h2 class="main-h">Scenes</h2><div class="scn-row" id="mainScenesRow"></div></div><h2 class="main-h">Apps</h2></div>
+      </div>
+      <div class="wt" id="wt" hidden>
+        <div class="wt-head"><h2 class="main-h">Watch time</h2>
+          <div class="wt-range" id="wtDev"><button data-v="tv">TV</button><button data-v="cc">Chromecast</button></div>
+          <div class="wt-range" id="wtRange"><button data-d="1">Today</button><button data-d="7" class="on">7 days</button><button data-d="30">30 days</button></div></div>
+        <div class="card"><div class="wt-total" id="wtTotal"></div><div class="wt-days" id="wtDays"></div><div class="wt-axis" id="wtAxis"></div></div>
+        <div class="card"><div id="wtApps"></div></div>
+        <div class="card" id="wtTitlesCard"><h2 class="main-h" style="margin:0 0 6px">Watched most</h2><div id="wtTitles"></div></div>
+        <p class="hint" id="wtNote"></p>
       </div>
     </div>
 
@@ -706,6 +782,7 @@
           <div class="pl-title" id="npTitle"></div>
           <div class="pl-sub" id="npSub"></div>
           <div class="pl-meta"><span id="npApp"></span><span id="npTime"></span></div>
+          <div class="pl-bar" id="npBarBox" hidden title="Tap to jump there"><i id="npBar"></i></div>
         </div>
         <div class="pl-ctl">
           <button class="ctl" data-k="prev" data-only="cc" aria-label="Previous"><svg viewBox="0 0 24 24"><path d="M6 5h2.2v14H6zM19 5.5v13L9.5 12z"/></svg></button>
@@ -719,6 +796,9 @@
           <button class="vol" data-k="mute" aria-label="Mute"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM17 9l4 6M21 9l-4 6"/></svg></button>
           <button class="vol" data-k="volup" data-repeat aria-label="Volume up"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM17 12h4M19 10v4"/></svg></button>
         </div>
+        <div class="pl-sleep"><span class="lbl">☾ Sleep timer: the TV and Chromecast off</span>
+          <div class="chips" id="slChips"><button data-v="off">Off</button><button data-v="30">30 min</button><button data-v="60">1 h</button><button data-v="90">1½ h</button><button data-v="end" data-only="cc">End of video</button></div>
+          <div class="txt" id="slTxt"></div></div>
         <button class="pl-notif" id="npNotif" data-only="cc"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><span id="npNotifTx">Controls in my phone's notifications</span></button>
       </div>
     </div>
@@ -738,13 +818,16 @@
         <div class="rm-grid" id="rmGrid"></div>
       </div>
       <div class="remote" id="remote">
-        <div class="tpad" data-only="cc" id="tpad"><div id="tpadHint">Drag: move the pointer<br>Tap: click · Hold: long press<br>Two fingers (or the mouse wheel): scroll</div></div>
+        <div class="live" data-only="cc"><button class="lbtn" id="liveBtn">📺 Live screen</button>
+          <div class="frame" id="liveFrame" hidden><img id="liveImg" alt="The Chromecast's screen"><div class="msg" id="liveMsg">Loading…</div></div></div>
         <div class="rm-row top">
           <button class="rm-btn power" data-k="power" aria-label="Power"><svg viewBox="0 0 24 24"><path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button>
           <button class="rm-btn" data-k="wake" data-only="cc">Wake</button>
           <button class="rm-btn" data-k="input" data-only="tv">Input</button>
           <button class="rm-btn" data-k="menu" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+          <button class="rm-btn padsw" id="padSw" aria-label="Trackpad" title="Trackpad"><svg viewBox="0 0 24 24" id="padSwIc"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 9v6M9 12h6"/></svg></button>
         </div>
+        <div class="tpad" data-only="cc" id="tpad"><div id="tpadHint">Drag: move the pointer<br>Tap: click · Hold: long press<br>Two fingers (or the mouse wheel): scroll</div></div>
         <div class="dpad">
           <button class="dk up" data-k="up" data-repeat aria-label="Up"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
           <button class="dk left" data-k="left" data-repeat aria-label="Left"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
@@ -795,6 +878,13 @@
         <div class="row"><div class="grow">Sign out of this device</div><button class="btn danger" id="logout">Sign out</button></div>
       </div>
       <p class="hint">Every save keeps a copy of the previous settings (data/config-backups, the last 20).</p>
+      <h2>Secure address and notifications</h2>
+      <div class="card qk" id="secureBox"></div>
+      <h2>Scenes</h2>
+      <p class="hint" style="margin:0 4px 10px">Several steps with one tap, e.g. "Movie night": wake the Chromecast, VPN to the US, open Netflix.
+        They show on the Home tab and get a phone shortcut link.</p>
+      <div class="card qk" id="scenesEd"></div>
+      <div class="scn-row" style="margin-top:10px"><button id="scnNew">＋ New scene</button><button id="scnSave">Save scenes</button></div>
       <h2>Phone shortcuts</h2>
       <p class="hint" style="margin:0 4px 10px">A link per button, for your phone's lock screen, Control Center or widgets: opening it does the
         action, without this panel. They work at home (on the Wi-Fi). Anyone with a link can press that button, so keep them to yourself.</p>
@@ -922,7 +1012,7 @@
       if (first) first.click();
     }
   }
-  function renderAll() { renderLayout(); renderStatus(); renderVpn(); renderEditor('tv'); renderEditor('cc'); renderAddons(); renderHome(); renderWall(); renderSystem(); renderQuick(); }
+  function renderAll() { renderLayout(); renderStatus(); renderVpn(); renderEditor('tv'); renderEditor('cc'); renderAddons(); renderHome(); renderWall(); renderSystem(); renderQuick(); renderScenes(); renderSecure(); }
 
   function regionName(id) {
     var r = (S.regions || []).filter(function (x) { return x.id === id; })[0];
@@ -2328,6 +2418,10 @@
       vt.onclick = function () { toast('Switching the VPN… (up to 20 seconds)', 20000); quickTry('vpn-' + vsel.value); };
       vr.appendChild(vc); vr.appendChild(vt); box.appendChild(vr);
     }
+    row('Sleep timer: 30 min', 'sleep-30'); row('Sleep timer: 1 hour', 'sleep-60');
+    if (D.cc) row('Sleep timer: end of video', 'sleep-end');
+    row('Sleep timer: off', 'sleep-off');
+    (S.scenes || []).forEach(function (sc) { row('Scene: ' + (sc.icon ? sc.icon + ' ' : '') + sc.name, 'scene-' + sc.id); });
     var how = el('details');
     how.innerHTML = '<summary>Put them on your phone</summary>' +
       '<b>iPhone</b><ol><li>Copy a link here.</li><li>Shortcuts app &gt; <b>+</b> &gt; Add Action &gt; <b>Get Contents of URL</b>; paste the link. ' +
@@ -2348,6 +2442,162 @@
     };
     nr.appendChild(ng); nr.appendChild(nb); box.appendChild(nr);
   }
+
+  // ---------- secure address (https, this home's own certificate) and notifications (web push) ----------
+  var isSecure = location.protocol === 'https:';
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isSecure && 'serviceWorker' in navigator) navigator.serviceWorker.register('/admin-sw.js', { scope: '/' }).catch(function () {});
+  function keyBytes(b64) {
+    var s = atob((b64 + '='.repeat((4 - b64.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')), a = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
+    return a;
+  }
+  function pushSub() {
+    if (!isSecure || !('serviceWorker' in navigator) || !('PushManager' in window)) return Promise.resolve(null);
+    return navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); });
+  }
+  function pushOn() {
+    if (!('PushManager' in window) || !('Notification' in window)) {
+      snack(isIOS && !standalone ? 'On an iPhone, notifications work in the panel added to the Home Screen: Share > Add to Home Screen, then open it from there.'
+                                 : 'This browser can\'t show notifications.');
+      return;
+    }
+    Notification.requestPermission().then(function (perm) {
+      if (perm !== 'granted') { snack('Notifications are blocked for the panel: allow them in the phone\'s settings.'); return; }
+      return navigator.serviceWorker.ready.then(function (reg) {
+        return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(S.https.push_key) });
+      }).then(function (sub) {
+        return api('/api/admin/push-sub', { sub: sub.toJSON(), label: (isIOS ? 'iPhone' : 'Phone') + ' · ' + new Date().toLocaleDateString() });
+      }).then(function () { toast('Notifications on. Try "Send a test".'); renderSecure(); });
+    }).catch(function (e) { snack('Couldn\'t switch notifications on: ' + (e && e.message || e)); });
+  }
+  function pushOff() {
+    pushSub().then(function (sub) {
+      if (!sub) return;
+      return api('/api/admin/push-off', { endpoint: sub.endpoint }).then(function () { return sub.unsubscribe(); });
+    }).then(function () { toast('Notifications off on this phone.'); renderSecure(); });
+  }
+  function renderSecure() {
+    var box = $('secureBox'); if (!box || !S) return;
+    box.innerHTML = '';
+    var H = S.https || {};
+    if (!H.on) { var p0 = el('p', 'hint', 'Off: the helper needs the "cryptography" package (python -m pip install cryptography), then a restart.'); p0.style.padding = '14px 16px'; box.appendChild(p0); return; }
+    if (!isSecure) {
+      var intro = el('p', 'hint', 'The panel at its secure address can be installed as an app and send notifications (sleep timer about to turn off, the Chromecast\'s link dropped). Once per phone: install this home\'s certificate, then open the secure address.');
+      intro.style.padding = '14px 16px 0'; box.appendChild(intro);
+      var r = el('div', 'row'); r.appendChild(el('div', 'grow', '1. This home\'s certificate'));
+      var get = el('button', 'btn', 'Get it'); get.onclick = function () { location.href = '/ca.crt'; }; r.appendChild(get); box.appendChild(r);
+      var how = el('details');
+      how.innerHTML = '<summary>How to install it</summary><b>iPhone (in Safari)</b><ol><li>Get it &gt; Allow &gt; Close.</li>' +
+        '<li>Settings &gt; General &gt; VPN &amp; Device Management &gt; <b>Home helper</b> &gt; Install.</li>' +
+        '<li>Settings &gt; General &gt; About &gt; Certificate Trust Settings &gt; turn on <b>Home helper</b>.</li></ol>' +
+        '<b>Android</b><ol><li>Get it (it downloads).</li><li>Settings &gt; Security &amp; privacy &gt; More security settings &gt; Encryption &amp; credentials &gt; ' +
+        'Install a certificate &gt; <b>CA certificate</b> &gt; Install anyway &gt; pick home-helper-ca.crt.</li></ol>' +
+        '<p class="hint">It only lets your phone trust this helper\'s address at home; it was made on your computer and never leaves your home.</p>';
+      box.appendChild(how);
+      var r2 = el('div', 'row'); r2.appendChild(el('div', 'grow', '2. Open the secure address'));
+      var go = el('button', 'btn primary', 'Open'); go.onclick = function () { location.href = H.url; }; r2.appendChild(go); box.appendChild(r2);
+      var p2 = el('p', 'hint', 'Then: iPhone, Share > Add to Home Screen; Android, Chrome\'s menu > Install app. Open it from the Home Screen and switch notifications on here.');
+      p2.style.padding = '0 16px 14px'; box.appendChild(p2);
+      return;
+    }
+    var ok = el('div', 'row'); ok.appendChild(el('div', 'grow', '🔒 Secure address')); ok.appendChild(el('small', '', H.phones + (H.phones === 1 ? ' phone' : ' phones') + ' with notifications'));
+    box.appendChild(ok);
+    pushSub().then(function (sub) {
+      var r = el('div', 'row'), g = el('div', 'grow', 'Notifications on this phone');
+      g.appendChild(el('small', '', 'The sleep timer about to turn things off (with "Keep watching"), the Chromecast\'s link dropping.'));
+      r.appendChild(g);
+      if (sub) {
+        var t = el('button', 'btn', 'Send a test'); t.onclick = function () { api('/api/admin/push-test', {}).then(function (x) { (x.ok ? toast : snack)(x.ok ? 'Sent.' : x.error); }, function (e) { snack(e.message); }); };
+        var off = el('button', 'btn', 'Turn off'); off.onclick = pushOff;
+        r.appendChild(t); r.appendChild(off);
+      } else {
+        var on = el('button', 'btn primary', 'Turn on'); on.onclick = pushOn; r.appendChild(on);
+      }
+      box.appendChild(r);
+    });
+  }
+
+  // ---------- scenes: steps are the phone shortcuts' actions, plus waits ----------
+  var scenesDraft = null;
+  function stepGroups() {
+    var D = S.devices || {}, g = [];
+    if (D.tv) g.push(['TV', [['tv-on', 'Turn on'], ['tv-off', 'Turn off'], ['tv-home', 'Home'], ['tv-play', 'Play / pause'], ['tv-mute', 'Mute'], ['tv-volup', 'Volume up'], ['tv-voldown', 'Volume down'], ['tv-input', 'Input']]]);
+    if (D.cc) g.push(['Chromecast', [['cc-wake', 'Wake (turns the TV on)'], ['cc-power', 'Sleep'], ['cc-home', 'Home'], ['cc-play', 'Play / pause'], ['cc-next', 'Next'], ['cc-volup', 'Volume up'], ['cc-voldown', 'Volume down']]]);
+    [['tv', 'Open on the TV'], ['cc', 'Open on the Chromecast']].forEach(function (d) {
+      if (!D[d[0]]) return;
+      var dock = lay(d[0]).dock || [];
+      g.push([d[1], appsOf(d[0]).filter(function (a) { return a.id.indexOf('addon:') !== 0; }).sort(function (a, b) {
+        var da = dock.indexOf(a.id), db = dock.indexOf(b.id);
+        if (da >= 0 || db >= 0) return (da < 0 ? 99 : da) - (db < 0 ? 99 : db);
+        return displayName(d[0], a.id).localeCompare(displayName(d[0], b.id));
+      }).map(function (a) { return [d[0] + '-open-' + a.id, displayName(d[0], a.id)]; })]);
+    });
+    if (D.vpn && (S.regions || []).length) g.push(['VPN', S.regions.map(function (x) { return ['vpn-' + x.id, x.name]; })]);
+    g.push(['Sleep timer', [['sleep-30', 'In 30 minutes'], ['sleep-60', 'In 1 hour'], ['sleep-90', 'In 1½ hours']].concat(D.cc ? [['sleep-end', 'When the video ends']] : []).concat([['sleep-off', 'Off']])]);
+    g.push(['Wait', [['wait-2', '2 seconds'], ['wait-5', '5 seconds'], ['wait-10', '10 seconds'], ['wait-20', '20 seconds']]]);
+    return g;
+  }
+  function stepSelect(val) {
+    var sel = el('select'), found = false;
+    stepGroups().forEach(function (gr) {
+      var og = document.createElement('optgroup'); og.label = gr[0];
+      gr[1].forEach(function (o) { var op = el('option', '', o[1]); op.value = o[0]; if (o[0] === val) { op.selected = true; found = true; } og.appendChild(op); });
+      sel.appendChild(og);
+    });
+    if (val && !found) { var op = el('option', '', val); op.value = val; op.selected = true; sel.insertBefore(op, sel.firstChild); }
+    return sel;
+  }
+  function renderScenes() {
+    if (!S) return;
+    if (!scenesDraft) scenesDraft = clone(S.scenes || []);
+    // the Home tab's buttons (saved scenes only)
+    var row = $('mainScenesRow'); row.innerHTML = '';
+    (S.scenes || []).forEach(function (sc) {
+      var b = el('button'); b.appendChild(el('span', 'ic', sc.icon || '▶')); b.appendChild(el('span', '', sc.name));
+      b.onclick = function () { runScene(sc.id); }; row.appendChild(b);
+    });
+    $('mainScenes').hidden = !(S.scenes || []).length;
+    // the editor
+    var box = $('scenesEd'); box.innerHTML = '';
+    if (!scenesDraft.length) box.appendChild(el('p', 'hint', 'No scenes yet: ＋ New scene.')).style.padding = '14px 16px';
+    scenesDraft.forEach(function (sc, i) {
+      var ed = el('div', 'scn-ed'), top = el('div', 'top');
+      var ic = el('input', 'ic'); ic.type = 'text'; ic.value = sc.icon || ''; ic.maxLength = 4; ic.placeholder = '🎬'; ic.oninput = function () { sc.icon = ic.value; };
+      var nm = el('input', 'nm'); nm.type = 'text'; nm.value = sc.name || ''; nm.maxLength = 40; nm.placeholder = 'Name, e.g. Movie night'; nm.oninput = function () { sc.name = nm.value; };
+      top.appendChild(ic); top.appendChild(nm); ed.appendChild(top);
+      (sc.steps || []).forEach(function (st, j) {
+        var r = el('div', 'step'); r.appendChild(el('span', 'n', (j + 1) + '.'));
+        var sel = stepSelect(st); sel.onchange = function () { sc.steps[j] = sel.value; }; r.appendChild(sel);
+        var up = el('button', '', '↑'); up.title = 'Earlier'; up.disabled = j === 0;
+        up.onclick = function () { var t = sc.steps[j - 1]; sc.steps[j - 1] = sc.steps[j]; sc.steps[j] = t; renderScenes(); };
+        var x = el('button', '', '✕'); x.title = 'Remove step'; x.onclick = function () { sc.steps.splice(j, 1); renderScenes(); };
+        r.appendChild(up); r.appendChild(x); ed.appendChild(r);
+      });
+      var acts = el('div', 'acts');
+      var add = el('button', 'btn', '＋ Step'); add.onclick = function () { (sc.steps = sc.steps || []).push(stepGroups()[0][1][0][0]); renderScenes(); };
+      var run = el('button', 'btn', 'Run'); run.onclick = function () { if (!sc.id || !(S.scenes || []).some(function (x) { return x.id === sc.id; })) { snack('Save the scenes first.'); return; } runScene(sc.id); };
+      var link = el('button', 'btn', 'Copy link'); link.onclick = function () { if (!sc.id) { snack('Save the scenes first.'); return; } copyText(S.quick_base + 'scene-' + sc.id); };
+      var del = el('button', 'btn danger', 'Delete'); del.onclick = function () { scenesDraft.splice(i, 1); renderScenes(); toast('Deleted. Save scenes to keep it that way.'); };
+      [add, run, link, del].forEach(function (b) { acts.appendChild(b); });
+      ed.appendChild(acts); box.appendChild(ed);
+    });
+  }
+  function runScene(id) {
+    api('/api/admin/scene-run', { id: id }).then(function (r) { (r.ok ? toast : snack)(r.ok ? r.said : r.error); }, function (e) { snack(e.message); });
+  }
+  $('scnNew').onclick = function () {
+    var D = S.devices || {}, steps = [];
+    if (D.cc) steps.push('cc-wake'); else if (D.tv) steps.push('tv-on');
+    scenesDraft.push({ name: '', icon: '🎬', steps: steps.length ? steps : ['wait-2'] });
+    renderScenes();
+    var ins = document.querySelectorAll('#scenesEd input.nm'); if (ins.length) ins[ins.length - 1].focus();
+  };
+  $('scnSave').onclick = function () {
+    api('/api/admin/scenes', { scenes: scenesDraft }).then(function (r) {
+      S.scenes = r.scenes; scenesDraft = clone(r.scenes); renderScenes(); toast('Scenes saved.');
+    }, function (e) { snack(e.message); });
+  };
 
   // ---------- system ----------
   function renderSystem() {
@@ -2390,15 +2640,31 @@
     if (mdDev !== 'cc') return;
     if (!np.at) { $('npTime').textContent = ''; setMainIcon(false); return; }
     var t = np.pos + (np.playing ? (Date.now() - np.at) / 1000 : 0);
-    $('npTime').textContent = (np.playing ? 'Playing' : 'Paused') + ' · ' + fmtTime(t);
+    if (np.dur) t = Math.min(t, np.dur);
+    $('npTime').textContent = (np.playing ? 'Playing' : 'Paused') + ' · ' + fmtTime(t) + (np.dur ? ' / ' + fmtTime(np.dur) : '');
+    $('npBarBox').hidden = !np.dur;
+    if (np.dur) $('npBar').style.width = (100 * t / np.dur).toFixed(2) + '%';
     setMainIcon(np.playing);
   }
   var mdDev = 'cc', lastNp;
+  // the video's own picture (thumbnail, album cover) when the launcher can see it; kept per title
+  function npArt(p) { return p && p.art ? '/api/admin/np-art?t=' + encodeURIComponent(p.app + '|' + (p.title || '')) : ''; }
+  function npSeek(sec) {
+    np.pos = Math.max(0, sec); np.at = Date.now(); npPaintTime();
+    api('/api/admin/np-seek', { sec: Math.round(sec) }).then(function (r) { if (r && r.ok === false) snack(r.error); setTimeout(npRefresh, 1200); },
+      function (e) { snack(e.message); });
+  }
+  $('npBarBox').addEventListener('click', function (e) {
+    if (!np.dur) return;
+    var b = this.getBoundingClientRect();
+    npSeek(np.dur * Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)));
+  });
   function npRefresh() {
     if (!S || !S.cc_ip) return;
     api('/api/admin/now-playing').then(function (r) {
       var card = $('npCard'), p = r && r.playing;
-      mnPaint(r && r.ok ? (p || null) : undefined);
+      mnPaint(r);
+      if (r && r.sleep) paintSleep(r.sleep);
       if (r && r.ok && (lastNp === undefined || JSON.stringify(lastNp) !== JSON.stringify(p || null))) { lastNp = p || null; drawCanvas(); }
       $('npFab').classList.toggle('live', !!(p && p.state === 'playing'));
       paintMainNp(r);
@@ -2407,11 +2673,12 @@
       card.classList.toggle('noimg', !p);
       if (!r || !r.ok) { $('npApp').textContent = ''; $('npTitle').textContent = (r && r.error) || 'Can\'t see what\'s playing.'; $('npSub').textContent = ''; np.at = 0; npPaintTime(); return; }
       if (!p) { $('npApp').textContent = ''; $('npTitle').textContent = 'Nothing is playing'; $('npSub').textContent = 'Start something on the Chromecast'; np.at = 0; npPaintTime(); return; }
-      if ($('npIcon').getAttribute('src') !== p.icon) $('npIcon').src = p.icon;
+      var cover = npArt(p) || p.icon;
+      if ($('npIcon').getAttribute('src') !== cover) $('npIcon').src = cover;
       $('npApp').textContent = p.name;
       $('npTitle').textContent = p.title || p.name;
       $('npSub').textContent = p.subtitle || '';
-      np.pos = p.position || 0; np.at = Date.now(); np.playing = p.state === 'playing';
+      np.pos = p.position || 0; np.dur = p.duration || 0; np.at = Date.now(); np.playing = p.state === 'playing';
       npPaintTime();
     }, function () {});
   }
@@ -2429,8 +2696,10 @@
     api('/api/admin/remote-status').then(function (st) {
       var t;
       if (rmDev === 'tv') t = st.tv.on === true ? 'The TV is on.' : st.tv.on === false ? 'The TV looks off: it may not answer until it\'s on.' : 'Can\'t tell whether the TV is on.';
-      else t = !st.cc.linked ? st.cc.why : st.cc.awake ? 'The Chromecast is on.' : 'The Chromecast is asleep: Wake turns it on (the TV may switch to it).';
+      else t = !st.cc.linked ? st.cc.why : st.cc.limited ? 'Wireless debugging is off: the arrows, OK, Back, Home, volume and play work through the launcher; typing, Wake and trackpad clicks need it on.'
+        : st.cc.awake ? 'The Chromecast is on.' : 'The Chromecast is asleep: Wake turns it on (the TV may switch to it).';
       $('rmStatus').textContent = t;
+      if (st.sleep) paintSleep(st.sleep);
       if (rmDev === 'cc' && !st.cc.linked && st.cc.why) snack(st.cc.why);
     }, function () { $('rmStatus').textContent = ''; });
   }
@@ -2506,6 +2775,67 @@
       padFlush();
     }, function (e) { pad.busy = false; snack(e.message); });
   }
+  // ---------- live screen (Chromecast): a frame about every second; a tap on it taps there on the TV ----------
+  var live = { on: false, t: 0, at: 0 };
+  function liveNext() {
+    if (!live.on) return;
+    if (!$('liveFrame').offsetParent) { liveSet(false); return; }   // its remote closed, or another tab: stop
+    if (document.hidden) { live.t = setTimeout(liveNext, 1500); return; }
+    var img = $('liveImg'), url = '/api/admin/cc-live?after=' + live.at + '&n=' + Date.now();
+    fetch(url, { credentials: 'same-origin' }).then(function (r) {
+      if (r.ok) { live.at = parseFloat(r.headers.get('X-Frame-At')) || 0; }
+      if (r.ok) return r.blob().then(function (b) {
+        var old = img.src; img.src = URL.createObjectURL(b); if (old && old.indexOf('blob:') === 0) URL.revokeObjectURL(old);
+        return new Promise(function (res) { img.onload = res; img.onerror = res; }).then(function () {
+          // all black: an app that blocks screen pictures (YouTube, Netflix…): say so instead of a black box
+          var black = false;
+          try {
+            var c = document.createElement('canvas'); c.width = 32; c.height = 18;
+            var x = c.getContext('2d'); x.drawImage(img, 0, 0, 32, 18);
+            var d = x.getImageData(0, 0, 32, 18).data, mx = 0;
+            for (var i = 0; i < d.length; i += 4) mx = Math.max(mx, d[i], d[i + 1], d[i + 2]);
+            black = mx < 24;
+          } catch (e) {}
+          $('liveMsg').hidden = !black;
+          if (black) $('liveMsg').textContent = 'Black: this app blocks screen pictures (YouTube, Netflix and other video apps). The remote and the pointer still work.';
+        });
+      });
+      return r.json().catch(function () { return {}; }).then(function (j) { $('liveMsg').hidden = false; $('liveMsg').textContent = j.error || 'No picture.'; });
+    }, function () { $('liveMsg').hidden = false; $('liveMsg').textContent = 'The helper didn\'t answer.'; })
+      .then(function () { if (live.on) live.t = setTimeout(liveNext, 100); });
+  }
+  function liveSet(on) {
+    live.on = on; clearTimeout(live.t);
+    $('liveFrame').hidden = !on; $('liveBtn').classList.toggle('on', on);
+    $('liveBtn').textContent = on ? '📺 Live screen: on' : '📺 Live screen';
+    if (on) { $('liveMsg').hidden = false; $('liveMsg').textContent = 'Loading… (apps like Netflix and YouTube show black: they block screen pictures)'; liveNext(); }
+  }
+  $('liveBtn').onclick = function () { liveSet(!live.on); };
+  $('liveFrame').addEventListener('click', function (e) {
+    var img = $('liveImg'), b = img.getBoundingClientRect();
+    if (!img.naturalWidth) return;
+    // where the picture is inside its box (object-fit: contain)
+    var sc = Math.min(b.width / img.naturalWidth, b.height / img.naturalHeight), w = img.naturalWidth * sc, h = img.naturalHeight * sc;
+    var fx = (e.clientX - b.left - (b.width - w) / 2) / w, fy = (e.clientY - b.top - (b.height - h) / 2) / h;
+    if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return;
+    var d = el('div', 'dot'); d.style.left = (e.clientX - b.left) + 'px'; d.style.top = (e.clientY - b.top) + 'px';
+    this.appendChild(d); setTimeout(function () { d.remove(); }, 600);
+    api('/api/admin/cc-tap', { x: fx, y: fy }).then(function (r) { if (r && r.ok === false) snack(r.error); }, function (e2) { snack(e2.message); });
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && live.on) { clearTimeout(live.t); liveNext(); } });
+
+  // the arrows or the trackpad, in the same spot (the choice is kept on this phone)
+  var TOUCH_IC = '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 9v6M9 12h6"/>',   // a pad: switch to the trackpad
+      ARROWS_IC = '<path d="M12 3l3 3h-6zM12 21l-3-3h6zM3 12l3-3v6zM21 12l-3 3V9z"/><circle cx="12" cy="12" r="2.5"/>';   // arrows: switch back
+  function padMode(touch) {
+    document.body.classList.toggle('pad-touch', touch);
+    $('padSwIc').innerHTML = touch ? ARROWS_IC : TOUCH_IC;
+    $('padSw').setAttribute('aria-label', touch ? 'Arrows' : 'Trackpad'); $('padSw').title = touch ? 'Arrows' : 'Trackpad';
+    try { localStorage.setItem('cyt-pad', touch ? 'touch' : 'arrows'); } catch (e) {}
+  }
+  $('padSw').onclick = function () { padMode(!document.body.classList.contains('pad-touch')); };
+  try { padMode(localStorage.getItem('cyt-pad') === 'touch'); } catch (e) { padMode(false); }
+
   var tp = $('tpad');
   tp.addEventListener('pointerdown', function (e) {
     e.preventDefault();
@@ -2589,11 +2919,86 @@
     }
   }
   var mainTimer = 0;
+  // ---------- watch time ----------
+  var wtDaysN = 7, wtDev = '', wtLast = null;
+  function fmtDur(sec) {
+    var m = Math.round(sec / 60);
+    if (m < 60) return m + ' min';
+    var h = Math.floor(m / 60); m = m % 60;
+    return h + ' h' + (m ? ' ' + m + ' min' : '');
+  }
+  function loadStats() {
+    if (!S || !((S.devices || {}).cc || (S.devices || {}).tv)) return;
+    api('/api/admin/stats?days=' + wtDaysN).then(function (r) { wtLast = r; paintStats(r); }, function () {});
+  }
+  function paintStats(r) {
+    $('wt').hidden = false;
+    if (!wtDev) wtDev = r.tv && r.tv.on ? 'tv' : 'cc';
+    var both = !!(r.tv && r.tv.on && r.cc);
+    $('wtDev').hidden = !both;
+    Array.prototype.forEach.call(document.querySelectorAll('#wtDev button'), function (b) { b.classList.toggle('on', b.getAttribute('data-v') === wtDev); });
+    Array.prototype.forEach.call(document.querySelectorAll('#wtRange button'), function (b) { b.classList.toggle('on', +b.getAttribute('data-d') === wtDaysN); });
+    var isTv = wtDev === 'tv';
+    // the TV: time switched on, per screen; the Chromecast: time playing, per app and per title
+    if (isTv) r = { total: r.tv.total, per_day: r.tv.per_day, titles: [], tv: true,
+                    apps: r.tv.screens.map(function (x) { return { name: x.name, secs: x.secs, icon: x.icon, ph: x.cc ? '📡' : x.key === 'livetv' ? '📺' : x.key === 'home' ? '⌂' : x.key.indexOf('src:') === 0 ? '🔌' : '▶' }; }) };
+    $('wtTitlesCard').hidden = isTv;
+    $('wtNote').textContent = isTv
+      ? 'The TV: counted every 30 seconds while it\'s on, by what it shows (an app, Live TV, an input). Kept on this computer only (data/watch-stats.json, 90 days).'
+      : 'The Chromecast: counted every 30 seconds while something plays. Kept on this computer only (data/watch-stats.json, 90 days).';
+    var lbl = wtDaysN === 1 ? 'today' : 'in the last ' + wtDaysN + ' days';
+    $('wtTotal').innerHTML = '';
+    $('wtTotal').appendChild(document.createTextNode(r.total ? fmtDur(r.total) : '0 min'));
+    $('wtTotal').appendChild(el('small', '', r.total ? (isTv ? 'the TV was on ' : 'watched ') + lbl + (wtDaysN > 1 ? ' · about ' + fmtDur(r.total / wtDaysN) + ' a day' : '')
+                                                    : (isTv ? 'The TV wasn\'t on ' : 'Nothing played ') + lbl + ' yet.'));
+    // per day (one series: the accent; the value on hover)
+    var days = $('wtDays'), mx = Math.max.apply(null, r.per_day.map(function (d) { return d.secs; }).concat([1]));
+    days.innerHTML = ''; days.hidden = wtDaysN === 1; $('wtAxis').hidden = wtDaysN === 1;
+    var tip = el('div', 'wt-tip'); tip.hidden = true;
+    r.per_day.forEach(function (d, i) {
+      var c = el('div', 'd' + (d.secs ? '' : ' zero')), bar = el('i');
+      bar.style.height = (100 * d.secs / mx).toFixed(1) + '%'; c.appendChild(bar);
+      var dt = new Date(d.day + 'T12:00:00'), name = dt.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+      c.setAttribute('aria-label', name + ': ' + fmtDur(d.secs));
+      var show = function () { tip.hidden = false; tip.textContent = name + ' · ' + fmtDur(d.secs); tip.style.left = ((i + .5) * 100 / r.per_day.length) + '%';
+        Array.prototype.forEach.call(days.children, function (x) { x.classList.toggle('hl', x === c); }); };
+      c.addEventListener('pointerenter', show); c.addEventListener('pointerdown', show);
+      c.addEventListener('pointerleave', function () { tip.hidden = true; c.classList.remove('hl'); });
+      days.appendChild(c);
+    });
+    days.appendChild(tip);
+    var first = r.per_day[0], last = r.per_day[r.per_day.length - 1], f = function (x) { return new Date(x.day + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
+    $('wtAxis').innerHTML = ''; if (first) { $('wtAxis').appendChild(el('span', '', f(first))); $('wtAxis').appendChild(el('span', '', 'Today')); }
+    // per app: ranked bars, names and times in text colour
+    var apps = $('wtApps'); apps.innerHTML = '';
+    var amx = Math.max.apply(null, r.apps.map(function (a) { return a.secs; }).concat([1]));
+    if (!r.apps.length) apps.appendChild(el('p', 'hint', 'Nothing yet.'));
+    r.apps.forEach(function (a) {
+      var row = el('div', 'wt-app'), img;
+      if (a.icon) { img = new Image(); img.alt = ''; img.src = a.icon; img.onerror = function () { img.style.visibility = 'hidden'; }; }
+      else img = el('div', 'ph', a.ph || '▶');
+      var mid = el('div'); mid.appendChild(el('div', 'nm', a.name)); var b = el('div', 'bar'); b.style.width = Math.max(2, 100 * a.secs / amx).toFixed(1) + '%'; mid.appendChild(b);
+      row.appendChild(img); row.appendChild(mid); row.appendChild(el('div', 'v', fmtDur(a.secs))); apps.appendChild(row);
+    });
+    var tl = $('wtTitles'); tl.innerHTML = '';
+    if (!r.titles.length) tl.appendChild(el('p', 'hint', 'Nothing yet.'));
+    r.titles.forEach(function (t) {
+      var row = el('div', 'wt-t'), tt = el('div', 'tt'); tt.appendChild(el('b', '', t.title)); tt.appendChild(el('small', '', [t.name, t.sub].filter(Boolean).join(' · ')));
+      row.appendChild(tt); row.appendChild(el('div', 'v', fmtDur(t.secs))); tl.appendChild(row);
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#wtRange button'), function (b) {
+    b.onclick = function () { wtDaysN = +b.getAttribute('data-d'); loadStats(); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('#wtDev button'), function (b) {
+    b.onclick = function () { wtDev = b.getAttribute('data-v'); if (wtLast) paintStats(wtLast); };
+  });
+
   function showMain(on) {
     document.body.classList.toggle('on-main', on);
     clearInterval(mainTimer); mainTimer = 0;
     if (!on || !S) return;
-    mountRemote('main'); renderRmApps(); rmShowStatus(); npRefresh();
+    mountRemote('main'); renderRmApps(); rmShowStatus(); npRefresh(); loadStats();
     mainTimer = setInterval(function () { rmShowStatus(); npRefresh(); }, 10000);
   }
   function paintMainNp(r) {
@@ -2713,6 +3118,30 @@
     head.addEventListener('pointerup', end);
     head.addEventListener('pointercancel', end);
   });
+  // ---------- sleep timer ----------
+  var sl = { until: 0, end: false, on: false };
+  function paintSleep(st) {
+    sl.on = !!st.on; sl.end = !!st.end; sl.until = st.on ? Date.now() + st.left * 1000 : 0;
+    var v = st.v || (!sl.on ? 'off' : sl.end ? 'end' : '');
+    Array.prototype.forEach.call(document.querySelectorAll('#slChips button'), function (b) { b.classList.toggle('on', b.getAttribute('data-v') === v); });
+    sleepText();
+  }
+  function sleepText() {
+    var t = '';
+    if (sl.on && sl.end) t = 'Turns off a minute and a half after the video stops.';
+    else if (sl.on) { var m = Math.max(0, Math.round((sl.until - Date.now()) / 60000)); t = m >= 1 ? 'Turns off in ' + (m >= 60 ? Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + m % 60 + ' min' : '') : m + ' min') + '.' : 'Turning off…'; }
+    $('slTxt').textContent = t;
+  }
+  setInterval(function () { if (sl.on) sleepText(); }, 20000);
+  Array.prototype.forEach.call(document.querySelectorAll('#slChips button'), function (b) {
+    b.onclick = function () {
+      api('/api/admin/sleep', { set: b.getAttribute('data-v') }).then(function (r) {
+        paintSleep(r.sleep);
+        toast(!r.sleep.on ? 'Sleep timer off.' : r.sleep.end ? 'The TV and Chromecast turn off when the video ends.' : 'The TV and Chromecast turn off in ' + b.textContent + '.');
+      }, function (e) { snack(e.message); });
+    };
+  });
+
   // ---------- Now playing in the phone's notifications (and lock screen) ----------
   // A web page gets media controls there only while it plays sound itself: so a silent loop plays here, and the
   // controls (play/pause, previous, next) go to the Chromecast. Browsers start sound only after a tap, so it starts
@@ -2729,7 +3158,15 @@
     for (i = 0; i < n; i++) v.setUint8(44 + i, 128);
     return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
   }
-  function mnKey(k) { return function () { sendKey('cc', k); setTimeout(npRefresh, 900); }; }
+  // the lock screen's buttons go to what it shows: the Chromecast's player, or the TV (no next/previous there: rewind/forward)
+  function mnKey(k) {
+    return function () {
+      var dev = mn.dev || 'cc', key = dev === 'tv' ? ({ prev: 'rew', next: 'ff' }[k] || k) : k;
+      sendKey(dev, key);
+      if (k === 'play' && mn.audio) { if (mn.audio.paused) mn.audio.play().catch(function () {}); else mn.audio.pause(); }
+      setTimeout(npRefresh, 900);
+    };
+  }
   function mnButton() {
     $('npNotif').classList.toggle('on', mn.on);
     $('npNotifTx').textContent = mn.on ? 'In your notifications: tap to remove' : 'Controls in my phone\'s notifications';
@@ -2744,6 +3181,11 @@
       set('play', mnKey('play')); set('pause', mnKey('play'));
       set('previoustrack', mnKey('prev')); set('nexttrack', mnKey('next'));   // no seek ones: iPhones then show ±10 s instead
       set('stop', function () { mnStop(); });
+      set('seekto', function (d) {
+        if (!d || d.seekTime == null || mn.dev === 'tv') return;
+        try { mn.audio.currentTime = d.seekTime; } catch (e) {}
+        npSeek(d.seekTime);
+      });
       clearInterval(mn.poll); mn.poll = setInterval(function () { if (document.hidden) npRefresh(); }, 8000);
       mnButton(); npRefresh();
       if (!quiet) toast('Now playing is in your notifications and on the lock screen.');
@@ -2753,20 +3195,56 @@
     mn.on = false; mn.want = false; clearInterval(mn.poll);
     try { localStorage.setItem('cyt-np-notif', '0'); } catch (e) {}
     if (mn.audio) mn.audio.pause();
+    mn.track = null;
     try { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; } catch (e) {}
     mnButton();
   }
   // p: what's playing; null: nothing; undefined: couldn't tell (keep what's shown)
-  function mnPaint(p) {
-    if (!mn.on || p === undefined) return;
-    var ms = navigator.mediaSession;
+  // The page's own silent sound is what an iPhone draws the progress bar from: so it is silence exactly as long as the
+  // video (streamed by the helper), kept at the Chromecast's position. The TV says no length: a made-up hour, looping.
+  function mnTrack(sec, loop, pos) {
+    var a = mn.audio, want = sec + (loop ? 'L' : '');
+    if (mn.track !== want) {
+      mn.track = want; a.loop = loop;
+      a.src = '/api/admin/silence.wav?sec=' + sec;
+      a.onloadedmetadata = function () { try { a.currentTime = Math.min(pos, sec - 1); } catch (e) {} a.onloadedmetadata = null; };
+      a.play().catch(function () {});
+      return;
+    }
+    if (!loop && Math.abs(a.currentTime - pos) > 4) { try { a.currentTime = Math.min(pos, sec - 1); } catch (e) {} }
+  }
+  function mnPaint(r) {
+    if (!mn.on || !r || !r.ok) return;
+    var ms = navigator.mediaSession, p = r.playing, tv = r.tv || {};
     try {
-      if (!p) { ms.metadata = new MediaMetadata({ title: 'Nothing is playing', artist: 'Chromecast' }); ms.playbackState = 'paused'; return; }
-      var art = new URL(p.icon, location.href).href;
-      if (!ms.metadata || ms.metadata.title !== (p.title || p.name) || ms.metadata.artist !== (p.subtitle || p.name))
-        ms.metadata = new MediaMetadata({ title: p.title || p.name, artist: p.subtitle || p.name, album: p.name + ' · Chromecast',
-                                          artwork: [{ src: art, sizes: '192x192' }, { src: art, sizes: '512x512' }] });
-      ms.playbackState = p.state === 'playing' ? 'playing' : 'paused';
+      if (p) {   // the Chromecast's player: its title, picture, length and position
+        mn.dev = 'cc';
+        var art = new URL(npArt(p) || p.icon, location.href).href, title = p.title || p.name, artist = p.subtitle || p.name;
+        if (!ms.metadata || ms.metadata.title !== title || ms.metadata.artist !== artist)
+          ms.metadata = new MediaMetadata({ title: title, artist: artist, album: p.name + ' · Chromecast',
+                                            artwork: [{ src: art, sizes: '192x192' }, { src: art, sizes: '512x512' }] });
+        var playing = p.state === 'playing', dur = p.duration > 0 ? p.duration : 3600, pos = p.duration > 0 ? Math.min(p.position || 0, dur) : (p.position || 0) % 3600;
+        mnTrack(dur, !(p.duration > 0), pos);
+        if (playing && mn.audio.paused) mn.audio.play().catch(function () {});
+        if (!playing && !mn.audio.paused) mn.audio.pause();
+        ms.playbackState = playing ? 'playing' : 'paused';
+        if (ms.setPositionState) ms.setPositionState({ duration: dur, position: Math.min(pos, dur), playbackRate: 1 });
+        return;
+      }
+      if (tv.on) {   // nothing on the Chromecast, the TV is on: what it shows, with a made-up bar
+        mn.dev = 'tv';
+        var t = tv.screen || 'TV';
+        if (!ms.metadata || ms.metadata.title !== t)
+          ms.metadata = new MediaMetadata({ title: t, artist: 'TV', album: 'TV',
+                                            artwork: [{ src: new URL('/api/admin/app/icon-512.png', location.href).href, sizes: '512x512' }] });
+        mnTrack(3600, true, 0);
+        if (mn.audio.paused) mn.audio.play().catch(function () {});
+        ms.playbackState = 'playing';
+        return;
+      }
+      mn.dev = 'cc';
+      ms.metadata = new MediaMetadata({ title: 'Nothing is playing', artist: 'Chromecast' });
+      ms.playbackState = 'paused';
     } catch (e) {}
   }
   $('npNotif').onclick = function () { if (mn.on) { mnStop(); toast('Removed from the notifications.'); } else mnStart(false); };
