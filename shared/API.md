@@ -24,6 +24,8 @@ can't read.
   `helper/layout.py` and built into the app.
 - `addons/<id>/addon.json`: what each built-in add-on is and its settings. The helper runs its `addon.py`; the
   Chromecast runs a Kotlin copy of the seven built-in ones (`Content.kt`).
+- `shared/experiences/catalog.js`: the Home layouts (ids, names, key maps, options), a strict JSON block both
+  back ends read (`helper/experience.py`, `Experience.kt`) and both screens draw from ([docs/experiences.md](../docs/experiences.md)).
 - `web/quotes.json`: the built-in quotes (also loaded by the TV page when it's hosted on its own).
 - `config.json`'s shape: both keep the settings in it (the helper in `config.json`, the Chromecast in its private
   copy). `tools/move-to-chromecast.py` copies it over.
@@ -32,10 +34,15 @@ can't read.
 
 | Request | Answer |
 |---|---|
-| `GET /api/cc` | `dock, rows, rename, hidden, app_vpn, layout, greeting_name, quotes, weather, wallpaper, region, clock_24h, rev, live_refresh, cursor{port, token}, started, saved, api` |
+| `GET /api/cc` | `dock, rows, rename, hidden, app_vpn, layout, experience{id, opts, api}, greeting_name, quotes, weather, wallpaper, region, clock_24h, rev, live_refresh, cursor{port, token}, started, saved, api` |
+| `GET /api/state` (helper: the TV page) | as before, plus `experience{id, opts, api}` for the TV |
+| `GET /api/home-scenes` | `ok, scenes[{id, name, icon, summary}]`: only the scenes allowed on Home (`home_experience.scenes`), never their raw steps |
+| `POST /api/home-scene-run {id}` | `ok, said` / 403 when that scene isn't allowed on Home (the screens aren't signed in) |
+| `GET /api/tv-sources` · `POST /api/tv-source {id}` | the TV's inputs `sources[{id, name}]`; switch to one (the helper with a VIDAA TV; the Chromecast's server asks the helper) |
+| `GET /experiences/<file>` | the layouts' files: `catalog.js` and `previews/<id>.jpg` on both; on the helper also the TV's engine (`engine.js`, `layouts.js`, `experiences.css`) |
 | `GET /api/rev` | `started, saved, wall, code` (polled every 3 s: a change reloads settings or the page) |
 | `GET /api/home-edit` / `POST` | `layout, spec, widgets[{id, name, emoji, on}]`; save `{layout, on[], off[]}` |
-| `GET /api/addons/home` | `widgets[], rows[], tiles[], widget_seconds` |
+| `GET /api/addons/home` | `widgets[], rows[], tiles[], widget_seconds, icon_theme{id, name, style{shape, background, monochrome, tint, padding}, icons{app id or name: url}} or null` |
 | `GET /api/addons/<id>/screen` · `…/run` · `…/file/<name>` | a full-screen add-on's page; a quick action's `steps[]`; an add-on's file |
 | `GET /api/weather` · `/api/quote` · `/api/wallpaper` · `/api/wallpaper.jpg` | today's weather, quote, photo |
 | `GET /api/region` / `POST {region}` | `region, regions[{id, name}]`; switch the VPN |
@@ -50,7 +57,7 @@ can't read.
 | `GET /api/admin/hello` | `password_set, signed_in, code, api` |
 | `POST /api/admin/login {password}` · `/logout` | sets / clears the `cyt_admin` cookie |
 | `GET /api/admin/state` | `settings, tv_apps, cc{apps}, devices{tv, cc, vpn}, regions, region, layout_spec, addons, scenes, websites, wallpaper{now, sources, own, active}, preview, quick_base, https, …` |
-| `POST /api/admin/save {changes}` | `ok`; 400 with `error` for anything invalid (checked like `helper/admin.py`) |
+| `POST /api/admin/save {changes}` | `ok`; 400 with `error` for anything invalid (checked like `helper/admin.py`). `home_experience: {tv, cc, opts{<layout>: {…}}, scenes[]}` picks the layouts (`helper/experience.py`); an icon theme is chosen by enabling its add-on in `addons` |
 | `POST /api/admin/remote {device, key \| text}` · `/launch {device, app \| url}` · `/pointer {ops}` | the remote, opening apps, the trackpad |
 | `GET /api/admin/now-playing` · `np-art` · `POST np-seek {sec}` | the player |
 | `POST /api/admin/sleep {set}` | `sleep{on, end, left, v}` |

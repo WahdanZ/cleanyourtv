@@ -29,6 +29,8 @@ report yours.
   prayer times, news), what's playing with ⏮ ⏯ ⏭, and the app's name.
 - A new photo every day: Bing's, Wikipedia's or NASA's picture of the day, or your own.
 - Presets (Classic, Dashboard, Calm, Photo frame…), or move and resize every block. Edit Home with the remote too.
+- Or one of 14 other [Home layouts](docs/experiences.md): a channel dial for apps and HDMI inputs, an ambient clock
+  that shows your places on demand, a four-arrows hub, a timeline of your evening… with icon themes anyone can make.
 
 **Your phone: the panel and the remote** (a web page; add it to your Home screen)
 - A remote for both devices, every app to open, a trackpad for the Chromecast, and the player with a sleep timer.
@@ -64,7 +66,8 @@ stays on your normal connection; an app can have its own country (OSN+ → UAE) 
 | [The VIDAA TV](docs/vidaa.md) | Everything about the TV: how it works, its set-up steps, Browser, Stremio, YouTube, Live TV, troubleshooting |
 | [Clean your Chromecast](docs/chromecast-clean.md) | Turn off Google's ads, suggestions, screensaver and tracking (all reversible) |
 | [The helper](docs/setup/helper.md) · [The Chromecast](docs/setup/chromecast.md) · [The VPN](docs/setup/vpn.md) | Each part in detail |
-| [Make Home yours](docs/customize.md) · [Add-ons](addons/README.md) | Using the panel; writing your own widget |
+| [Home layouts](docs/experiences.md) | 14 layouts besides Classic (Channel Zero, Theater, Aurora…): what each does with the remote, and the research behind them |
+| [Make Home yours](docs/customize.md) · [Add-ons](addons/README.md) | Using the panel; writing your own widget or [icon theme](addons/README.md#icon-themes) |
 | [Open problems](docs/OPEN-PROBLEMS.md) · [Challenges](docs/CHALLENGES.md) · [Findings](docs/FINDINGS.md) | What's not solved, and why things are the way they are |
 
 ## How it works

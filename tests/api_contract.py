@@ -148,6 +148,27 @@ else:
     check("home /api/admin-link: QR codes", code == 200 and isinstance(r.get("links"), list) and len(r["links"]) == 3
           and all(len(l["qr"]) >= 21 for l in r["links"]), str(r)[:120])
 
+# ---------- Home layouts (shared/experiences): a choice round-trips, a bad one is refused, scenes stay scoped ----------
+code, st3 = call("/api/admin/state")
+old_exp = st3["settings"].get("home_experience") if isinstance(st3, dict) else None
+check("layouts: the choice is in the panel's settings", isinstance(old_exp, dict) and {"tv", "cc", "opts", "scenes"} <= set(old_exp), str(old_exp)[:120])
+code, r = call("/api/admin/save", {"changes": {"home_experience": {"tv": "channel", "cc": "aurora", "scenes": [],
+                                                                   "opts": {"aurora": {"strip": "6", "junk": 1}, "nope": {"x": 1}}}}})
+code2, cc = call("/api/cc")
+got = cc.get("experience") if isinstance(cc, dict) else None
+check("layouts: a choice reaches the Chromecast's settings, unknown options dropped", code == 200 and isinstance(got, dict) and got.get("id") == "aurora"
+      and got.get("opts", {}).get("aurora") == {"strip": "6"} and "nope" not in got.get("opts", {}), f"HTTP {code} {got}")
+code, r = call("/api/admin/save", {"changes": {"home_experience": {"cc": "no-such-layout"}}})
+check("layouts: an unknown layout is refused (400)", code == 400, f"HTTP {code}")
+code, r = call("/api/home-scenes")
+check("layouts: /api/home-scenes lists only allowed scenes", code == 200 and isinstance(r, dict) and r.get("scenes") == [], str(r)[:120])
+code, r = call("/api/home-scene-run", {"id": "notallowed"})
+check("layouts: a scene not allowed on Home is refused (403)", code == 403 and isinstance(r, dict) and r.get("ok") is False, f"HTTP {code} {r}")
+code, r = call("/experiences/catalog.js")
+check("layouts: the catalog is served", code == 200 and isinstance(r, bytes) and b"/*JSON*/" in r, f"HTTP {code}")
+if isinstance(old_exp, dict):
+    call("/api/admin/save", {"changes": {"home_experience": old_exp}})
+
 failed = [n for n, ok, _ in results if not ok]
 print(f"\n{len(results) - len(failed)} of {len(results)} passed" + (": failed " + ", ".join(failed) if failed else ""))
 sys.exit(1 if failed else 0)

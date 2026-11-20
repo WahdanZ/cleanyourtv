@@ -67,3 +67,47 @@ A full-screen add-on can serve its own files (photos, say): `def file(name, sett
 and `ctx.file_url(name)` is their address.
 
 Add-ons are Python running in the helper with your user's rights: only add ones you have read.
+
+## Icon themes
+
+An icon theme restyles every app's icon in the Home layouts ([docs/experiences.md](../docs/experiences.md)) on the
+TV and the Chromecast. It is an add-on with `"type": "icons"`: one `addon.json`, no code, and optionally your own
+pictures for some apps. Three come built in: `icons-glass`, `icons-mono`, `icons-light`. You choose one in the phone
+panel under **Home layout → App icons**; one theme is on at a time.
+
+```
+data/addons/my-icons/
+  addon.json
+  icons/            optional: your pictures (png, jpg, webp or svg; transparent PNG or SVG for a tint)
+    netflix.png
+    youtube.svg
+```
+
+```json
+{
+  "id": "my-icons",
+  "name": "My icons",
+  "type": "icons",
+  "emoji": "🎨",
+  "description": "One line for the panel.",
+  "style": {
+    "shape": "squircle",          // round | squircle | square | keep (the icon's own corners)
+    "background": "brand",        // brand (each app's colour) | none | "#17293B"
+    "monochrome": false,          // grey icons
+    "tint": "#F3F8FB",            // with your own pictures: they become this colour (a silhouette)
+    "padding": 0.2                // space around the icon, 0 to 0.4 of the tile
+  },
+  "icons": {                      // optional: an app id (Android package or the TV's app id) or the app's name,
+    "com.netflix.ninja": "netflix.png",   // lower case, to a file in icons/
+    "youtube": "youtube.svg"
+  }
+}
+```
+
+Apps your theme has no picture for keep their own icon, drawn in your style. A bad value falls back to the
+default (`squircle`, `brand`, `0.18`), so a theme never breaks Home. Press **Reload add-ons** in the panel after
+adding the folder.
+
+**Where pictures work:** your own pictures are served by the helper, so they show wherever the helper is (the TV,
+and a Chromecast that uses it). A Chromecast running on its own uses a theme's style with the apps' own icons.
+Themes apply to the 14 layouts, not to Classic.

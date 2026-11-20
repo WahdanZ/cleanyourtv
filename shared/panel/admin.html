@@ -36,6 +36,22 @@
   h1 { font-size: 22px; margin: 0; flex: 1; letter-spacing: -.01em; }
   h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 28px 4px 10px; font-weight: 600; }
   .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  /* Home layout picker (shared/experiences/catalog.js) */
+  .xp { padding: 16px; margin-bottom: 16px; }
+  .xp-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .xp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
+  .xp-card { text-align: left; font: inherit; color: inherit; background: var(--bg, transparent); border: 2px solid var(--line); border-radius: 14px; padding: 0; overflow: hidden; cursor: pointer; }
+  .xp-card.on { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .xp-card .pv { aspect-ratio: 16/9; background: #0b1521 center/cover; display: flex; align-items: flex-end; padding: 6px 8px; color: #f3f8fb; font-size: 12px; font-weight: 700; }
+  .xp-card .tx { padding: 8px 10px 10px; } .xp-card b { display: block; font-size: 14px; } .xp-card small { display: block; font-size: 12px; opacity: .7; line-height: 1.3; }
+  .xp-card .role { display: inline-block; margin-top: 4px; font-size: 11px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); opacity: .85; }
+  .xp-detail { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .xp-keys { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 4px 10px; font-size: 13px; margin: 8px 0 12px; }
+  .xp-keys kbd { font: inherit; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--line); text-align: center; }
+  .xp-opt { margin: 10px 0; } .xp-opt > label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .xp-opt .chips button { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: inherit; cursor: pointer; }
+  .xp-opt .chips button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text, #fff); }
+  .xp-opt input[type=text], .xp-opt select { font: inherit; width: 100%; max-width: 360px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: inherit; }
   .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; font-size: 13px;
           background: var(--card); border: 1px solid var(--line); white-space: nowrap; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
@@ -728,6 +744,7 @@
 
     <div data-pane="cc" class="hidden" id="pane_cc">
       <div id="studioWrap">
+      <div id="expBox"></div>
       <div class="studiobar">
         <h2 style="margin:0;flex:1" id="studioTitle">Chromecast home</h2>
         <select id="presetSel" aria-label="Start from a layout"></select>
@@ -944,6 +961,7 @@
 <div class="sheet" id="sheet"></div>
 <div class="snack" id="snack" role="alert"><span class="ic">⚠</span><span class="msg" id="snackMsg"></span><button id="snackAct" hidden></button><button class="x" id="snackX" aria-label="Close">✕</button></div>
 
+<script src="/experiences/catalog.js"></script>
 <script>
 (function () {
   'use strict';
@@ -1074,7 +1092,7 @@
       if (first) first.click();
     }
   }
-  function renderAll() { renderLayout(); renderStatus(); renderVpn(); renderEditor('tv'); renderEditor('cc'); renderAddons(); renderHome(); renderWall(); renderSystem(); renderQuick(); renderScenes(); renderSecure(); renderWebsites(); }
+  function renderAll() { renderExperience(); renderLayout(); renderStatus(); renderVpn(); renderEditor('tv'); renderEditor('cc'); renderAddons(); renderHome(); renderWall(); renderSystem(); renderQuick(); renderScenes(); renderSecure(); renderWebsites(); }
 
   function regionName(id) {
     var r = (S.regions || []).filter(function (x) { return x.id === id; })[0];
@@ -1337,6 +1355,7 @@
     SD = dev;
     $('pane_' + dev).appendChild($('studioWrap'));
     $('studioTitle').textContent = dev === 'tv' ? 'TV home' : 'Chromecast home';
+    renderExperience();
     $('realShot').style.display = dev === 'tv' ? 'none' : '';
     $('realShotBox').innerHTML = '';
     $('ccEditor').style.display = $('ccNote').style.display = dev === 'cc' ? '' : 'none';
@@ -1843,7 +1862,7 @@
     });
     if (!allWidgets().length) w.appendChild(el('span', 'hint', 'No widget add-ons.'));
     s1.appendChild(w); box.appendChild(s1);
-    var others = S.addons.filter(function (a) { return a.type !== 'widget' && !a.slot; });
+    var others = S.addons.filter(function (a) { return a.type !== 'widget' && a.type !== 'icons' && !a.slot; });
     if (SD === 'tv') s1.appendChild(el('p', 'hint', 'Widgets show on the TV and the Chromecast.'));
     if (others.length && SD === 'cc') {
       var s2 = sec('Rows and tiles: tap to add or change'), t = el('div', 'chips2');
@@ -2237,7 +2256,7 @@
     var box = $('addonList'); box.innerHTML = '';
     var order = addonOrder();
     order.forEach(function (id, idx) {
-      var a = addonById(id); if (!a) return;
+      var a = addonById(id); if (!a || a.type === 'icons') return;   // icon themes: chosen under Home layout
       box.appendChild(addonCard(a, idx, order));
     });
     var br = $('addonsBroken'); br.innerHTML = '';
@@ -3467,6 +3486,142 @@
       window.scrollTo(0, 0);
     };
   });
+
+  // ---------- Home layout picker: which layout each screen shows, and its options ----------
+  // The list is shared/experiences/catalog.js (the same one the screens draw from). "classic" is the Home the
+  // studio below arranges; the others are drawn by the TV's page and the Chromecast's launcher themselves.
+  var XKEYS = [['up', '▲'], ['down', '▼'], ['left', '◀'], ['right', '▶'], ['ok', 'OK'], ['back', 'Back']];
+  function xpState() {
+    var h = draft.home_experience || {};
+    if (!h.opts) h.opts = {};
+    if (!h.scenes) h.scenes = [];
+    if (!h.tv) h.tv = 'classic';
+    if (!h.cc) h.cc = 'classic';
+    draft.home_experience = h;
+    return h;
+  }
+  function renderExperience() {
+    var box = $('expBox'), C = window.CYTX_CATALOG;
+    if (!box || !draft) return;
+    box.innerHTML = '';
+    var card = document.createElement('div'); card.className = 'card xp'; box.appendChild(card);
+    if (!C) { card.innerHTML = '<b>Home layout</b><p class="hint">The list of layouts didn\'t load (an older helper or app?).</p>'; return; }
+    var h = xpState(), dev = SD, cur = h[dev] || 'classic';
+    var head = document.createElement('div'); head.className = 'xp-head';
+    head.innerHTML = '<h2 style="margin:0;flex:1">Home layout · ' + (dev === 'tv' ? 'TV' : 'Chromecast') + '</h2>';
+    card.appendChild(head);
+    var p = document.createElement('p'); p.className = 'hint'; p.style.marginTop = '0';
+    p.textContent = 'How Home looks and how the remote moves around it. Your apps, inputs, widgets and scenes stay the same in every layout; switching loses nothing. Classic is the one arranged below.';
+    card.appendChild(p);
+    var grid = document.createElement('div'); grid.className = 'xp-grid'; card.appendChild(grid);
+    C.experiences.forEach(function (x) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'xp-card' + (x.id === cur ? ' on' : '');
+      b.setAttribute('aria-pressed', x.id === cur ? 'true' : 'false');
+      var pv = document.createElement('div'); pv.className = 'pv';
+      pv.style.backgroundImage = 'url(/experiences/previews/' + x.id + '.jpg)';
+      pv.textContent = x.no ? x.no : '';
+      b.appendChild(pv);
+      var tx = document.createElement('div'); tx.className = 'tx';
+      tx.innerHTML = '<b></b><small></small><span class="role"></span>';
+      tx.querySelector('b').textContent = x.name; tx.querySelector('small').textContent = x.tagline; tx.querySelector('.role').textContent = x.role;
+      b.appendChild(tx);
+      b.onclick = function () { xpState()[dev] = x.id; dirty(); renderExperience(); };
+      grid.appendChild(b);
+    });
+    // App icons: Original, or an icon theme (an "icons" add-on; anyone can make one: addons/README.md)
+    var themes = (S.addons || []).filter(function (a) { return a.type === 'icons'; });
+    if (themes.length) {
+      var iw = document.createElement('div'); iw.className = 'xp-opt';
+      iw.innerHTML = '<label>App icons <small style="font-weight:400;opacity:.7">· both screens, every layout but Classic</small></label>';
+      var ich = document.createElement('div'); ich.className = 'chips';
+      var active = themes.filter(function (t) { return (draft.addons[t.id] || {}).enabled; })[0];
+      [{ id: '', name: 'Original', emoji: '' }].concat(themes).forEach(function (t) {
+        var bt = document.createElement('button'); bt.type = 'button'; bt.textContent = (t.emoji ? t.emoji + ' ' : '') + t.name;
+        bt.className = (active ? active.id === t.id : !t.id) ? 'on' : '';
+        if (t.description) bt.title = t.description;
+        bt.onclick = function () {
+          themes.forEach(function (x) { var c = draft.addons[x.id] = draft.addons[x.id] || { enabled: false, settings: {} }; c.enabled = x.id === t.id; });
+          dirty(); renderExperience();
+        };
+        ich.appendChild(bt);
+      });
+      iw.appendChild(ich); card.appendChild(iw);
+    }
+    var x = C.get(cur);
+    if (!x) return;
+    var det = document.createElement('div'); det.className = 'xp-detail'; card.appendChild(det);
+    var t = document.createElement('div'); t.innerHTML = '<b></b><p class="hint" style="margin:4px 0 0"></p>';
+    t.querySelector('b').textContent = (x.no ? x.no + '  ' : '') + x.name + (x.family ? ' · ' + x.family : '');
+    t.querySelector('p').textContent = x.about;
+    det.appendChild(t);
+    if (x.id === 'classic') return;
+    var keys = document.createElement('div'); keys.className = 'xp-keys';
+    XKEYS.forEach(function (k) {
+      if (!x.map[k[0]]) return;
+      var kb = document.createElement('kbd'); kb.textContent = k[1]; keys.appendChild(kb);
+      var sp = document.createElement('span'); sp.textContent = x.map[k[0]]; keys.appendChild(sp);
+    });
+    det.appendChild(keys);
+    var given = h.opts[x.id] || {};
+    var setOpt = function (key, v) { var o = xpState().opts; o[x.id] = o[x.id] || {}; o[x.id][key] = v; dirty(); };
+    (x.options || []).concat(C.common).forEach(function (o) {
+      var wrap = document.createElement('div'); wrap.className = 'xp-opt';
+      var lab = document.createElement('label'); lab.textContent = o.label; wrap.appendChild(lab);
+      var val = given[o.key] != null ? given[o.key] : o.def;
+      if (o.type === 'choice') {
+        var ch = document.createElement('div'); ch.className = 'chips';
+        o.choices.forEach(function (c) {
+          var bt = document.createElement('button'); bt.type = 'button'; bt.textContent = c[1]; bt.className = c[0] === val ? 'on' : '';
+          bt.onclick = function () { setOpt(o.key, c[0]); renderExperience(); };
+          ch.appendChild(bt);
+        });
+        wrap.appendChild(ch);
+      } else if (o.type === 'text') {
+        var inp = document.createElement('input'); inp.type = 'text'; inp.maxLength = o.max || 40; inp.value = val || ''; inp.placeholder = o.def || '';
+        inp.oninput = function () { setOpt(o.key, inp.value); };
+        wrap.appendChild(inp);
+      } else if (o.type === 'app') {
+        var sel = document.createElement('select');
+        [{ id: '', name: 'None (say so on screen)' }].concat(appsOf(dev)).forEach(function (a) {
+          var op = document.createElement('option'); op.value = a.id; op.textContent = a.name; if (a.id === (val || '')) op.selected = true; sel.appendChild(op);
+        });
+        sel.onchange = function () { setOpt(o.key, sel.value); };
+        wrap.appendChild(sel);
+      } else if (o.type === 'groups') {
+        var g = given.groups || { watch: [], play: [], listen: [] };
+        [['watch', 'Watch'], ['play', 'Play'], ['listen', 'Listen']].forEach(function (gr) {
+          var sub = document.createElement('div'); sub.style.margin = '6px 0';
+          var sl = document.createElement('small'); sl.textContent = gr[1] + (g[gr[0]] && g[gr[0]].length ? '' : ' (automatic: by well-known names)'); sub.appendChild(sl);
+          var ch = document.createElement('div'); ch.className = 'chips';
+          appsOf(dev).forEach(function (a) {
+            var on = (g[gr[0]] || []).indexOf(a.id) >= 0;
+            var bt = document.createElement('button'); bt.type = 'button'; bt.textContent = a.name; bt.className = on ? 'on' : '';
+            bt.onclick = function () {
+              var gg = clone(g); gg[gr[0]] = (gg[gr[0]] || []).filter(function (i) { return i !== a.id; });
+              if (!on) gg[gr[0]].push(a.id);
+              setOpt('groups', gg); renderExperience();
+            };
+            ch.appendChild(bt);
+          });
+          sub.appendChild(ch); wrap.appendChild(sub);
+        });
+      } else if (o.type === 'scenes') {
+        var hs = document.createElement('p'); hs.className = 'hint'; hs.style.margin = '0 0 6px';
+        hs.textContent = 'Only these may start from the TV or the Chromecast (they aren\'t signed in). Make scenes in Settings.';
+        wrap.appendChild(hs);
+        var ch2 = document.createElement('div'); ch2.className = 'chips';
+        (S.scenes || []).forEach(function (sc) {
+          var on = h.scenes.indexOf(sc.id) >= 0;
+          var bt = document.createElement('button'); bt.type = 'button'; bt.textContent = (sc.icon ? sc.icon + ' ' : '') + sc.name; bt.className = on ? 'on' : '';
+          bt.onclick = function () { var hh = xpState(); hh.scenes = hh.scenes.filter(function (i) { return i !== sc.id; }); if (!on) hh.scenes.push(sc.id); dirty(); renderExperience(); };
+          ch2.appendChild(bt);
+        });
+        if (!(S.scenes || []).length) { var none = document.createElement('small'); none.textContent = 'No scenes yet.'; ch2.appendChild(none); }
+        wrap.appendChild(ch2);
+      }
+      det.appendChild(wrap);
+    });
+  }
 
   // ---------- save ----------
   function changes() {

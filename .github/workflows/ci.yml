@@ -19,6 +19,8 @@ jobs:
         run: python -c "import sys; sys.path.insert(0, 'helper'); import layout; layout.validate(layout.PRESETS['classic'])"
       - name: API contract (a throw-away helper)
         run: tests/run_helper_contract.sh
+      - name: "Home layouts: catalog, both renderers, validation, the engine in Chrome"
+        run: python tests/experiences_test.py
 
   chromecast:
     runs-on: ubuntu-latest
