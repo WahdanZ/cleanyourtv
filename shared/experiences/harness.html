@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home layouts harness</title>
+<link rel="stylesheet" href="experiences.css">
+<style>
+  body { margin: 0; background: #000; }
+  #results { position: fixed; left: 0; top: 0; z-index: 9; margin: 0; padding: 12px; background: #fff; color: #000; font: 13px monospace; max-height: 100%; overflow: auto; display: none; }
+  .testing #results { display: block; }
+</style>
+</head>
+<body>
+<div id="home"></div>
+<pre id="results"></pre>
+<script src="catalog.js"></script>
+<script src="engine.js"></script>
+<script src="layouts.js"></script>
+<script>
+/* The layouts with made-up data, no server: for the automated tests (?test=1, tests/experiences_test.py), the
+ * screenshots (?layout=<id>, tools/experience_shots.py) and trying them with a keyboard (arrows, Enter, Backspace,
+ * M for the menu). App names are illustrative only. */
+(function () {
+  'use strict';
+  var q = {};
+  location.search.replace(/^\?/, '').split('&').forEach(function (p) { var kv = p.split('='); if (kv[0]) q[kv[0]] = decodeURIComponent(kv[1] || ''); });
+  var PHOTO = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0" stop-color="#1d2b4a"/><stop offset=".55" stop-color="#b0694a"/><stop offset="1" stop-color="#2a1d24"/></linearGradient></defs><rect width="1920" height="1080" fill="url(#s)"/>' +
+    '<circle cx="1380" cy="560" r="70" fill="#ffd9a8"/><path d="M0 1080 L520 620 L860 900 L1240 560 L1920 980 L1920 1080Z" fill="#1a1622"/><path d="M0 1080 L380 820 L760 1080Z" fill="#120f18"/></svg>');
+  function demo() {
+    var names = ['Netflix', 'YouTube', 'Prime Video', 'Disney+', 'Spotify', 'Apple TV', 'Tubi', 'Twitch', 'YouTube Music', 'GeForce NOW',
+                 'Steam Link', 'Plex', 'VLC', 'Free live TV', 'TED', 'Karaoke'];
+    var colors = ['#b20710', '#e62117', '#1f86ff', '#11346b', '#1db954', '#222', '#ffde00', '#6441a5', '#ff0000', '#76b900', '#1b2838', '#e5a00d', '#ff8800', '#0f6e8a', '#e62b1e', '#a3489b'];
+    // made-up icons: even apps a wide banner, odd ones a square icon (to see both fit every tile shape)
+    var icon = function (n, i) {
+      var w = i % 2 ? 512 : 960, h = 512;
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + ' ' + h + '"><rect width="' + w + '" height="' + h +
+        '" fill="' + colors[i] + '"/><text x="50%" y="58%" text-anchor="middle" font-family="Arial" font-weight="700" font-size="' + (i % 2 ? 260 : 150) + '" fill="#fff">' +
+        (i % 2 ? n.charAt(0) : n.toUpperCase().slice(0, 7)) + '</text></svg>');
+    };
+    var apps = names.map(function (n, i) { return { id: 'a' + i, name: n, color: colors[i], live: n === 'Free live TV', icon: q.noicons ? '' : icon(n, i) }; });
+    var THEMES = { glass: { shape: 'squircle', background: 'brand', monochrome: false, tint: '', padding: 0.2 },
+                   mono: { shape: 'round', background: '#17293B', monochrome: true, tint: '', padding: 0.24 },
+                   light: { shape: 'square', background: '#F3F8FB', monochrome: false, tint: '', padding: 0.18 } };
+    var now = Date.now();
+    return {
+      platform: 'demo', online: true, clock24: true, apps: apps, favorites: ['a0', 'a1', 'a2', 'a3', 'a4'],
+      rows: [{ title: 'Streaming', ids: ['a5', 'a6', 'a7', 'a11'] }, { title: 'Music & fun', ids: ['a8', 'a15'] }],
+      sources: [{ id: 'TV', name: 'Live TV', kind: 'live' }, { id: 'HDMI1', name: 'HDMI 1', kind: 'hdmi' }, { id: 'HDMI2', name: 'HDMI 2', kind: 'hdmi', label: 'Game console' },
+                { id: 'HDMI3', name: 'HDMI 3', kind: 'hdmi' }],
+      scenes: [{ id: 'movie', name: 'Movie night', icon: '🎬', summary: 'Wake the Chromecast → VPN: US → Open Netflix' },
+               { id: 'match', name: 'Live match', icon: '⚽', summary: 'TV on → Live TV' },
+               { id: 'game', name: 'Game time', icon: '🎮', summary: 'Switch to HDMI 2' },
+               { id: 'wind', name: 'Wind down', icon: '🌙', summary: 'Spotify → Sleep in 30 min' }],
+      widgets: [{ name: 'Football', matches: [{ home: 'Man City', away: 'Fulham', when: now + 40 * 60000 }] }],
+      np: { title: 'Night Drive', subtitle: 'Synth Collective', name: 'Spotify', state: 'playing', position: 80, duration: 240 },
+      weather: { temp: 18, code: 1 }, wallpaper: PHOTO, wallpaperTitle: 'A mountain evening (demo)',
+      region: { now: 'off', list: [{ id: 'us', name: 'United States' }, { id: 'gb', name: 'United Kingdom' }] },
+      caps: { sources: true, scenes: true, media: true, region: true },
+      experience: { id: q.layout || 'theater', opts: {} },
+      iconTheme: THEMES[q.icons] ? { id: 'icons-' + q.icons, style: THEMES[q.icons], icons: {} } : null
+    };
+  }
+  var log = [];
+  var host = {
+    platform: 'demo',
+    open: function (it) { log.push('open:' + it.type + ':' + it.id); return Promise.resolve({ ok: true }); },
+    scene: function (id) { log.push('scene:' + id); return Promise.resolve({ ok: true, said: 'started' }); },
+    media: function (k) { log.push('media:' + k); },
+    region: function (id) { log.push('region:' + id); return Promise.resolve({ ok: true }); },
+    admin: function () { log.push('admin'); }, classic: function () { log.push('classic'); }
+  };
+  var ctl = CYTX.mount(document.getElementById('home'), host, null);
+  if (!q.test) {
+    if (q.state) try { localStorage.setItem('cytx-state-' + (q.layout || 'theater') + '-demo', q.state); } catch (e) {}
+    ctl.update(demo());
+    document.addEventListener('keydown', function (e) {
+      var k = e.key === 'm' ? 'menu' : CYTX.keyName(e);
+      if (k && ctl.key(k)) e.preventDefault();
+    });
+    window.CYTX_HARNESS = { ctl: ctl, log: log, demo: demo };
+    return;
+  }
+
+  // ------------------------------------------------------------------ the automated checks (?test=1)
+  document.body.className = 'testing';
+  var out = [], fails = 0;
+  function ok(cond, what) { out.push((cond ? 'ok   ' : 'FAIL ') + what); if (!cond) fails++; }
+  function visibleFocus(root) {
+    var n = 0, list = root.querySelectorAll('.x-f');
+    for (var i = 0; i < list.length; i++) {
+      var e = list[i], shown = true;
+      for (var p = e; p && p !== root; p = p.parentElement) {
+        var cs = getComputedStyle(p);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) { shown = false; break; }
+      }
+      if (shown) n++;
+    }
+    return n;
+  }
+  function fresh(id, data) {
+    var box = document.createElement('div');
+    document.body.appendChild(box);
+    log.length = 0;
+    var d = data || demo();
+    d.experience = { id: id, opts: d.experience && d.experience.opts || {} };
+    return { box: box, c: CYTX.mount(box, host, d) };
+  }
+  function focusText(box) { var f = box.querySelector('.x-f'); return f ? f.textContent : ''; }
+  var SEQ = ['right', 'right', 'down', 'back', 'left', 'up', 'back', 'right', 'ok', 'back', 'down', 'right', 'back', 'up', 'left', 'back', 'left', 'left', 'right', 'down', 'down', 'back', 'back'];
+  try { localStorage.clear(); } catch (e) {}
+  CYTX_CATALOG.experiences.forEach(function (x) {
+    if (x.id === 'classic') return;
+    var id = x.id, lay = CYTX.layouts[id];
+    ok(!!lay, id + ': registered');
+    if (!lay) return;
+    ok(['up', 'down', 'left', 'right', 'ok', 'back'].every(function (k) { return x.map[k]; }), id + ': the catalog says what all six keys do');
+    var m, err = '';
+    try { m = fresh(id); } catch (e) { err = String(e); }
+    ok(!err && m && m.box.querySelector('.x-content').children.length > 0, id + ': draws' + (err ? ' (' + err + ')' : ''));
+    if (!m) return;
+    var calm = id === 'aurora' || id === 'ambient';
+    ok(visibleFocus(m.box) === (calm ? 0 : 1), id + ': one visible focus at start (' + visibleFocus(m.box) + ')');
+    var bad = '', keyErr = '';
+    SEQ.forEach(function (k, n) {
+      try { m.c.key(k); } catch (e) { keyErr = keyErr || k + '#' + n + ': ' + e; }
+      var f = visibleFocus(m.box);
+      if (f > 1 || (!calm && f === 0 && !m.c.overlay)) bad = bad || k + '#' + n + ' -> ' + f + ' focus';
+    });
+    ok(!keyErr, id + ': every key handled without errors' + (keyErr ? ' (' + keyErr + ')' : ''));
+    ok(!bad, id + ': exactly one focus after each key' + (bad ? ' (' + bad + ')' : ''));
+    if (m.c.overlay) m.c.key('back');
+    ok(!m.c.overlay, id + ': Back closes what opened');
+    m.box.remove();
+
+    // OK does something real from the starting focus (Aurora: the first key only reveals)
+    m = fresh(id); log.length = 0;
+    if (calm) { m.c.key('ok'); ok(log.length === 0 && !m.c.overlay, id + ': the first key only reveals, never opens'); }
+    m.c.key('ok');
+    ok(log.length > 0 || !!m.c.overlay || m.box.querySelector('.x-wo-panel.on, .x-fd-sub.on, .x-ty-row.x-open, .x-fold.x-open .x-f') !== null, id + ': OK acts (' + (log.join(',') || (m.c.overlay ? 'overlay' : 'opened')) + ')');
+    m.box.remove();
+
+    // Focus comes back where it was (after an app, a reload, switching layouts and back)
+    m = fresh(id);
+    if (calm) m.c.key('right');
+    var moveKey = { channel: 'down', signal: 'down', typography: 'down', four: '' }[id];
+    if (moveKey == null) moveKey = 'right';
+    if (moveKey) { m.c.key(moveKey); m.c.key(moveKey); }
+    var before = focusText(m.box);
+    m.c.destroy(); m.box.remove();
+    m = fresh(id);
+    if (calm) m.c.key('left');   // reveal again (the strip hides by itself); a reveal doesn't move
+    ok(focusText(m.box) === before, id + ': focus restored after a reload ("' + before.slice(0, 24) + '")');
+    // new data, same layout: focus stays
+    var d2 = demo(); d2.experience = { id: id, opts: {} }; d2.np = null;
+    m.c.update(d2);
+    ok(calm ? true : visibleFocus(m.box) === 1, id + ': still one focus after new data');
+    m.box.remove();
+
+    // empty, offline, reduced motion
+    var empty = { apps: [], favorites: [], sources: [], scenes: [], widgets: [], online: true, caps: {} };
+    try { m = fresh(id, empty); m.c.key('right'); m.c.key('ok'); m.c.key('down'); m.c.key('back'); ok(true, id + ': empty data draws and takes keys'); m.box.remove(); }
+    catch (e) { ok(false, id + ': empty data: ' + e); }
+    var off = demo(); off.online = false;
+    m = fresh(id, off);
+    ok(m.box.className.indexOf('x-offline') >= 0 && m.box.querySelector('.x-status.on'), id + ': offline is shown');
+    m.box.remove();
+    var still = demo(); still.experience = { id: id, opts: {} }; still.experience.opts[id] = { motion: 'reduced' };
+    m = fresh(id, still);
+    ok(m.box.className.indexOf('x-still') >= 0, id + ': reduced motion');
+    m.box.remove();
+  });
+  // an unknown or removed layout falls back to Theater, the default, instead of a blank screen
+  var u = fresh('nope');
+  ok(u.box.className.indexOf('x-l-theater') >= 0, 'unknown layout id: Theater instead');
+  u.box.remove();
+  // a source can't be switched without the helper: the screen says so, nothing is sent
+  var nos = demo(); nos.caps.sources = false;
+  var s = fresh('channel', nos); log.length = 0;
+  s.c.act({ type: 'source', id: 'HDMI2', name: 'HDMI 2' });
+  ok(log.length === 0 && /helper/.test(s.box.querySelector('.x-toast').textContent), 'inputs without the helper: said, not sent');
+  s.box.remove();
+  // number keys on Channel Zero
+  s = fresh('channel'); s.c.key('3');
+  ok(/03/.test(focusText(s.box)), 'Channel Zero: number key jumps to channel 3');
+  s.box.remove();
+  // icons adapt to the tile: a wide banner fills a wide tile, and is fitted (never cropped) in a round one
+  var lq = fresh('liquid');
+  var roundImgs = lq.box.querySelectorAll('.x-round .x-art img');
+  ok(roundImgs.length > 0 && [].every.call(roundImgs, function (i) { return i.className.indexOf('x-fill') < 0; }), 'icons: none fills a round bubble edge to edge');
+  lq.box.remove();
+  var th = fresh('theater');
+  ok(th.box.querySelectorAll('.x-th-row .x-art img.x-fill').length > 0, 'icons: wide tiles show banners full');
+  th.box.remove();
+  // an icon theme restyles every app icon (shape, background, grey) and leaves inputs and the rest alone
+  var themed = demo(); themed.iconTheme = { id: 'icons-mono', style: { shape: 'round', background: '#17293B', monochrome: true, tint: '', padding: 0.24 }, icons: {} };
+  th = fresh('theater', themed);
+  var ics = th.box.querySelectorAll('.x-th-row .x-art img');
+  ok(ics.length > 0 && [].every.call(ics, function (i) { return /x-ic-(round|fit)/.test(i.className) && /grayscale/.test(i.style.filter); }), 'icon theme: shape and grey on every app icon');
+  th.box.remove();
+  CYTX.theme = null;
+  out.unshift((fails ? 'FAIL ' + fails : 'PASS') + ' ' + (out.length) + ' checks');
+  document.getElementById('results').textContent = out.join('\n');
+  document.title = fails ? 'FAIL' : 'PASS';
+})();
+</script>
+</body>
+</html>

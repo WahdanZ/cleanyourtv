@@ -141,6 +141,7 @@ class Admin:
             "vpn_countries": cfg.get("vpn_countries", []), "home_takeover": takeover,
             "addons": self.addons_conf(cfg),
             "home_layout": cfg.get("home_layout") or None,
+            "home_experience": __import__("experience").current(cfg),
             "takeover_on_power_on": cfg.get("takeover_on_power_on", True) is not False,
             "power_on_delay_seconds": cfg.get("power_on_delay_seconds", 5),
             "tv": {"dock": cfg.get("dock", []), "rows": cfg.get("rows", []), "rename": cfg.get("rename", {}),
@@ -235,6 +236,9 @@ class Admin:
             elif key == "home_layout":
                 import layout
                 cfg["home_layout"] = layout.validate(v)
+            elif key == "home_experience":
+                import experience
+                cfg["home_experience"] = experience.validate(v)
             elif key == "addons":
                 cfg["addons"] = self.validate_addons(v)   # set by the helper: it knows each add-on's settings
                 cfg.pop("quotes", None)

@@ -19,7 +19,9 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-TYPES = ("widget", "row", "screen", "action")
+TYPES = ("widget", "row", "screen", "action", "icons")
+ICON_FILE = re.compile(r"^[A-Za-z0-9_.-]{1,80}\.(png|jpg|jpeg|webp|svg)$")
+ICON_TYPES = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp", "svg": "image/svg+xml"}
 ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
 UA = {"User-Agent": "cleanyourtv-home-launcher/1.0 (personal TV home screen)"}
 
@@ -87,7 +89,7 @@ class Addon:
             spec = importlib.util.spec_from_file_location(f"cyt_addon_{self.id.replace('-', '_')}", folder / "addon.py")
             self.module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(self.module)
-        elif self.type != "action" and not self.meta.get("slot"):
+        elif self.type not in ("action", "icons") and not self.meta.get("slot"):
             raise ValueError("addon.py with a fetch(settings, ctx) function is missing")
         self.slot = self.meta.get("slot", "")   # "quote" or "weather": drawn by the launchers themselves
         self.result, self.error, self.at = None, "", 0.0
@@ -188,7 +190,8 @@ class Addons:
                 tiles.append({"id": "addon:" + a.id, "name": p["name"], "emoji": p["emoji"], "color": p["color"],
                               "kind": a.type})
         secs = self.conf().get("widget_seconds", 10)
-        return {"widgets": widgets, "rows": rows, "tiles": tiles, "widget_seconds": secs if isinstance(secs, int) else 10}
+        return {"widgets": widgets, "rows": rows, "tiles": tiles, "widget_seconds": secs if isinstance(secs, int) else 10,
+                "icon_theme": self.icon_theme()}
 
     def screen(self, addon_id: str) -> dict | None:
         a = self.items.get(addon_id)
@@ -197,8 +200,37 @@ class Addons:
         self.refresh(a, force=time.time() - a.at > 120)   # a page someone opens now: fresh unless it just was
         return dict(a.result or {}, id=a.id, error=a.error)
 
+    # ---------- icon themes: the first enabled "icons" add-on restyles the apps' icons in the Home layouts ----------
+    @staticmethod
+    def icon_style(st) -> dict:
+        """A theme's "style", checked (shared/experiences/engine.js and NativeHome.kt draw it)."""
+        st = st if isinstance(st, dict) else {}
+        color = lambda v: v if isinstance(v, str) and re.match(r"^#[0-9A-Fa-f]{6}$", v) else ""
+        bg = st.get("background")
+        try:
+            pad = max(0.0, min(0.4, float(st.get("padding", 0.18))))
+        except (TypeError, ValueError):
+            pad = 0.18
+        return {"shape": st.get("shape") if st.get("shape") in ("round", "squircle", "square", "keep") else "squircle",
+                "background": bg if bg in ("brand", "none") else (color(bg) or "brand"),
+                "monochrome": bool(st.get("monochrome")), "tint": color(st.get("tint")), "padding": round(pad, 3)}
+
+    def icon_theme(self) -> dict | None:
+        for a in self.enabled():
+            if a.type != "icons":
+                continue
+            icons = {}
+            for key, name in (a.meta.get("icons") or {}).items():
+                if isinstance(name, str) and ICON_FILE.match(name) and (a.folder / "icons" / name).is_file():
+                    icons[str(key).lower()] = self.files_url(a.id, name)
+            return {"id": a.id, "name": a.meta.get("name", a.id), "style": self.icon_style(a.meta.get("style")), "icons": icons}
+        return None
+
     def file(self, addon_id: str, name: str) -> tuple[bytes, str] | None:
         a = self.items.get(addon_id)
+        if a and a.type == "icons":   # an icon theme's pictures: from its icons/ folder, nothing else
+            f = a.folder / "icons" / name
+            return (f.read_bytes(), ICON_TYPES[name.rsplit(".", 1)[1].lower()]) if ICON_FILE.match(name) and f.is_file() else None
         if not a or not a.module or not hasattr(a.module, "file"):
             return None
         return a.module.file(name, self.settings_of(a))

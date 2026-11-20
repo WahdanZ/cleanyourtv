@@ -57,6 +57,7 @@ import admin  # noqa: E402
 import qr  # noqa: E402
 import addons  # noqa: E402
 import layout  # noqa: E402
+import experience  # noqa: E402
 import secure  # noqa: E402
 
 API_VERSION = 1                       # shared/API.md: the requests both back ends answer the same way
@@ -943,7 +944,7 @@ _auto_vpn = {"prev": None}   # the region before an app switched it, while that 
 CHROMECAST = CONFIG.get("chromecast") or {}
 _cc_ip = CHROMECAST.get("ip", [])
 CC_IPS = {str(x) for x in (_cc_ip if isinstance(_cc_ip, list) else [_cc_ip]) if x}
-CC_PATHS = {"/api/hub/tap", "/api/hub/pointer", "/api/hub/text", "/api/hub/live", "/", "/index.html", "/quotes.json", "/api/rev", "/api/admin-link", "/api/home-edit", "/api/now-playing", "/api/media", "/api/cc", "/api/cc-open", "/api/cc-apps", "/api/weather", "/api/quote",
+CC_PATHS = {"/api/home-scenes", "/api/home-scene-run", "/api/tv-sources", "/api/tv-source", "/api/hub/tap", "/api/hub/pointer", "/api/hub/text", "/api/hub/live", "/", "/index.html", "/quotes.json", "/api/rev", "/api/admin-link", "/api/home-edit", "/api/now-playing", "/api/media", "/api/cc", "/api/cc-open", "/api/cc-apps", "/api/weather", "/api/quote",
             "/api/quote-image", "/api/wallpaper", "/api/wallpaper.jpg", "/api/region", "/vpn"}
 APP_VPN.update({str(k): str(v).lower() for k, v in (CHROMECAST.get("app_vpn") or {}).items()})
 
@@ -956,6 +957,7 @@ def chromecast_settings() -> dict:
             "rev": CHROMECAST.get("rev", 0), "layout": CONFIG.get("home_layout") or layout.PRESETS["classic"],
             "live_refresh": CONFIG.get("live_refresh", True) is not False,
             "cursor": {"port": POINTER_PORT, "token": pointer_token()}, "api": API_VERSION,
+            "experience": experience.for_screen(CONFIG, "cc"),
             "started": STARTED, "saved": SAVED["at"]}
 
 
@@ -1043,7 +1045,7 @@ SAFE_ID = re.compile(r"^[A-Za-z0-9_.-]{1,120}$")
 
 # Saves that only change what the home screens draw are applied here at once, without a restart; the screens
 # check /api/rev every few seconds and see "saved" change. Everything else (VPN, TV apps, wallpaper…) restarts.
-LIVE_KEYS = {"home_layout", "chromecast", "greeting_name", "clock_24h", "live_refresh", "addons", "widget_seconds"}
+LIVE_KEYS = {"home_experience", "home_layout", "chromecast", "greeting_name", "clock_24h", "live_refresh", "addons", "widget_seconds"}
 SAVED = {"at": 0}
 
 
@@ -2642,6 +2644,8 @@ class Handler(SimpleHTTPRequestHandler):
         if (ip == "127.0.0.1" or ip.rsplit(".", 1)[0] == own_ip().rsplit(".", 1)[0]) and \
                 (path in ("/admin", "/admin-sw.js", "/ca.crt", "/home-helper-ca.crt") or path.startswith("/api/admin/")):
             return True
+        if path.startswith("/experiences/") and (ip in CC_IPS or ip == "127.0.0.1" or ip.rsplit(".", 1)[0] == own_ip().rsplit(".", 1)[0]):
+            return True   # the Home layouts' own files (no data): the screens, and the phone panel's previews
         if ip in CC_IPS and (path in CC_PATHS or path.startswith("/fonts/") or path.startswith("/api/addons/")
                              or path.startswith("/api/cc-icon/")):
             return True
@@ -2705,6 +2709,7 @@ class Handler(SimpleHTTPRequestHandler):
                              "removed_count": len(APPS.removed()), "takeover": takeover_on(), "browser": BROWSER,
                              "order_saved": bool(APPS.order()),
                              "layout": CONFIG.get("home_layout") or layout.PRESETS["classic"],
+                             "experience": experience.for_screen(CONFIG, "tv"),
                              "started": STARTED, "saved": SAVED["at"]})
             return
         if path == "/api/cc":
@@ -2712,6 +2717,21 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path == "/api/home-edit":
             self._json(200, home_edit_state())
+            return
+        if path.startswith("/experiences/"):   # the Home layouts (shared/experiences): the TV, the Chromecast, the panel
+            f = (ROOT / "shared" / "experiences" / path[len("/experiences/"):]).resolve()
+            if not str(f).startswith(str((ROOT / "shared" / "experiences").resolve()) + "/") or not f.is_file():
+                self.send_error(404)
+                return
+            ctype = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".html": "text/html; charset=utf-8",
+                     ".jpg": "image/jpeg", ".png": "image/png"}.get(f.suffix, "application/octet-stream")
+            self._send(f.read_bytes(), ctype)
+            return
+        if path == "/api/home-scenes":   # the scenes the household allowed on Home (Scene Stage, Time River)
+            self._json(200, {"ok": True, "scenes": experience.home_scenes(CONFIG, scenes(), APPS.names() if hasattr(APPS, "names") else None)})
+            return
+        if path == "/api/tv-sources":   # the TV's inputs, for the Chromecast's Home (the TV page has them in /api/state)
+            self._json(200, {"ok": True, "sources": SOURCES.get() if VIDAA else []})
             return
         if path == "/api/hub/live":   # the Chromecast's own panel's live screen: a frame from here (adb)
             import hmac
@@ -3454,6 +3474,23 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
                 return
             if path.startswith("/api/addons/") and path.endswith("/run"):
                 self._json(200, addon_run(path.split("/")[3]))
+                return
+            if path == "/api/home-scene-run":   # only a scene allowed on Home: the TV pages are not signed in
+                sid = str(data.get("id", ""))
+                if not experience.scene_allowed(CONFIG, sid):
+                    self._json(403, {"ok": False, "error": "That scene isn't allowed on Home (phone panel: Layout)."})
+                    return
+                self._json(200, run_scene(sid))
+                return
+            if path == "/api/tv-source":   # switch the TV's input (from a Home layout); only inputs the TV reported
+                want = str(data.get("id", ""))
+                source = next((x for x in TV.sources() if x.get("sourceid") == want), None) if VIDAA else None
+                if not source:
+                    self._json(404, {"ok": False, "error": "That input is not on the TV."})
+                    return
+                TV.change_source(source)
+                log(f"switched to {want} from a Home layout")
+                self._json(200, {"ok": True})
                 return
             if path == "/api/media":
                 key = str(data.get("key", ""))

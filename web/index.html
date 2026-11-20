@@ -314,6 +314,7 @@
   #browser .hint { position: absolute; left: 160px; top: 1000px; font-size: 24px; color: rgba(255,255,255,.74); }
 
   /* The QR button: the admin panel's address for a phone, as a QR code. */
+  #cytx { z-index: 20; }
   #adminBox { position: absolute; left: 50%; top: 50%; width: 1180px; padding: 48px 56px; border-radius: 40px; z-index: 7;
               background: linear-gradient(180deg, #2a2a2e, #161618); border: 2px solid rgba(255,255,255,.2); box-sizing: border-box;
               display: none; transform: translate(-50%, -50%); text-align: center; }
@@ -392,6 +393,7 @@
 <div id="adminBox"><div class="title">On your phone</div><div class="qrs" id="adminQrs"></div>
   <div class="url" id="adminUrl"></div><div class="hint2">Scan one with your phone's camera. Back closes this.</div></div>
 <div id="toast"></div>
+<div id="cytx" style="display:none"></div>
 
 <script>
 (function () {
@@ -681,7 +683,7 @@
   function loadWidgets() {
     if (state.static) return;
     if (!widgetTimer) widgetTimer = setInterval(loadWidgets, 5 * 60 * 1000);
-    load('/api/addons/home').then(function (h) { addonHome = h || { widgets: [] }; renderSlots(); }, function () {});
+    load('/api/addons/home').then(function (h) { addonHome = h || { widgets: [] }; renderSlots(); expRefresh(); }, function () {});
   }
   function widgetsFor(s) {   // the ones picked for this block, or (none picked) every widget no other block picked
     var all = addonHome.widgets || [], others = [];
@@ -1034,8 +1036,10 @@
     if (state.static) return;
     if (!npTimer) npTimer = setInterval(npLoad, 8000);
     load('/api/now-playing').then(function (r) {
+      var was = JSON.stringify(npNow && [npNow.title, npNow.state]);
       npNow = r && r.ok && r.playing ? r.playing : null; npAt = Date.now();
       npPaint(); npPill();
+      if (was !== JSON.stringify(npNow && [npNow.title, npNow.state])) expRefresh();
     }, function () {});
   }
   function npFmt(sec) {
@@ -1404,7 +1408,7 @@
   }
   function loadRegion() {
     if (!state.region || state.static) { showRegion(); return; }
-    load('/api/region').then(function (r) { region.now = r && r.region; region.list = (r && r.regions) || []; showRegion(); },
+    load('/api/region').then(function (r) { region.now = r && r.region; region.list = (r && r.regions) || []; showRegion(); expRefresh(); },
                              function () { region.now = null; showRegion(); });
   }
   function openRegionMenu() {
@@ -1522,30 +1526,37 @@
     if (!app) return;
     t.classList.add('press');
     setTimeout(function () { t.classList.remove('press'); }, 160);
-    if (app.browser) { openBrowser(); return; }
+    openApp(app);
+  }
+  // Opens an app as its tile would: the browser, a helper screen, a web app, or a native app (its VPN country first).
+  // Also the Home layouts' "open" (experiences below). A promise of {ok, error} for native apps.
+  function openApp(app) {
+    if (app.browser) { expPause(); openBrowser(); return Promise.resolve({ ok: true }); }
     if (app.page) {
       // A screen the helper serves (YouTube without ads, Live TV): go there, and it comes back here on Back.
       try { sessionStorage.setItem('cyt-focus', String(focus.index)); } catch (e) {}
       var base = state.static ? state.helper : '';
       setTimeout(function () { location.href = base + app.page + '?back=' + encodeURIComponent(location.href); }, 120);
-      return;
+      return Promise.resolve({ ok: true });
     }
     if (state.static) {
       // A native app needs the helper. This https page may not call a LAN http address, but it may navigate to
       // one: the helper opens the app and sends the browser back here. An app that works better through the helper
       // (YouTube's native app, Stremio with the streaming server) goes through it when there is one.
-      if (app.native || (app.helperFirst && state.helper)) { viaHelper('app=' + encodeURIComponent(app.appId)); return; }
+      if (app.native || (app.helperFirst && state.helper)) { viaHelper('app=' + encodeURIComponent(app.appId)); return Promise.resolve({ ok: true }); }
       try { sessionStorage.setItem('cyt-focus', String(focus.index)); } catch (e) {}
       setTimeout(function () { location.href = app.url; }, 120);
-      return;
+      return Promise.resolve({ ok: true });
     }
     // An app with its own VPN country (config "app_vpn") waits for the switch, which takes up to ~25 s.
     var to = app.vpn && region.now && region.now !== app.vpn && region.list.filter(function (r) { return r.id === app.vpn; })[0];
     if (to) toast('Switching the VPN to ' + to.name + ' for ' + app.name + '…');
-    post('/api/launch', { appId: app.appId }).then(function (r) {
-      if (!r.ok) toast('Could not open ' + app.name + (r.error ? ': ' + r.error : ''));
+    var p = post('/api/launch', { appId: app.appId });
+    p.then(function (r) {
+      if (!r.ok && !exp.ctl) toast('Could not open ' + app.name + (r.error ? ': ' + r.error : ''));
       if (state.region) loadRegion();
-    }, function () { toast('Cannot reach the helper, so ' + app.name + ' did not open'); });
+    }, function () { if (!exp.ctl) toast('Cannot reach the helper, so ' + app.name + ' did not open'); });
+    return p;
   }
 
   // A tap on OK opens the tile; holding it opens the tile menu. Activation waits for keyup, or for a short timer
@@ -1562,11 +1573,13 @@
   }
   document.addEventListener('keyup', function (e) {
     if (e.keyCode !== 13) return;
+    if (expActive()) { expOkUp(); return; }
     ok.keyup = true;
     if (ok.pending) { clearTimeout(ok.timer); ok.pending = false; activate(); }
   });
 
   document.addEventListener('keydown', function (e) {
+    if (expActive()) { expKey(e); return; }
     var k = e.keyCode, handled = true;
     if (focus.area === 'browser') { browserKey(e); return; }
     if (focus.area === 'admin') {
@@ -1702,6 +1715,7 @@
     browser.open = false;
     focus.area = focus.beforeBrowser || 'dock';
     renderBrowser(); render();
+    expResume();
   }
 
   // Words go to Brave; something that looks like an address (bbc.com, https://…) opens as it is.
@@ -1853,7 +1867,134 @@
     if (!onTop()) focus.area = focus.index < state.dockSize ? 'dock' : 'grid';
     lastMinute = -1; tick();
     build(); render();
+    expSync();
   }
+  // ---------- Home layouts other than Classic (shared/experiences, from the helper at /experiences/) ----------
+  // Chosen in the phone panel (Layout); "experience" in /api/state. They draw over this page, which stays as it is
+  // underneath: Classic is the fallback (the files don't load, "Classic Home" in their menu, Classic in the panel).
+  // Everything they open goes through this page's own ways (openApp, the helper's inputs, scenes, media keys).
+  var exp = { ctl: null, loading: false, failed: false, off: false, paused: false, offline: false, scenes: [], wall: null, wx: null, extrasAt: 0 };
+  function expBase() { return state.static ? state.helper : ''; }
+  function expWanted() { var e = state.loaded && state.loaded.experience; return !exp.off && !exp.failed && e && e.id && e.id !== 'classic' ? e : null; }
+  function expActive() { return !!(exp.ctl && !exp.paused); }
+  function expLoad(cb) {
+    if (window.CYTX && window.CYTX.layouts.theater) { cb(); return; }
+    if (exp.loading) return;
+    exp.loading = true;
+    var base = expBase() + '/experiences/', files = ['catalog.js', 'engine.js', 'layouts.js'], i = 0;
+    var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = base + 'experiences.css'; document.head.appendChild(css);
+    (function next() {
+      if (i >= files.length) { exp.loading = false; cb(); return; }
+      var sc = document.createElement('script');
+      sc.src = base + files[i++];
+      sc.onload = next;
+      sc.onerror = function () { exp.loading = false; exp.failed = true; toast('The Home layout did not load: Classic for now'); };
+      document.head.appendChild(sc);
+    })();
+  }
+  function expKind(id) {
+    if (/^(TV|ATV|DTV)$/i.test(id)) return 'live';
+    if (/^HDMI/i.test(id)) return 'hdmi';
+    if (/^(DP|AV|AVS|YPBPR|VGA|COMP)/i.test(id)) return 'input';
+    return 'other';
+  }
+  function expData() {
+    var s = state.loaded || {}, base = expBase();
+    var apps = state.apps.map(function (a) {
+      var icon = a.icon || '';
+      if (icon && !/^(https?:|data:)/.test(icon)) icon = (icon.charAt(0) === '/' ? base : '') + icon;
+      return { id: String(a.appId), name: String(a.name || '').replace('▶', '').trim(), icon: icon, color: colours[a.appId] || '',
+               kind: a.page ? 'page' : a.browser ? 'page' : (a.url && !a.native ? 'web' : 'app'), live: a.appId === 'cyt-tv' };
+    });
+    var rows = state.sections.map(function (sec) {
+      return { title: sec.title, ids: state.apps.slice(sec.start, sec.start + sec.count).map(function (a) { return String(a.appId); }) };
+    });
+    var np = npNow ? { title: npNow.title || npNow.name, subtitle: npNow.subtitle || '', name: npNow.name || '', state: npNow.state, art: npNow.screen_icon || '' } : null;
+    return {
+      platform: 'vidaa', online: !exp.offline && (!state.static || !!state.helper), clock24: state.clock24, apps: apps,
+      favorites: state.apps.slice(0, state.dockSize).map(function (a) { return String(a.appId); }), rows: rows,
+      sources: (state.sources || []).map(function (x) { return { id: x.id, name: x.name, kind: expKind(x.id) }; }),
+      scenes: exp.scenes, widgets: (addonHome && addonHome.widgets) || [], np: np, weather: state.weather ? exp.wx : null,
+      wallpaper: exp.wall && exp.wall.image ? base + exp.wall.image : '', wallpaperTitle: exp.wall ? exp.wall.title || '' : '',
+      region: state.region && region.list.length ? { now: region.now || 'off', list: region.list } : null,
+      caps: { sources: (state.sources || []).length > 0 && (!state.static || !!state.helper), scenes: !state.static, media: !state.static, region: state.region },
+      experience: s.experience || { id: 'classic', opts: {} },
+      iconTheme: (addonHome && addonHome.icon_theme) || null
+    };
+  }
+  // Scenes, the weather and the photo's details: once, then every 15 minutes (the photo also on a new one)
+  function expExtras() {
+    if (state.static || !exp.ctl) return;
+    exp.extrasAt = Date.now();
+    load('/api/home-scenes').then(function (r) { exp.scenes = (r && r.scenes) || []; expRefresh(); }, function () {});
+    if (state.weather) load('/api/weather').then(function (w) { exp.wx = w; expRefresh(); }, function () {});
+    if (state.wallpaper) load('/api/wallpaper').then(function (w) { exp.wall = w && w.image ? w : null; expRefresh(); }, function () {});
+  }
+  var expHost = {
+    platform: 'vidaa',
+    open: function (it) {
+      if (it.type === 'source') {
+        if (state.static) { viaHelper('source=' + encodeURIComponent(it.id)); return Promise.resolve({ ok: true }); }
+        return post('/api/tv-source', { id: it.id });
+      }
+      var app = state.apps.filter(function (a) { return String(a.appId) === it.id; })[0];
+      if (!app) return Promise.resolve({ ok: false, error: 'it is not on the TV' });
+      return openApp(app);
+    },
+    scene: function (id) { return post('/api/home-scene-run', { id: id }); },
+    media: function (k) { npSend(k); },
+    region: function (id) { return post('/api/region', { region: id }).then(function (r) { loadRegion(); return r; }); },
+    admin: function () { expPause(); openAdmin(); },
+    classic: function () { exp.off = true; expSync(); toast('Classic Home, until the page reloads'); },
+    settings: function () { viaHelper('key=KEY_SETTINGS'); }
+  };
+  function expSync() {
+    var want = expWanted(), box = $('cytx');
+    if (!want) {
+      if (exp.ctl) { exp.ctl.destroy(); exp.ctl = null; }
+      box.style.display = 'none';
+      document.body.classList.remove('exp');
+      return;
+    }
+    expLoad(function () {
+      if (!exp.ctl) {
+        box.style.display = '';
+        exp.ctl = CYTX.mount(box, expHost, null);
+        document.body.classList.add('exp');
+        setInterval(function () { if (Date.now() - exp.extrasAt > 15 * 60000) expExtras(); }, 60000);
+        expExtras();
+      }
+      exp.ctl.update(expData());
+    });
+  }
+  var expTimer = 0;
+  function expRefresh() {   // new data for the layout, a little later (several arrive together)
+    if (!exp.ctl) return;
+    clearTimeout(expTimer);
+    expTimer = setTimeout(function () { if (exp.ctl) exp.ctl.update(expData()); }, 80);
+  }
+  function expPause() { if (exp.ctl) { exp.paused = true; $('cytx').style.display = 'none'; } }
+  function expResume() { if (exp.ctl && exp.paused) { exp.paused = false; $('cytx').style.display = ''; } }
+  // OK: a tap opens; held (the key repeats, or no key-up for 650 ms on a remote that sends them) opens the menu.
+  var expOk = { pending: false, timer: 0, keyup: false };
+  function expOkUp() {
+    expOk.keyup = true;
+    if (expOk.pending) { clearTimeout(expOk.timer); expOk.pending = false; exp.ctl.key('ok'); }
+  }
+  function expKey(e) {
+    if (mediaKey(e)) { e.preventDefault(); return; }
+    var k = e.keyCode;
+    if (k === 13) {
+      e.preventDefault();
+      if (expOk.pending) { clearTimeout(expOk.timer); expOk.pending = false; exp.ctl.key('menu'); return; }
+      expOk.pending = true;
+      expOk.timer = setTimeout(function () { if (!expOk.pending) return; expOk.pending = false; exp.ctl.key(expOk.keyup ? 'menu' : 'ok'); }, 650);
+      return;
+    }
+    var name = CYTX.keyName(e);
+    if (name && exp.ctl.key(name)) e.preventDefault();
+  }
+
   // ---------- the QR button: open the admin panel on a phone ----------
   function openAdmin() {
     load('/api/admin-link').then(function (a) {
@@ -1880,6 +2021,7 @@
   function closeAdmin() {
     $('adminBox').classList.remove('open'); $('scrim').classList.remove('on');
     focus.area = 'pills'; render();
+    expResume();
   }
 
   // ---------- changes from the admin panel: a save restarts the helper, a new photo changes its address ----------
@@ -1894,9 +2036,10 @@
         rev = r; quoteDay = -1; load('/api/state').then(start, function () {});   // new settings (a new quote source too): rebuild Home in place
         return;
       }
-      if (!first && r.wall !== rev.wall) loadWallpaper();
+      if (!first && r.wall !== rev.wall) { loadWallpaper(); exp.wall = null; expExtras(); }
       rev = r;
-    }, function () {});
+      if (exp.offline) { exp.offline = false; expRefresh(); }
+    }, function () { if (!exp.offline) { exp.offline = true; expRefresh(); } });
   }
   // Off in the admin panel ("Update right away"): changes show the next time Home opens, the photo within the hour.
   function startRevChecks() {
