@@ -50,13 +50,15 @@ everything else keeps working.
 | `com.google.android.tungsten.setupwraith` | Google TV's setup helper | Nothing day to day. It can bring Google TV's Home back after an update |
 | `com.google.android.tvrecommendations` | The "recommended for you" service | Suggestions inside other apps' rows |
 
-### Safe to turn off
+### Safe to turn off (tested)
 
-Not tested on our Chromecast yet. They are low risk and easy to turn back on.
+All nine were turned off on the same Chromecast on 20 November 2026, while an app was playing. Nothing crashed, and
+the app kept playing. Afterwards, Home was still this launcher, its panel and phone pointer worked, and the Cast
+receiver and the Google TV phone remote were still running.
 
 | Package | What it is | You lose |
 |---|---|---|
-| `com.google.android.apps.tv.dreamx` | Ambient mode (the photo screensaver) | That screensaver; the screen goes dark or uses the basic one |
+| `com.google.android.apps.tv.dreamx` | Ambient mode (the photo screensaver) | That screensaver, and its page in Settings. See the note below the table |
 | `com.google.android.backdrop` | Ambient mode's photos | The same |
 | `com.google.android.videos` | Google TV's movie shop and library | Buying or renting films from Google, and your Google library |
 | `com.google.android.play.games` | Google Play Games | Play Games sign-in in games |
@@ -65,6 +67,14 @@ Not tested on our Chromecast yet. They are low risk and easy to turn back on.
 | `com.google.android.apps.education.cast2class` | Casting in classrooms | Nothing at home |
 | `com.google.android.syncadapters.calendar` | Google Calendar sync | Nothing on a TV |
 | `com.google.android.marvin.talkback` | TalkBack, the screen reader | The screen reader. Keep it if anyone in your home uses it |
+
+**The screensaver after `dreamx` is off:** Android still has Ambient mode set as the screensaver, but it can't start
+it. So when the Chromecast is idle, the screen stays on until the sleep timer turns it off. (We haven't watched
+this happen yet.) If you want a screensaver, choose Android's basic one, which shows slowly changing colours:
+
+```bash
+adb shell settings put secure screensaver_components com.android.dreams.basic/.Colors
+```
 
 Apps you installed yourself, or that came with the Chromecast (YouTube TV `com.google.android.youtube.tvunplugged`,
 YouTube Music `com.google.android.youtube.tvmusic`…), can simply be uninstalled in *Settings > Apps*.
