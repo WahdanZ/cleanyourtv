@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/android-tools
-      - name: Build (release-style: no helper address)
+      - name: "Build (release-style: no helper address)"
         working-directory: android
         run: |
           keytool -genkeypair -keystore "$RUNNER_TEMP/ci.keystore" -storepass android -keypass android -alias ci \
