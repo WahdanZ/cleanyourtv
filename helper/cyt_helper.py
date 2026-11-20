@@ -83,8 +83,20 @@ ICON_HOSTS = ("img.vidaahub.com", "noobygains.github.io")
 ALLOWED_KEYS = {"KEY_MENU", "KEY_HOME", "KEY_EXIT", "KEY_RETURNS", "KEY_INPUT", "KEY_SETTINGS"}
 
 
+LOG_LINES: list = []   # the last 600 lines, for the panel's Logs (Settings > Logs)
+
+
 def log(msg: str) -> None:
-    print(time.strftime("%H:%M:%S ") + msg, flush=True)
+    line = time.strftime("%H:%M:%S ") + msg
+    print(line, flush=True)
+    LOG_LINES.append(line)
+    del LOG_LINES[:-600]
+
+
+def dlog(msg: str) -> None:
+    """Detail for the panel's Logs only (trackpad steps and the like), not the log file."""
+    LOG_LINES.append(time.strftime("%H:%M:%S ") + "· " + msg)
+    del LOG_LINES[:-600]
 
 
 YT = extras.YouTube(CONFIG.get("youtube") or {}, ROOT / "data", log)
@@ -302,6 +314,9 @@ class Apps:
             if str(a["appId"]) in APP_VPN:
                 entry["vpn"] = APP_VPN[str(a["appId"])]
             out.append(entry)
+        hidden = set(map(str, CONFIG.get("hidden", [])))
+        out += [{"appId": "web-" + w["id"], "name": w["name"], "icon": f"/api/web-icon/{w['id']}", "web": True}
+                for w in websites() if w["tv"] and "web-" + w["id"] not in hidden]
         return out
 
 
@@ -332,6 +347,73 @@ SOURCES = Sources()
 BROWSER = CONFIG.get("browser") or {}
 # Suggestions as you type come from DuckDuckGo: Brave's feed answers only Brave's pages and turns scripts away (429).
 SUGGEST = "https://duckduckgo.com/ac/?type=list&q="
+
+
+# ---------- websites as apps: a tile on the TV (its browser) and on the Chromecast (its browser) ----------
+WEBSITES_FILE = DATA / "websites.json"
+WEB_COLORS = ["#2a78d6", "#1baf7a", "#6250d6", "#eb6834", "#e87ba4", "#008300", "#eda100"]
+
+
+def websites() -> list:
+    try:
+        v = json.loads(WEBSITES_FILE.read_text(encoding="utf-8"))
+        return v if isinstance(v, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def save_websites(v) -> list:
+    if not isinstance(v, list) or len(v) > 30:
+        raise ValueError("at most 30 websites")
+    out, ids = [], set()
+    for i, w in enumerate(v):
+        if not isinstance(w, dict):
+            raise ValueError("bad website")
+        name = str(w.get("name", "")).strip()[:40]
+        url = str(w.get("url", "")).strip()
+        if url and not re.match(r"^[a-z][a-z0-9+.-]*://", url, re.I):
+            url = "https://" + url
+        if not name or urlsplit(url).scheme not in ("http", "https") or not urlsplit(url).netloc:
+            raise ValueError(f"{name or 'A website'}: needs a name and a web address")
+        wid = re.sub(r"[^a-z0-9]+", "", str(w.get("id") or name).lower())[:24] or "site"
+        base, n = wid, 2
+        while wid in ids:
+            wid, n = f"{base}{n}", n + 1
+        ids.add(wid)
+        out.append({"id": wid, "name": name, "url": url, "tv": w.get("tv", True) is not False, "cc": w.get("cc", True) is not False,
+                    "color": str(w.get("color") or WEB_COLORS[i % len(WEB_COLORS)])[:9]})
+    WEBSITES_FILE.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+    return out
+
+
+def website(wid: str) -> dict | None:
+    return next((w for w in websites() if w["id"] == wid), None)
+
+
+def web_icon_svg(w: dict) -> bytes:
+    """A tile for a website: its colour, its first letter and its name (no emoji: the TV's browser may lack the font)."""
+    name = html.escape(w["name"][:22])
+    letter = html.escape(w["name"][:1].upper())
+    host = html.escape(urlsplit(w["url"]).netloc.replace("www.", "")[:28])
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180">'
+            f'<rect width="320" height="180" rx="18" fill="{html.escape(w.get("color", "#2a78d6"))}"/>'
+            f'<circle cx="62" cy="90" r="38" fill="rgba(255,255,255,.22)"/>'
+            f'<text x="62" y="104" font-family="Helvetica,Arial,sans-serif" font-size="40" font-weight="700" fill="#fff" text-anchor="middle">{letter}</text>'
+            f'<text x="116" y="88" font-family="Helvetica,Arial,sans-serif" font-size="27" font-weight="700" fill="#fff">{name}</text>'
+            f'<text x="116" y="118" font-family="Helvetica,Arial,sans-serif" font-size="17" fill="rgba(255,255,255,.85)">{host}</text></svg>').encode()
+
+
+def web_tiles_cc() -> list:
+    return [{"id": "addon:web-" + w["id"], "name": w["name"], "emoji": "🌐", "color": w["color"], "kind": "action"}
+            for w in websites() if w["cc"]]
+
+
+def cc_web_browser() -> str:
+    """The Chromecast's browser for websites: "web_browser" in its settings, else BrowseHere when it's there."""
+    if CHROMECAST.get("web_browser"):
+        return str(CHROMECAST["web_browser"])
+    have = {a["id"] for a in ADMIN.cc_apps().get("apps", [])}
+    return next((p for p in ("com.tcl.browser", "com.cloudmosa.puffinTV", "com.android.chrome") if p in have), "")
 
 
 def browse(url: str):
@@ -451,12 +533,21 @@ def quote_of_day() -> dict | None:
     if time.time() - _quote["tried"] < 600:   # failed a moment ago: don't keep the TV waiting on it
         return None
     _quote["tried"] = time.time()
-    try:
-        q = json.loads(_fetch(QUOTE_URL))[0]
-        data = {"text": html.unescape(q["q"]).strip(), "by": html.unescape(q["a"]).strip(), "source": "ZenQuotes.io"}
-    except Exception as e:
-        log(f"quote of the day: {e}")
-        return None
+    q, err = None, None
+    for attempt in (0, 1):   # ZenQuotes now and then doesn't answer one request: once more at once
+        try:
+            q = json.loads(_fetch(QUOTE_URL))[0]
+            break
+        except Exception as e:
+            err = e
+    if q is None:
+        log(f"quote of the day: ZenQuotes didn't answer ({err}); a built-in quote for now, trying again in 10 minutes")
+        try:
+            items = [{"text": t, "by": b} for t, b in json.loads((WEB / "quotes.json").read_text(encoding="utf-8")).get("en", [])]
+            return _quote_from_list(items, "order")
+        except Exception:
+            return None
+    data = {"text": html.unescape(q["q"]).strip(), "by": html.unescape(q["a"]).strip(), "source": "ZenQuotes.io"}
     url = str(q.get("i", ""))
     _quote.update(day=today, data=data, image=None, image_url=url if url.startswith("https://zenquotes.io/") else "")
     _quote_portrait(today)
@@ -850,7 +941,7 @@ _auto_vpn = {"prev": None}   # the region before an app switched it, while that 
 CHROMECAST = CONFIG.get("chromecast") or {}
 _cc_ip = CHROMECAST.get("ip", [])
 CC_IPS = {str(x) for x in (_cc_ip if isinstance(_cc_ip, list) else [_cc_ip]) if x}
-CC_PATHS = {"/", "/index.html", "/quotes.json", "/api/rev", "/api/admin-link", "/api/home-edit", "/api/now-playing", "/api/media", "/api/cc", "/api/cc-open", "/api/cc-apps", "/api/weather", "/api/quote",
+CC_PATHS = {"/api/hub/tap", "/api/hub/pointer", "/api/hub/text", "/api/hub/live", "/", "/index.html", "/quotes.json", "/api/rev", "/api/admin-link", "/api/home-edit", "/api/now-playing", "/api/media", "/api/cc", "/api/cc-open", "/api/cc-apps", "/api/weather", "/api/quote",
             "/api/quote-image", "/api/wallpaper", "/api/wallpaper.jpg", "/api/region", "/vpn"}
 APP_VPN.update({str(k): str(v).lower() for k, v in (CHROMECAST.get("app_vpn") or {}).items()})
 
@@ -874,6 +965,12 @@ ADDONS = addons.Addons([(ROOT / "addons", True), (DATA / "addons", False)], log,
 
 def addon_run(addon_id: str) -> dict:
     """A quick action: the VPN step here (it waits for the tunnel), the rest for the Chromecast to do."""
+    if addon_id.startswith("web-"):   # a website: in the Chromecast's browser
+        w = website(addon_id[4:])
+        if not w:
+            return {"ok": False, "error": "unknown website"}
+        pkg = cc_web_browser()
+        return {"ok": True, "steps": [{"open": pkg, "uri": w["url"]} if pkg else {"url": w["url"]}]}
     steps = ADDONS.steps(addon_id)
     if steps is None:
         return {"ok": False, "error": "unknown add-on"}
@@ -989,12 +1086,13 @@ def admin_state() -> dict:
         tv = [{"id": str(a["appId"]), "name": a.get("name", "").replace("▶", "").strip()} for a in APPS.apps
               if not str(a.get("appId")).startswith("cyt")]
     tv = [{"id": p["appId"], "name": p["name"]} for p in PAGES] + tv
+    tv += [{"id": "web-" + w["id"], "name": w["name"]} for w in websites() if w["tv"]]
     for a in tv:
         a["icon"] = f"/api/admin/icon/tv/{a['id']}"
     cc = ADMIN.cc_apps()
     for a in cc["apps"]:
         a["icon"] = f"/api/admin/icon/cc/{a['id']}"
-    for t in ADDONS.home()["tiles"]:   # full-screen and quick-action add-ons are tiles to arrange, like apps
+    for t in ADDONS.home()["tiles"] + web_tiles_cc():   # full-screen and quick-action add-ons, websites: tiles like apps
         cc["apps"].append({"id": t["id"], "name": t["name"], "emoji": t["emoji"], "color": t["color"], "banner": True})
     try:
         server = Path("/var/run/tv-vpn/server").read_text().split()[1]
@@ -1009,7 +1107,7 @@ def admin_state() -> dict:
             "region": now, "vpn_server": server if now not in (None, "off") else "", "country_names": COUNTRY_NAMES,
             "tv_on": HOME_WATCH.up, "started": STARTED,
             "devices": {"tv": VIDAA, "cc": bool(CC_IPS), "vpn": vpn_available()}, "quick_base": quick_base(),
-            "scenes": scenes(), "https": https_state(),
+            "scenes": scenes(), "https": https_state(), "websites": websites(),
             "addons": ADDONS.status(), "addons_broken": ADDONS.broken,
             "layout_spec": layout.spec(), "preview": layout_preview(),
             "wallpaper": {"now": wallpaper_meta(), "sources": WALLPAPER_SOURCES, "own": own_wallpapers(),
@@ -1416,7 +1514,10 @@ def pointer_send(ops: list) -> dict:
         _pointer["scroller"] = threading.Thread(target=_pointer_scroller, daemon=True)
         _pointer["scroller"].start()
     _pointer["used"] = time.time()
-    if _pointer_foreground() in KEY_APPS:   # arrow mode: no pointer of ours; its own pointer, with the arrow keys
+    fg = _pointer_foreground()
+    dlog("trackpad " + ("arrows " if fg in KEY_APPS else "") + " ".join(
+        st[0] + ("" if len(st) == 1 else f"({st[1]:.0f},{st[2]:.0f})") for st in steps)[:200])
+    if fg in KEY_APPS:   # arrow mode: no pointer of ours; its own pointer, with the arrow keys
         with _pointer["lock"]:
             for st in steps:
                 if st[0] in ("m", "s"):
@@ -1460,6 +1561,7 @@ def pointer_send(ops: list) -> dict:
                                        else f"input touchscreen swipe {x} {y} {x} {y} 700")
                 return {"ok": True, "mode": "pointer"}
             except (OSError, ConnectionError) as e:
+                log(f"trackpad: connection to the pointer service lost ({e}); attempt {attempt + 1}")
                 try:
                     if _pointer["sock"]:
                         _pointer["sock"].close()
@@ -1581,6 +1683,19 @@ def remote_press(device: str, key: str = "", text: str = "") -> dict:
 def remote_open(device: str, app_id: str = "", url: str = "") -> dict:
     """Open an app, or a web address, on the TV or the Chromecast (the admin panel's remote). A per-app VPN country
     is switched to first, as when the app is opened from Home."""
+    web = app_id[4:] if app_id.startswith("web-") else app_id[10:] if app_id.startswith("addon:web-") else ""
+    if web:   # a website tile: its address, in that device's browser
+        w = website(web)
+        if not w:
+            raise ValueError("no such website")
+        url, app_id = w["url"], ""
+        if device == "cc" and cc_web_browser():
+            adb, serial, why = _cc_serial()
+            if serial:
+                r = subprocess.run([adb, "-s", serial, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d",
+                                    shlex.quote(url), "-p", cc_web_browser()], capture_output=True, text=True, timeout=20)
+                if r.returncode == 0 and "Error" not in r.stdout + r.stderr:
+                    return {"ok": True}
     if url:
         url = url.strip()
         if not re.match(r"^[a-z][a-z0-9+.-]*://", url, re.I):
@@ -1636,7 +1751,7 @@ def remote_status() -> dict:
         if serial:
             power = subprocess.run([adb, "-s", serial, "shell", "dumpsys power | grep -m1 mWakefulness"],
                                    capture_output=True, text=True, timeout=10).stdout
-            out["cc"].update(linked=True, awake="Awake" in power)
+            out["cc"].update(linked=True, awake="Awake" in power, front=_pointer_foreground())
         elif CC_IPS and not _cc_service("z"):   # (a no-op) Wireless debugging is off, but the launcher answers
             out["cc"].update(linked=True, limited=True, why="")
     except subprocess.TimeoutExpired:
@@ -1795,6 +1910,113 @@ def https_state() -> dict:
             "push_key": PUSH.public_key() if PUSH else "", "phones": len(PUSH.subs()) if PUSH else 0}
 
 
+# ---------- names for addresses, in the panel's Logs ("iPhone (192.168.178.106)") ----------
+_clients: dict = {}   # address -> what its browser said it is, from the admin panel's requests
+_names: dict = {}     # address -> (name, when), from the router
+
+
+def _ua_label(ua: str) -> str:
+    u = ua or ""
+    dev = ("iPhone" if "iPhone" in u else "iPad" if "iPad" in u else "Android phone" if "Android" in u and "Mobile" in u
+           else "Android" if "Android" in u else "Mac" if "Macintosh" in u else "Windows PC" if "Windows" in u
+           else "Linux PC" if "Linux" in u else "")
+    return dev
+
+
+def _ptr(ip: str) -> str:
+    """The router's name for an address (a reverse DNS question straight to it: macOS's own lookup can take 30 s)."""
+    import struct as _st
+    q = b"".join(bytes([len(x)]) + x.encode() for x in ip.split(".")[::-1] + ["in-addr", "arpa"]) + b"\x00"
+    pkt = _st.pack(">HHHHHH", 0x5a5a, 0x0100, 1, 0, 0, 0) + q + _st.pack(">HH", 12, 1)
+    gw = own_ip().rsplit(".", 1)[0] + ".1"
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as so:
+            so.settimeout(0.8)
+            so.sendto(pkt, (gw, 53))
+            data = so.recv(512)
+    except OSError:
+        return ""
+
+    def name_at(off, depth=0):
+        parts = []
+        while off < len(data) and depth < 10:
+            n = data[off]
+            if n == 0:
+                return ".".join(parts), off + 1
+            if n & 0xC0 == 0xC0:
+                sub, _ = name_at(((n & 0x3F) << 8) | data[off + 1], depth + 1)
+                return ".".join(parts + ([sub] if sub else [])), off + 2
+            parts.append(data[off + 1:off + 1 + n].decode("utf-8", "replace"))
+            off += 1 + n
+        return ".".join(parts), off
+    try:
+        an = _st.unpack(">H", data[6:8])[0]
+        if not an:
+            return ""
+        _, off = name_at(12)
+        off += 4                       # the question's type and class
+        _, off = name_at(off)          # the answer's name
+        typ, _, _, rdlen = _st.unpack(">HHIH", data[off:off + 10])
+        if typ != 12:
+            return ""
+        name, _ = name_at(off + 10)
+    except (IndexError, _st.error):
+        return ""
+    for tail in (".fritz.box", ".local", ".lan", ".home", ".localdomain"):
+        if name.endswith(tail):
+            name = name[: -len(tail)]
+    return "" if re.fullmatch(r"[0-9a-f-]{20,}", name) else name   # a random-looking id is no name
+
+
+def device_name(ip: str) -> str:
+    if ip in ("127.0.0.1", own_ip()):
+        return "this computer"
+    if VIDAA and ip == tv_host():
+        return "TV"
+    if ip in (CC_IPS or []):
+        return "Chromecast"
+    if ip in _clients:
+        return _clients[ip]
+    hit = _names.get(ip)
+    if not hit or time.time() - hit[1] > 3600:
+        hit = (_ptr(ip), time.time())
+        _names[ip] = hit
+    return hit[0]
+
+
+def name_ips(line: str) -> str:
+    def sub(m):
+        ip = m.group(0)
+        if not re.match(r"^(10|127|192\.168|172\.(1[6-9]|2\d|3[01]))\.", ip):
+            return ip
+        n = device_name(ip)
+        return f"{n} ({ip})" if n else ip
+    return re.sub(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])", sub, line)
+
+
+class QuietServer(ThreadingHTTPServer):
+    """A dropped connection or a refused certificate is one line in the log, not a traceback. And it starts at once:
+    HTTPServer looks up this computer's network name when it starts, which takes 30 seconds on some networks (the panel
+    couldn't reach the helper all that time after each restart); nothing here needs that name."""
+    def server_bind(self):
+        import socketserver
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name, self.server_port = str(host), port
+
+    def handle_error(self, request, client_address):
+        e = sys.exc_info()[1]
+        ip = client_address[0] if client_address else "?"
+        import ssl as _ssl
+        if isinstance(e, _ssl.SSLError):
+            log(f"https: {ip} refused the certificate ({getattr(e, 'reason', None) or e}): this home's certificate isn't installed and trusted there")
+        elif isinstance(e, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, TimeoutError)):
+            dlog(f"{ip} left before the answer was sent ({type(e).__name__})")
+        else:
+            log(f"request from {ip} failed: {type(e).__name__}: {e}")
+            super().handle_error(request, client_address)
+
+
 def https_serve():
     """The same helper on HTTPS_PORT, with this home's own certificate (the TV and the Chromecast stay on http)."""
     if not CERTS:
@@ -1802,7 +2024,7 @@ def https_serve():
         return
     try:
         ctx = CERTS.context(own_ip())
-        srv = ThreadingHTTPServer(("0.0.0.0", HTTPS_PORT), partial(Handler, directory=str(WEB)))
+        srv = QuietServer(("0.0.0.0", HTTPS_PORT), partial(Handler, directory=str(WEB)))
         # the handshake in the request's own thread, so a slow phone doesn't hold up the others
         srv.socket = ctx.wrap_socket(srv.socket, server_side=True, do_handshake_on_connect=False)
         log(f"https: the panel is also at https://<this computer's ip>:{HTTPS_PORT}/admin")
@@ -1962,10 +2184,27 @@ def stats_report(days: int = 7) -> dict:
         else:
             aid = tv_names.get(x["name"].lower())
             x["icon"] = f"/api/admin/icon/tv/{aid}" if aid else ""
+            if aid:   # the app's own name ("YouTube", not the TV's "youtube")
+                x["name"] = (CONFIG.get("rename", {}).get(aid) or (APPS.get(aid) or {}).get("name") or x["name"]).replace("▶", "").strip()
         tv_list.append(x)
+    # all together: the TV's own screens and the Chromecast, its input counted once (by what played on it)
+    all_day = []
+    for day, cd in zip(want, per_day):
+        d = (all_days.get(day) or {}).get("tv") or {}
+        own = sum(x["secs"] for k, x in d.items() if k != cc_in)
+        cc_part = max(d.get(cc_in, {}).get("secs", 0) if cc_in else 0, cd["secs"]) if VIDAA else cd["secs"]
+        all_day.append({"day": day, "tv": own, "cc": cc_part if CC_IPS or cc_in else 0})
+    items = [dict(x, dev="tv") for x in tv_list if not x.get("cc")]
+    items += [dict(a, dev="cc") for a in app_list]
+    cc_input_secs = tv.get(cc_in, {}).get("secs", 0) if cc_in else 0
+    extra = cc_input_secs - sum(apps.values())
+    if extra >= 60:
+        items.append({"name": "Chromecast: menus and other", "secs": extra, "icon": "", "dev": "cc", "key": "cc-other"})
+    items.sort(key=lambda x: -x["secs"])
     return {"days": days, "total": sum(apps.values()), "apps": app_list, "per_day": per_day,
             "titles": [t for t in top if t["secs"] >= 60],
             "tv": {"on": bool(VIDAA), "total": sum(x["secs"] for x in tv.values()), "per_day": tv_day, "screens": tv_list},
+            "all": {"total": sum(x["tv"] + x["cc"] for x in all_day), "per_day": all_day, "items": items},
             "cc": bool(CC_IPS)}
 
 
@@ -2472,6 +2711,26 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/home-edit":
             self._json(200, home_edit_state())
             return
+        if path == "/api/hub/live":   # the Chromecast's own panel's live screen: a frame from here (adb)
+            import hmac
+            if self.client_address[0] not in CC_IPS or not hmac.compare_digest(str(self.headers.get("X-Token", "")), pointer_token()):
+                self.send_error(403)
+                return
+            try:
+                after = float(parse_qs(urlsplit(self.path).query).get("after", ["0"])[0])
+            except ValueError:
+                after = 0
+            frame, why = cc_live_frame(after)
+            if not frame:
+                self._json(409, {"ok": False, "error": why})
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg" if frame[:2] == b"\xff\xd8" else "image/png")
+            self.send_header("X-Frame-At", str(_live["at"]))
+            self.send_header("Content-Length", str(len(frame)))
+            self.end_headers()
+            self.wfile.write(frame)
+            return
         if path.startswith("/api/addons/"):
             self._addons_get(path)
             return
@@ -2618,6 +2877,13 @@ class Handler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if path.startswith("/api/web-icon/"):
+            w = website(path.rsplit("/", 1)[1])
+            if not w:
+                self.send_error(404)
+                return
+            self._send(web_icon_svg(w), "image/svg+xml")
+            return
         if path.startswith("/icon/"):
             try:
                 got = icon_bytes(path[len("/icon/"):])
@@ -2640,7 +2906,8 @@ class Handler(SimpleHTTPRequestHandler):
     def _addons_get(self, path: str):
         parts = path.split("/")   # ["", "api", "addons", id, ...]
         if path == "/api/addons/home":
-            self._json(200, ADDONS.home())
+            home = ADDONS.home()
+            self._json(200, dict(home, tiles=home["tiles"] + web_tiles_cc()))
         elif len(parts) == 5 and parts[4] == "screen":
             page = ADDONS.screen(parts[3])
             self._json(200 if page is not None else 404, page or {"error": "unknown add-on"})
@@ -2660,6 +2927,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _admin_ok(self) -> bool:
         if ADMIN.signed_in(self.headers.get("Cookie")):
+            label = _ua_label(self.headers.get("User-Agent", ""))
+            if label:
+                _clients[self.client_address[0]] = label
             return True
         self._json(401, {"ok": False, "error": "sign in", "password_set": ADMIN.password_set()})
         return False
@@ -2749,6 +3019,32 @@ class Handler(SimpleHTTPRequestHandler):
                     pos += k
             except (BrokenPipeError, ConnectionResetError):
                 pass
+        elif path == "/api/admin/logs":
+            src = parse_qs(urlsplit(self.path).query).get("src", ["helper"])[0]
+            if src == "cc":
+                lines, why = [], ""
+                raw = _cc_ask("log", 6)
+                if raw is None:
+                    why = "The launcher's pointer service didn't answer (is the Chromecast on?)."
+                else:
+                    import base64
+                    try:
+                        lines = base64.b64decode(raw).decode("utf-8", "replace").splitlines()
+                    except ValueError:
+                        lines = []
+                adb, serial, _ = _cc_serial()
+                if serial:   # the app's crashes, if any, from Android's own log
+                    try:
+                        out = subprocess.run([adb, "-s", serial, "shell", "logcat -d -t 2000 -v time AndroidRuntime:E *:S"],
+                                             capture_output=True, text=True, timeout=10).stdout
+                        crash = [ln for ln in out.splitlines() if "cleanyourtv" in ln]
+                        if crash:
+                            lines += ["", "— crashes (Android's log) —"] + crash[-40:]
+                    except subprocess.TimeoutExpired:
+                        pass
+                self._json(200, {"ok": not why, "error": why, "lines": [name_ips(x) for x in lines]})
+            else:
+                self._json(200, {"ok": True, "lines": [name_ips(x) for x in LOG_LINES[-600:]]})
         elif path == "/api/admin/np-art":
             data = cc_now_playing_art(parse_qs(urlsplit(self.path).query).get("t", [""])[0])
             if not data:
@@ -2794,6 +3090,9 @@ class Handler(SimpleHTTPRequestHandler):
                 if kind == "cc":
                     body = ADMIN.cc_icon(app_id)
                     got = (body, "image/png") if body else None
+                elif kind == "tv" and app_id.startswith("web-"):
+                    w = website(app_id[4:])
+                    got = (web_icon_svg(w), "image/svg+xml") if w else None
                 elif kind == "tv":
                     page = next((p for p in PAGES if p["appId"] == app_id), None)
                     if page:
@@ -2912,6 +3211,13 @@ class Handler(SimpleHTTPRequestHandler):
         elif path == "/api/admin/sleep":
             try:
                 self._json(200, {"ok": True, "sleep": sleep_set(str(data.get("set", "off")))})
+            except ValueError as e:
+                self._json(400, {"ok": False, "error": str(e)})
+        elif path == "/api/admin/websites":
+            try:
+                ws = save_websites(data.get("websites"))
+                st = admin_state()
+                self._json(200, {"ok": True, "websites": ws, "tv_apps": st["tv_apps"], "cc": st["cc"]})
             except ValueError as e:
                 self._json(400, {"ok": False, "error": str(e)})
         elif path == "/api/admin/scenes":
@@ -3122,6 +3428,15 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
             return
         data = self._body()
         try:
+            if path == "/api/launch" and str(data.get("appId", "")).startswith("web-"):   # a website: the TV's browser
+                w = website(str(data["appId"])[4:])
+                if not w:
+                    self._json(404, {"ok": False, "error": "unknown website"})
+                    return
+                browse(w["url"])
+                log(f"opened the website {w['name']}")
+                self._json(200, {"ok": True})
+                return
             if path == "/api/launch":
                 app = APPS.get(str(data.get("appId", "")))
                 if not app:
@@ -3158,6 +3473,36 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
                     return
                 ADMIN.store_cc_apps(data["apps"])
                 self._json(200, {"ok": True})
+                return
+            if path in ("/api/hub/pointer", "/api/hub/text"):
+                # The Chromecast's own panel, for what only adb can do: the whole trackpad (taps, BrowseHere's arrows)
+                # and typing. With the key this helper gave its launcher.
+                import hmac
+                if self.client_address[0] not in CC_IPS or not hmac.compare_digest(str(self.headers.get("X-Token", "")), pointer_token()):
+                    self._json(403, {"ok": False})
+                    return
+                try:
+                    self._json(200, pointer_send(data.get("ops") or []) if path == "/api/hub/pointer"
+                               else remote_press("cc", key=str(data["key"])) if data.get("key")
+                               else remote_press("cc", text=str(data.get("text", ""))))
+                except Exception as e:
+                    self._json(502, {"ok": False, "error": str(e)})
+                return
+            if path == "/api/hub/tap":
+                # The Chromecast's own server (its panel's trackpad) asks for a tap at its pointer: only adb can tap
+                # inside other apps on Google TV. With the key this helper gave its launcher.
+                import hmac
+                if self.client_address[0] not in CC_IPS or not hmac.compare_digest(str(self.headers.get("X-Token", "")), pointer_token()):
+                    self._json(403, {"ok": False})
+                    return
+                try:
+                    x, y = int(data.get("x", -1)), int(data.get("y", -1))
+                    if not (0 <= x < 4000 and 0 <= y < 4000):
+                        raise ValueError
+                    _pointer_shell(f"input touchscreen tap {x} {y}" if not data.get("long") else f"input touchscreen swipe {x} {y} {x} {y} 700")
+                    self._json(200, {"ok": True})
+                except Exception as e:
+                    self._json(502, {"ok": False, "error": str(e)})
                 return
             if path == "/api/cc-open":
                 # The Chromecast is about to open an app: switch the VPN first if that app has a country (or back).
@@ -3489,7 +3834,7 @@ def main():
     port = int(CONFIG.get("port", 8765))
     # On Windows, address reuse lets a second helper share the port with one still running; fail instead.
     ThreadingHTTPServer.allow_reuse_address = os.name != "nt"
-    server = ThreadingHTTPServer(("0.0.0.0", port), partial(Handler, directory=str(WEB)))
+    server = QuietServer(("0.0.0.0", port), partial(Handler, directory=str(WEB)))
     threading.Thread(target=https_serve, daemon=True).start()
     log(f"launcher on http://<this computer's ip>:{port}/  (serving {WEB})")
     wallpaper_meta()   # fetch today's photo and quote now, so they're ready before the TV first asks

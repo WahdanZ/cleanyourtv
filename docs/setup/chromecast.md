@@ -94,6 +94,34 @@ remote's keys when Wireless debugging is off.
 The app asks the helper for its settings, apps and widgets; only the paths it needs are open to the Chromecast's
 address (it can't reach the admin panel or control the TV).
 
+## On its own, without the laptop
+
+The launcher has its own server (port 8765, like the helper) and its own VPN, so the Chromecast can run with the
+helper's computer off. Move the helper's settings over once, from the helper's computer:
+
+```bash
+.venv/bin/python tools/move-to-chromecast.py
+```
+
+It copies the settings, the panel's password, scenes, websites, shortcuts, usage, your photos and the NordVPN
+(NordLynx) key, then switches Home to the Chromecast's own server. From then on:
+
+- **The phone panel** is at `http://<Chromecast>:8765/admin` (same password; the Admin button's QR codes point there).
+- **Home** gets its settings, weather, quote, wallpaper and the built-in add-ons from the Chromecast itself.
+- **The VPN** is built into the launcher (WireGuard, NordVPN's recommended server for each country, or your own
+  WireGuard file); the Region button and the per-app countries switch it. Every app but the launcher goes through it.
+- **Scenes, the sleep timer, phone shortcuts, Usage and Logs** run on the Chromecast.
+- **With the laptop on,** the panel still uses its helper for what only adb can do: the trackpad's taps (and
+  BrowseHere's arrow mode), typing, and the live screen. With it off, the trackpad's tap is an OK press.
+- Your own add-ons written in Python, phone notifications and the TV stay with the helper.
+
+For the laptop to be really off, set the Chromecast's gateway back to your router (Settings > Network > your Wi-Fi >
+IP settings) if it used the helper's computer as its gateway for the Mac VPN. Back to the helper:
+`tools/move-to-chromecast.py --back`.
+
+Building now needs a Kotlin compiler (the newer parts are Kotlin): Android Studio's, or `brew install kotlin`.
+`build.sh` downloads the WireGuard library (Apache 2.0) from Maven Central once and checks it.
+
 ## Without the helper running
 
 The launcher keeps working: it shows the last settings, apps and widgets it got, and opens apps by itself. The

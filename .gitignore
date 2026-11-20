@@ -9,3 +9,4 @@ setup/session.json
 
 .venv/
 __pycache__/
+android/cache/

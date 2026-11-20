@@ -47,7 +47,16 @@
             </intent-filter>
             <meta-data android:name="android.accessibilityservice" android:resource="@xml/cursor_service" />
         </service>
-            <!-- Lets CursorService read what's playing (length, position, picture) for the phone's Now playing. The helper
+            <!-- The launcher's own VPN (WireGuard; Vpn.java): one country at a time, for the apps you choose. -->
+        <service
+            android:name="com.wireguard.android.backend.GoBackend$VpnService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+        <!-- Lets CursorService read what's playing (length, position, picture) for the phone's Now playing. The helper
              allows it over adb; it reads no notifications. -->
         <service
             android:name=".MediaWatch"

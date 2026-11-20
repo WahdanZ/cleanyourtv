@@ -18,11 +18,13 @@
   :root {
     --bg: #f4f4f6; --card: #ffffff; --text: #16161a; --muted: #6b6b75; --line: #e3e3e8; --soft: #f0f0f3;
     --accent: #2f6df6; --accent-text: #ffffff; --ok: #1f9d55; --warn: #c27c00; --bad: #d23c3c;
+    --s-tv: #2a78d6; --s-cc: #eb6834;   /* usage chart: two series, checked for colour blindness and contrast */
     --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.05);
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #0e0e11; --card: #18181c; --text: #f2f2f5; --muted: #9a9aa6; --line: #2a2a31; --soft: #222228;
             --accent: #5b8cff; --accent-text: #0b0b0d; --ok: #3ccf7a; --warn: #f0b23c; --bad: #ff6b6b;
+            --s-tv: #3987e5; --s-cc: #d95926;
             --shadow: 0 1px 2px rgba(0,0,0,.4); }
   }
   * { box-sizing: border-box; }
@@ -57,7 +59,7 @@
   .qk select { max-width: 100%; }
   .qk .row.pickrow > .grow { flex-basis: 100%; }
   /* watch time (Home tab) */
-  .wt { margin-top: 26px; }
+  .wt { margin-top: 6px; }
   .wt-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .wt-head .main-h { margin: 0; flex: 1; }
   .wt-range { display: flex; gap: 6px; }
@@ -68,7 +70,16 @@
   .wt-total small { display: block; font-size: 13px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
   .wt-days { display: flex; align-items: flex-end; gap: 2px; height: 72px; margin-top: 14px; border-bottom: 1px solid var(--line); position: relative; }
   .wt-days .d { flex: 1; height: 100%; display: flex; align-items: flex-end; cursor: default; }
-  .wt-days .d i { display: block; width: 100%; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 0; }
+  .wt-days .d { flex-direction: column-reverse; gap: 2px; }
+  .wt-days .d i { display: block; width: 100%; background: var(--accent); min-height: 0; flex: none; }
+  .wt-days .d i:last-child { border-radius: 4px 4px 0 0; }
+  .wt-days .d i.tv { background: var(--s-tv); } .wt-days .d i.cc { background: var(--s-cc); }
+  .wt-legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .wt-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .wt-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .wt-legend i.tv { background: var(--s-tv); } .wt-legend i.cc { background: var(--s-cc); }
+  .wt-app .bar.tv { background: var(--s-tv); } .wt-app .bar.cc { background: var(--s-cc); }
+  .wt-app .dev { font-size: 11px; color: var(--muted); margin-left: 6px; }
   .wt-days .d:hover i, .wt-days .d.hl i { opacity: .75; }
   .wt-days .d.zero i { background: var(--line); height: 2px !important; }
   .wt-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
@@ -86,6 +97,20 @@
   .wt-t .tt b { font-weight: 600; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wt-t .tt small { color: var(--muted); font-size: 12px; }
   .wt-t .v { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .logs { padding: 12px; }
+  .logs-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .logs-bar .btn { padding: 8px 12px; min-height: 36px; font-size: 14px; }
+  .logonly { font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .logbox .bad { color: var(--bad); }
+  .logbox { margin: 10px 0 0; max-height: 55vh; overflow: auto; font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap;
+            word-break: break-word; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px; color: var(--text); }
+  .web-ed { padding: 12px 16px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+  .web-ed:first-child { border-top: 0; }
+  .web-ed .l1 { display: flex; gap: 8px; }
+  .web-ed .l1 input { flex: 1; min-width: 0; }
+  .web-ed .l2 { display: flex; gap: 14px; align-items: center; font-size: 14px; flex-wrap: wrap; }
+  .web-ed .l2 label { display: inline-flex; gap: 6px; align-items: center; }
+  .web-ed .x { margin-left: auto; font: inherit; border: 1px solid var(--line); background: none; color: var(--text); border-radius: 10px; padding: 6px 10px; cursor: pointer; }
   .scn-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 14px; }
   .scn-row button { font: inherit; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 14px;
                     border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; min-height: 48px; }
@@ -508,6 +533,9 @@
   header { padding-top: calc(20px + env(safe-area-inset-top)); }
   .hbtn { border: 1px solid var(--line); background: var(--card); color: var(--text); width: 40px; height: 40px; border-radius: 12px; cursor: pointer;
           display: inline-flex; align-items: center; justify-content: center; }
+  .hbtn.gear { margin-left: auto; }
+  .hbtn.gear.on { color: var(--accent); border-color: var(--accent); }
+  nav button[data-tab="home"] { display: none !important; }   /* Settings: the gear in the top bar */
   .hbtn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .apptip { position: relative; margin: 6px 0 4px; display: flex; flex-direction: column; gap: 6px; }
   .apptip .x { position: absolute; right: 6px; top: 6px; font-size: 18px; color: var(--muted); }
@@ -515,7 +543,7 @@
   nav button svg { display: none; }
   @media (max-width: 900px) {
     /* the tabs become a bar along the bottom, as in an app */
-    nav { position: fixed; top: auto; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0;
+    nav { position: fixed; top: auto; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0;
           padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--line); overflow: visible; }
     nav button { border: 0; background: none; border-radius: 12px; padding: 6px 2px; display: flex; flex-direction: column; align-items: center; gap: 3px;
                  font-size: 11px; color: var(--muted); min-width: 0; }
@@ -640,6 +668,7 @@
   <section id="appView" class="hidden">
     <header>
       <h1>Home Admin</h1>
+      <button class="hbtn gear" id="setBtn" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       <button class="hbtn" id="fsBtn" aria-label="Full screen" hidden><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       <div class="chips" id="status"></div>
     </header>
@@ -654,6 +683,7 @@
       <button data-tab="vpn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg><span>VPN</span></button>
       <button data-tab="tv"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg><span>TV</span></button>
       <button data-tab="cc"><svg viewBox="0 0 24 24"><path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-6M3 13a6 6 0 0 1 6 6M3 17a2 2 0 0 1 2 2"/></svg><span>Chromecast</span></button>
+      <button data-tab="usage"><svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V5M19 20v-6M3 20h18"/></svg><span>Usage</span></button>
       <button data-tab="home"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>Settings</span></button>
     </nav>
 
@@ -668,11 +698,14 @@
         <div id="mainRemote"></div>
         <div id="mainApps"><div id="mainScenes" hidden><h2 class="main-h">Scenes</h2><div class="scn-row" id="mainScenesRow"></div></div><h2 class="main-h">Apps</h2></div>
       </div>
-      <div class="wt" id="wt" hidden>
-        <div class="wt-head"><h2 class="main-h">Watch time</h2>
-          <div class="wt-range" id="wtDev"><button data-v="tv">TV</button><button data-v="cc">Chromecast</button></div>
+    </div>
+
+    <div data-pane="usage" class="hidden">
+      <div class="wt" id="wt">
+        <div class="wt-head"><h2 class="main-h">Usage</h2>
+          <div class="wt-range" id="wtDev"><button data-v="all">All</button><button data-v="tv">TV</button><button data-v="cc">Chromecast</button></div>
           <div class="wt-range" id="wtRange"><button data-d="1">Today</button><button data-d="7" class="on">7 days</button><button data-d="30">30 days</button></div></div>
-        <div class="card"><div class="wt-total" id="wtTotal"></div><div class="wt-days" id="wtDays"></div><div class="wt-axis" id="wtAxis"></div></div>
+        <div class="card"><div class="wt-total" id="wtTotal"></div><div class="wt-legend" id="wtLegend"><span><i class="tv"></i>TV</span><span><i class="cc"></i>Chromecast</span></div><div class="wt-days" id="wtDays"></div><div class="wt-axis" id="wtAxis"></div></div>
         <div class="card"><div id="wtApps"></div></div>
         <div class="card" id="wtTitlesCard"><h2 class="main-h" style="margin:0 0 6px">Watched most</h2><div id="wtTitles"></div></div>
         <p class="hint" id="wtNote"></p>
@@ -878,8 +911,20 @@
         <div class="row"><div class="grow">Sign out of this device</div><button class="btn danger" id="logout">Sign out</button></div>
       </div>
       <p class="hint">Every save keeps a copy of the previous settings (data/config-backups, the last 20).</p>
+      <h2>Logs</h2>
+      <div class="card logs">
+        <div class="logs-bar"><div class="wt-range" id="logSrc"><button data-v="helper" class="on">Helper</button><button data-v="cc">Chromecast</button><button data-v="panel">This phone</button></div>
+          <span style="flex:1"></span><label class="logonly"><input type="checkbox" id="logOnly"> Only problems</label><button class="btn" id="logRefresh">Refresh</button><button class="btn" id="logCopy">Copy</button></div>
+        <pre class="logbox" id="logBox">Tap Refresh.</pre>
+      </div>
+      <p class="hint">What the helper, the Chromecast's launcher and this phone's panel did lately (newest at the bottom), kept in memory only. When something goes wrong, open the right one and Copy it.</p>
       <h2>Secure address and notifications</h2>
       <div class="card qk" id="secureBox"></div>
+      <h2>Websites as apps</h2>
+      <p class="hint" style="margin:0 4px 10px">A tile for a website, on the TV (its browser) and the Chromecast (its browser, BrowseHere when it's there).
+        After saving, place them like apps in the TV and Chromecast tabs (they start under More). While one is open on the Chromecast, the phone's remote switches to the trackpad.</p>
+      <div class="card qk" id="webEd"></div>
+      <div class="scn-row" style="margin-top:10px"><button id="webNew">＋ Website</button><button id="webSave">Save websites</button></div>
       <h2>Scenes</h2>
       <p class="hint" style="margin:0 4px 10px">Several steps with one tap, e.g. "Movie night": wake the Chromecast, VPN to the US, open Netflix.
         They show on the Home tab and get a phone shortcut link.</p>
@@ -912,14 +957,25 @@
     return code.toUpperCase().replace(/./g, function (c) { return String.fromCodePoint(127397 + c.charCodeAt(0)); });
   };
 
+  // ---------- this phone's log (Settings > Logs > This phone): what the panel sent and got, in memory only ----------
+  var PLOG = [];
+  function plog(msg) {
+    var d = new Date(), t = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2) + '.' + ('00' + d.getMilliseconds()).slice(-3);
+    PLOG.push(t + ' ' + msg); if (PLOG.length > 500) PLOG.splice(0, PLOG.length - 500);
+  }
+  window.addEventListener('error', function (e) { plog('page error: ' + e.message + ' (' + (e.lineno || '?') + ')'); });
+
   // ---------- network ----------
   function api(path, body) {
     var opt = body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CYT': '1' }, body: JSON.stringify(body) };
     opt.credentials = 'same-origin';
-    return fetch(path, opt).then(function (r) {
+    return fetch(path, opt).catch(function (e) {   // no answer at all ("Load failed", "Failed to fetch"): say what it means
+      plog('api ' + path + ': no answer (' + (e && e.message) + ')');
+      throw new Error('The helper didn\'t answer: it may be restarting (a few seconds) or its computer is off. Try again.');
+    }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) {
         if (r.status === 401 && path !== '/api/admin/login') { showLogin(j.password_set !== false); throw new Error('signed out'); }
-        if (!r.ok) throw new Error(j.error || ('error ' + r.status));
+        if (!r.ok) { plog('api ' + path + ': ' + r.status + ' ' + (j.error || '')); throw new Error(j.error || ('error ' + r.status)); }
         return j;
       });
     });
@@ -935,6 +991,7 @@
   var snackTimer;
   function snack(msg, ms) {
     msg = String(msg || 'Something went wrong.');
+    plog('error shown: ' + msg);
     var act = $('snackAct'), link = /chromecast/i.test(msg) && /connect|wireless debugging|pair|reach/i.test(msg);
     $('snackMsg').textContent = msg;
     act.hidden = !link; act.disabled = false; act.textContent = 'Reconnect';
@@ -1012,7 +1069,7 @@
       if (first) first.click();
     }
   }
-  function renderAll() { renderLayout(); renderStatus(); renderVpn(); renderEditor('tv'); renderEditor('cc'); renderAddons(); renderHome(); renderWall(); renderSystem(); renderQuick(); renderScenes(); renderSecure(); }
+  function renderAll() { renderLayout(); renderStatus(); renderVpn(); renderEditor('tv'); renderEditor('cc'); renderAddons(); renderHome(); renderWall(); renderSystem(); renderQuick(); renderScenes(); renderSecure(); renderWebsites(); }
 
   function regionName(id) {
     var r = (S.regions || []).filter(function (x) { return x.id === id; })[0];
@@ -2349,7 +2406,7 @@
 
   // ---------- phone shortcuts: a secret link per action (the helper's /q/<secret>/<action>) ----------
   function copyText(t) {
-    var done = function () { toast('Link copied. Paste it into the shortcut.'); };
+    var done = function () { toast(/^\[/.test(t) ? 'Copied.' : 'Link copied. Paste it into the shortcut.'); };
     if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(t).then(done, function () { copyOld(t) && done(); }); return; }
     if (copyOld(t)) done(); else snack('Couldn\'t copy: press and hold the link to copy it.');
   }
@@ -2443,6 +2500,34 @@
     nr.appendChild(ng); nr.appendChild(nb); box.appendChild(nr);
   }
 
+  // ---------- logs ----------
+  var logSrc = 'helper';
+  function loadLogs() {
+    var box = $('logBox');
+    var BAD = /fail|error|didn.t|couldn|can.t|timed out|refused|lost|broken|no answer|crash|exception|denied/i;
+    var show = function (lines, why) {
+      if ($('logOnly').checked) lines = lines.filter(function (l) { return BAD.test(l); });
+      box.innerHTML = '';
+      if (why) { var w = el('div', 'bad', why); box.appendChild(w); box.appendChild(document.createTextNode('\n')); }
+      if (!lines.length) box.appendChild(document.createTextNode($('logOnly').checked ? 'No problems.' : 'Nothing yet.'));
+      lines.forEach(function (l) { box.appendChild(BAD.test(l) ? el('span', 'bad', l) : document.createTextNode(l)); box.appendChild(document.createTextNode('\n')); });
+      box.scrollTop = box.scrollHeight;
+    };
+    if (logSrc === 'panel') { show(PLOG.slice()); return; }
+    box.textContent = 'Loading…';
+    api('/api/admin/logs?src=' + logSrc).then(function (r) { show(r.lines || [], r.error); }, function (e) { show([], e.message); });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#logSrc button'), function (b) {
+    b.onclick = function () {
+      logSrc = b.getAttribute('data-v');
+      Array.prototype.forEach.call(document.querySelectorAll('#logSrc button'), function (x) { x.classList.toggle('on', x === b); });
+      loadLogs();
+    };
+  });
+  $('logRefresh').onclick = loadLogs;
+  $('logOnly').onchange = loadLogs;
+  $('logCopy').onclick = function () { copyText('[' + logSrc + ' log]\n' + $('logBox').textContent); };
+
   // ---------- secure address (https, this home's own certificate) and notifications (web push) ----------
   var isSecure = location.protocol === 'https:';
   var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -2517,6 +2602,44 @@
       box.appendChild(r);
     });
   }
+
+  // ---------- websites as apps ----------
+  var webDraft = null;
+  function renderWebsites() {
+    if (!S) return;
+    if (!webDraft) webDraft = clone(S.websites || []);
+    var box = $('webEd'); box.innerHTML = '';
+    if (!webDraft.length) { var e0 = el('p', 'hint', 'No websites yet: ＋ Website.'); e0.style.padding = '14px 16px'; box.appendChild(e0); }
+    var D = S.devices || {};
+    webDraft.forEach(function (w, i) {
+      var ed = el('div', 'web-ed'), l1 = el('div', 'l1'), l2 = el('div', 'l2');
+      var nm = el('input'); nm.type = 'text'; nm.placeholder = 'Name'; nm.value = w.name || ''; nm.maxLength = 40; nm.style.flex = '0 1 38%'; nm.oninput = function () { w.name = nm.value; };
+      var u = el('input'); u.type = 'url'; u.placeholder = 'example.com'; u.value = w.url || ''; u.autocapitalize = 'off'; u.oninput = function () { w.url = u.value; };
+      l1.appendChild(nm); l1.appendChild(u);
+      [['tv', 'TV', D.tv], ['cc', 'Chromecast', D.cc]].forEach(function (d) {
+        if (!d[2]) return;
+        var lb = el('label'), cb = el('input'); cb.type = 'checkbox'; cb.checked = w[d[0]] !== false; cb.onchange = function () { w[d[0]] = cb.checked; };
+        lb.appendChild(cb); lb.appendChild(document.createTextNode(d[1])); l2.appendChild(lb);
+      });
+      var x = el('button', 'x', '✕ Remove'); x.onclick = function () { webDraft.splice(i, 1); renderWebsites(); };
+      l2.appendChild(x);
+      ed.appendChild(l1); ed.appendChild(l2); box.appendChild(ed);
+    });
+  }
+  $('webNew').onclick = function () {
+    webDraft.push({ name: '', url: '', tv: !!(S.devices || {}).tv, cc: !!(S.devices || {}).cc }); renderWebsites();
+    var ins = document.querySelectorAll('#webEd .l1 input'); if (ins.length) ins[ins.length - 2].focus();
+  };
+  $('webSave').onclick = function () {
+    api('/api/admin/websites', { websites: webDraft }).then(function (r) {
+      S.websites = r.websites; webDraft = clone(r.websites);
+      // the tiles in the TV and Chromecast tabs: the new list of websites, the rest as it was
+      S.tv_apps = S.tv_apps.filter(function (a) { return a.id.indexOf('web-') !== 0; }).concat(r.tv_apps.filter(function (a) { return a.id.indexOf('web-') === 0; }));
+      S.cc.apps = S.cc.apps.filter(function (a) { return a.id.indexOf('addon:web-') !== 0; }).concat(r.cc.apps.filter(function (a) { return a.id.indexOf('addon:web-') === 0; }));
+      renderWebsites(); renderEditor('tv'); renderEditor('cc'); renderRmApps();
+      toast('Websites saved. Place them in the TV and Chromecast tabs (under More).');
+    }, function (e) { snack(e.message); });
+  };
 
   // ---------- scenes: steps are the phone shortcuts' actions, plus waits ----------
   var scenesDraft = null;
@@ -2616,6 +2739,7 @@
       }, function (e) { snack(e.message); });
     };
   });
+  $('setBtn').onclick = function () { document.querySelector('#tabs button[data-tab="home"]').click(); };
   $('logout').onclick = function () { api('/api/admin/logout', {}).then(function () { showLogin(true); }); };
 
   // ---------- the remote: the TV's keys go over its remote channel, the Chromecast's over its debugging link ----------
@@ -2623,6 +2747,7 @@
   function rmSend(key, text) { return sendKey(rmDev, key, text); }
   function sendKey(dev, key, text) {
     if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
+    plog('key ' + dev + ' ' + (key || 'text'));
     return api('/api/admin/remote', text != null ? { device: dev, text: text } : { device: dev, key: key })
       .then(function (r) { if (r && r.ok === false) snack(r.error || 'It didn\'t take it.'); return r; },
             function (e) { snack(e.message); });
@@ -2700,6 +2825,7 @@
         : st.cc.awake ? 'The Chromecast is on.' : 'The Chromecast is asleep: Wake turns it on (the TV may switch to it).';
       $('rmStatus').textContent = t;
       if (st.sleep) paintSleep(st.sleep);
+      if (st.cc && st.cc.front) padFollow(st.cc.front);
       if (rmDev === 'cc' && !st.cc.linked && st.cc.why) snack(st.cc.why);
     }, function () { $('rmStatus').textContent = ''; });
   }
@@ -2742,7 +2868,7 @@
     var where = rmDev === 'tv' ? 'the TV' : 'the Chromecast';
     toast('Opening ' + label + ' on ' + where + '…', 6000);
     api('/api/admin/launch', Object.assign({ device: rmDev }, what)).then(function (r) {
-      if (r && r.ok === false) snack(r.error || 'It didn\'t open.'); else toast(label + ' is opening on ' + where + '.');
+      if (r && r.ok === false) snack(r.error || 'It didn\'t open.'); else { toast(label + ' is opening on ' + where + '.'); setTimeout(rmShowStatus, 3500); }
     }, function (e) { snack(e.message); });
   }
   $('rmFind').oninput = renderRmApps;
@@ -2762,8 +2888,10 @@
     pad.mx = pad.my = pad.sx = pad.sy = 0; pad.queue = [];
     if (!ops.length) return;
     pad.busy = true;
+    plog('trackpad ' + ops.map(function (o) { return o[0] + (o.length > 1 ? '(' + Math.round(o[1]) + ',' + Math.round(o[2]) + ')' : ''); }).join(' '));
     api('/api/admin/pointer', { ops: ops }).then(function (r) {
       pad.busy = false;
+      if (r && (r.mode !== pad.mode || r.ok === false)) plog('trackpad answer: ' + JSON.stringify(r).slice(0, 160));
       if (r && r.mode && r.mode !== pad.mode) {   // an app that moves its own pointer with the arrows (BrowseHere)
         pad.mode = r.mode;
         $('tpadHint').innerHTML = r.mode === 'arrows'
@@ -2827,11 +2955,20 @@
   // the arrows or the trackpad, in the same spot (the choice is kept on this phone)
   var TOUCH_IC = '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 9v6M9 12h6"/>',   // a pad: switch to the trackpad
       ARROWS_IC = '<path d="M12 3l3 3h-6zM12 21l-3-3h6zM3 12l3-3v6zM21 12l-3 3V9z"/><circle cx="12" cy="12" r="2.5"/>';   // arrows: switch back
-  function padMode(touch) {
+  var padAuto = false;   // switched on by itself for a website; switched back when it closes
+  function padMode(touch, auto) {
+    padAuto = !!auto && touch;
     document.body.classList.toggle('pad-touch', touch);
     $('padSwIc').innerHTML = touch ? ARROWS_IC : TOUCH_IC;
     $('padSw').setAttribute('aria-label', touch ? 'Arrows' : 'Trackpad'); $('padSw').title = touch ? 'Arrows' : 'Trackpad';
-    try { localStorage.setItem('cyt-pad', touch ? 'touch' : 'arrows'); } catch (e) {}
+    if (!auto) { try { localStorage.setItem('cyt-pad', touch ? 'touch' : 'arrows'); } catch (e) {} }
+  }
+  var BROWSERS = /browser|puffin|chrome|firefox|tvbro|webview|opera|edge/i;
+  function padFollow(front) {   // a browser in front on the Chromecast: the trackpad; its own choice back after
+    if (rmDev !== 'cc' || !front) return;
+    var web = BROWSERS.test(front), touch = document.body.classList.contains('pad-touch');
+    if (web && !touch) { padMode(true, true); toast('A website is open: the trackpad is on (the button at the top switches back).'); }
+    else if (!web && padAuto) { var saved = 'arrows'; try { saved = localStorage.getItem('cyt-pad') || 'arrows'; } catch (e) {} padMode(saved === 'touch'); }
   }
   $('padSw').onclick = function () { padMode(!document.body.classList.contains('pad-touch')); };
   try { padMode(localStorage.getItem('cyt-pad') === 'touch'); } catch (e) { padMode(false); }
@@ -2884,8 +3021,22 @@
   tp.addEventListener('pointercancel', padUp);
   tp.addEventListener('wheel', function (e) { e.preventDefault(); pad.sy -= e.deltaY * 1.2; pad.sx -= e.deltaX * 1.2; padFlush(); }, { passive: false });
 
-  // A press sends the key; held, the arrows and the volume repeat.
-  function rmStop() { clearTimeout(rmRepeat); clearInterval(rmRepeat); rmRepeat = 0; }
+  // A press sends the key; held, the arrows and the volume repeat. The repeat stops when any finger lifts anywhere,
+  // the page goes to the background, or after 8 seconds at most: a lost "finger up" can't keep a key going.
+  var rmRepeatT = 0;
+  function rmStop() {
+    if (rmRepeat) plog('repeat stop');
+    clearTimeout(rmRepeat); clearInterval(rmRepeat); clearTimeout(rmRepeatT); rmRepeat = 0;
+  }
+  function rmRepeatStart(fn, k) {
+    rmStop();
+    plog('repeat start ' + k);
+    rmRepeat = setTimeout(function () { rmRepeat = setInterval(fn, 220); }, 450);
+    rmRepeatT = setTimeout(rmStop, 8000);
+  }
+  ['pointerup', 'pointercancel'].forEach(function (ev) { document.addEventListener(ev, rmStop, true); });
+  window.addEventListener('blur', rmStop);
+  document.addEventListener('visibilitychange', function () { if (document.hidden) rmStop(); });
   $('remote').addEventListener('pointerdown', function (e) {
     var b = e.target.closest('[data-k]'); if (!b) return;
     e.preventDefault();
@@ -2894,7 +3045,7 @@
       if (!confirm(rmDev === 'tv' ? 'Turn the TV off?' : 'Put the Chromecast to sleep?')) return;
     }
     rmSend(k);
-    if (b.hasAttribute('data-repeat')) rmRepeat = setTimeout(function () { rmRepeat = setInterval(function () { rmSend(k); }, 220); }, 450);
+    if (b.hasAttribute('data-repeat')) rmRepeatStart(function () { rmSend(k); }, k);
   });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { $('remote').addEventListener(ev, rmStop); });
   $('rmSend').onclick = function () {
@@ -2931,53 +3082,65 @@
     if (!S || !((S.devices || {}).cc || (S.devices || {}).tv)) return;
     api('/api/admin/stats?days=' + wtDaysN).then(function (r) { wtLast = r; paintStats(r); }, function () {});
   }
-  function paintStats(r) {
-    $('wt').hidden = false;
-    if (!wtDev) wtDev = r.tv && r.tv.on ? 'tv' : 'cc';
-    var both = !!(r.tv && r.tv.on && r.cc);
+  function paintStats(raw) {
+    var hasTv = !!(raw.tv && raw.tv.on), hasCc = !!raw.cc, both = hasTv && hasCc;
+    if (!wtDev || (wtDev === 'all' && !both) || (wtDev === 'tv' && !hasTv) || (wtDev === 'cc' && !hasCc)) wtDev = both ? 'all' : hasTv ? 'tv' : 'cc';
     $('wtDev').hidden = !both;
     Array.prototype.forEach.call(document.querySelectorAll('#wtDev button'), function (b) { b.classList.toggle('on', b.getAttribute('data-v') === wtDev); });
     Array.prototype.forEach.call(document.querySelectorAll('#wtRange button'), function (b) { b.classList.toggle('on', +b.getAttribute('data-d') === wtDaysN); });
-    var isTv = wtDev === 'tv';
-    // the TV: time switched on, per screen; the Chromecast: time playing, per app and per title
-    if (isTv) r = { total: r.tv.total, per_day: r.tv.per_day, titles: [], tv: true,
-                    apps: r.tv.screens.map(function (x) { return { name: x.name, secs: x.secs, icon: x.icon, ph: x.cc ? '📡' : x.key === 'livetv' ? '📺' : x.key === 'home' ? '⌂' : x.key.indexOf('src:') === 0 ? '🔌' : '▶' }; }) };
-    $('wtTitlesCard').hidden = isTv;
-    $('wtNote').textContent = isTv
-      ? 'The TV: counted every 30 seconds while it\'s on, by what it shows (an app, Live TV, an input). Kept on this computer only (data/watch-stats.json, 90 days).'
-      : 'The Chromecast: counted every 30 seconds while something plays. Kept on this computer only (data/watch-stats.json, 90 days).';
+    var view = wtDev, ph = function (x) { return x.cc ? '📡' : x.key === 'livetv' ? '📺' : x.key === 'home' ? '⌂' : x.key === 'cc-other' ? '📡' : String(x.key || '').indexOf('src:') === 0 ? '🔌' : '▶'; };
+    // one shape for the three views: total, days [{segments}], rows, titles
+    var r;
+    if (view === 'all') r = { total: raw.all.total, days: raw.all.per_day.map(function (d) { return { day: d.day, seg: [['tv', d.tv], ['cc', d.cc]] }; }),
+                              rows: raw.all.items.map(function (x) { return { name: x.name, secs: x.secs, icon: x.icon, ph: ph(x), dev: x.dev }; }), titles: raw.titles };
+    else if (view === 'tv') r = { total: raw.tv.total, days: raw.tv.per_day.map(function (d) { return { day: d.day, seg: [['tv', d.secs]] }; }),
+                                  rows: raw.tv.screens.map(function (x) { return { name: x.name, secs: x.secs, icon: x.icon, ph: ph(x), dev: 'tv' }; }), titles: [] };
+    else r = { total: raw.total, days: raw.per_day.map(function (d) { return { day: d.day, seg: [['cc', d.secs]] }; }),
+               rows: raw.apps.map(function (a) { return { name: a.name, secs: a.secs, icon: a.icon, dev: 'cc' }; }), titles: raw.titles };
+    $('wtLegend').hidden = view !== 'all';
+    $('wtTitlesCard').hidden = !r.titles.length && view === 'tv';
+    $('wtNote').textContent = {
+      all: 'All: the TV\'s own screens plus the Chromecast (its input counted once, by what played on it). Counted every 30 seconds; kept on this computer only (data/watch-stats.json, 90 days).',
+      tv: 'The TV: counted every 30 seconds while it\'s on, by what it shows (an app, Live TV, an input). Kept on this computer only.',
+      cc: 'The Chromecast: counted every 30 seconds while something plays. Kept on this computer only.' }[view];
     var lbl = wtDaysN === 1 ? 'today' : 'in the last ' + wtDaysN + ' days';
     $('wtTotal').innerHTML = '';
     $('wtTotal').appendChild(document.createTextNode(r.total ? fmtDur(r.total) : '0 min'));
-    $('wtTotal').appendChild(el('small', '', r.total ? (isTv ? 'the TV was on ' : 'watched ') + lbl + (wtDaysN > 1 ? ' · about ' + fmtDur(r.total / wtDaysN) + ' a day' : '')
-                                                    : (isTv ? 'The TV wasn\'t on ' : 'Nothing played ') + lbl + ' yet.'));
-    // per day (one series: the accent; the value on hover)
-    var days = $('wtDays'), mx = Math.max.apply(null, r.per_day.map(function (d) { return d.secs; }).concat([1]));
+    $('wtTotal').appendChild(el('small', '', r.total ? (view === 'tv' ? 'the TV was on ' : view === 'cc' ? 'played on the Chromecast ' : 'of screen time ') + lbl + (wtDaysN > 1 ? ' · about ' + fmtDur(r.total / wtDaysN) + ' a day' : '')
+                                                    : 'Nothing ' + lbl + ' yet.'));
+    // per day: stacked bars (TV blue, Chromecast orange), the values on hover or tap
+    var days = $('wtDays'), sum = function (d) { return d.seg.reduce(function (a, x) { return a + x[1]; }, 0); };
+    var mx = Math.max.apply(null, r.days.map(sum).concat([1]));
     days.innerHTML = ''; days.hidden = wtDaysN === 1; $('wtAxis').hidden = wtDaysN === 1;
     var tip = el('div', 'wt-tip'); tip.hidden = true;
-    r.per_day.forEach(function (d, i) {
-      var c = el('div', 'd' + (d.secs ? '' : ' zero')), bar = el('i');
-      bar.style.height = (100 * d.secs / mx).toFixed(1) + '%'; c.appendChild(bar);
-      var dt = new Date(d.day + 'T12:00:00'), name = dt.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-      c.setAttribute('aria-label', name + ': ' + fmtDur(d.secs));
-      var show = function () { tip.hidden = false; tip.textContent = name + ' · ' + fmtDur(d.secs); tip.style.left = ((i + .5) * 100 / r.per_day.length) + '%';
+    r.days.forEach(function (d, i) {
+      var tot = sum(d), c = el('div', 'd' + (tot ? '' : ' zero'));
+      if (!tot) { var z = el('i'); z.style.height = '2px'; c.appendChild(z); }
+      d.seg.forEach(function (x) { if (!x[1]) return; var b = el('i', x[0]); b.style.height = (100 * x[1] / mx).toFixed(1) + '%'; c.appendChild(b); });
+      var name = new Date(d.day + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+      var txt = name + ' · ' + fmtDur(tot) + (d.seg.length > 1 && tot ? ' (TV ' + fmtDur(d.seg[0][1]) + ', Chromecast ' + fmtDur(d.seg[1][1]) + ')' : '');
+      c.setAttribute('aria-label', txt);
+      var show = function () { tip.hidden = false; tip.textContent = txt; tip.style.left = Math.min(80, Math.max(20, (i + .5) * 100 / r.days.length)) + '%';
         Array.prototype.forEach.call(days.children, function (x) { x.classList.toggle('hl', x === c); }); };
       c.addEventListener('pointerenter', show); c.addEventListener('pointerdown', show);
       c.addEventListener('pointerleave', function () { tip.hidden = true; c.classList.remove('hl'); });
       days.appendChild(c);
     });
     days.appendChild(tip);
-    var first = r.per_day[0], last = r.per_day[r.per_day.length - 1], f = function (x) { return new Date(x.day + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
+    var first = r.days[0], f = function (x) { return new Date(x.day + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
     $('wtAxis').innerHTML = ''; if (first) { $('wtAxis').appendChild(el('span', '', f(first))); $('wtAxis').appendChild(el('span', '', 'Today')); }
-    // per app: ranked bars, names and times in text colour
+    // rows: ranked bars in the device's colour; names and times in text colour
     var apps = $('wtApps'); apps.innerHTML = '';
-    var amx = Math.max.apply(null, r.apps.map(function (a) { return a.secs; }).concat([1]));
-    if (!r.apps.length) apps.appendChild(el('p', 'hint', 'Nothing yet.'));
-    r.apps.forEach(function (a) {
+    var amx = Math.max.apply(null, r.rows.map(function (a) { return a.secs; }).concat([1]));
+    if (!r.rows.length) apps.appendChild(el('p', 'hint', 'Nothing yet.'));
+    r.rows.forEach(function (a) {
       var row = el('div', 'wt-app'), img;
       if (a.icon) { img = new Image(); img.alt = ''; img.src = a.icon; img.onerror = function () { img.style.visibility = 'hidden'; }; }
       else img = el('div', 'ph', a.ph || '▶');
-      var mid = el('div'); mid.appendChild(el('div', 'nm', a.name)); var b = el('div', 'bar'); b.style.width = Math.max(2, 100 * a.secs / amx).toFixed(1) + '%'; mid.appendChild(b);
+      var mid = el('div'), nm = el('div', 'nm', a.name);
+      if (view === 'all') nm.appendChild(el('span', 'dev', a.dev === 'tv' ? 'TV' : 'Chromecast'));
+      mid.appendChild(nm);
+      var b = el('div', 'bar ' + a.dev); b.style.width = Math.max(2, 100 * a.secs / amx).toFixed(1) + '%'; mid.appendChild(b);
       row.appendChild(img); row.appendChild(mid); row.appendChild(el('div', 'v', fmtDur(a.secs))); apps.appendChild(row);
     });
     var tl = $('wtTitles'); tl.innerHTML = '';
@@ -2998,7 +3161,7 @@
     document.body.classList.toggle('on-main', on);
     clearInterval(mainTimer); mainTimer = 0;
     if (!on || !S) return;
-    mountRemote('main'); renderRmApps(); rmShowStatus(); npRefresh(); loadStats();
+    mountRemote('main'); renderRmApps(); rmShowStatus(); npRefresh();
     mainTimer = setInterval(function () { rmShowStatus(); npRefresh(); }, 10000);
   }
   function paintMainNp(r) {
@@ -3079,7 +3242,7 @@
     }
     sendKey(mdDev, k);
     if (mdDev === 'cc' && ['play', 'prev', 'next'].indexOf(k) >= 0) setTimeout(npRefresh, 900);
-    if (b.hasAttribute('data-repeat')) rmRepeat = setTimeout(function () { rmRepeat = setInterval(function () { sendKey(mdDev, k); }, 220); }, 450);
+    if (b.hasAttribute('data-repeat')) rmRepeatStart(function () { sendKey(mdDev, k); }, k);
   });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { $('media').addEventListener(ev, rmStop); });
   function closeSheets() { if ($('mediaSheet').classList.contains('open')) closeMedia(); else closeRemote(); }
@@ -3291,8 +3454,10 @@
       document.body.classList.toggle('wide', tab === 'cc' || tab === 'tv');
       if (tab === 'cc' || tab === 'tv') showStudio(tab);
       showMain(tab === 'main');
+      if (tab === 'usage') loadStats();
 
       Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (x) { x.classList.toggle('on', x === b); });
+      $('setBtn').classList.toggle('on', tab === 'home');
       Array.prototype.forEach.call(document.querySelectorAll('[data-pane]'), function (p) { p.classList.toggle('hidden', p.getAttribute('data-pane') !== tab); });
       window.scrollTo(0, 0);
     };

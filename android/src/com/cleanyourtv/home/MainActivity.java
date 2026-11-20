@@ -10,6 +10,13 @@ import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.media.MediaMetadata;
+import android.media.session.MediaController;
+import android.media.session.MediaSessionManager;
+import android.media.session.PlaybackState;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Outline;
 import android.graphics.Typeface;
@@ -66,7 +73,10 @@ import java.util.concurrent.Executors;
  * come from the helper on the Mac (/api/cc and friends). Without the Mac it still shows the apps from its last settings.
  */
 public class MainActivity extends Activity {
-    static final String BASE = BuildConfig.HELPER;   // the Mac running helper/cyt_helper.py (set by build.sh)
+    // Where Home gets its settings, weather, photo and add-ons: the Chromecast's own server (Hub.kt, after the settings
+    // were moved over: tools/move-to-chromecast.py), or the Mac running helper/cyt_helper.py (set by build.sh).
+    static String BASE = BuildConfig.HELPER;
+    static final String HUB = "http://127.0.0.1:8765";
 
     // The stage is 1920 x 1080 px; every number below is the TV page's.
     static final int W = 1920, H = 1080;
@@ -161,10 +171,32 @@ public class MainActivity extends Activity {
     boolean quoteEach = false;
     JSONArray builtInQuotes;
     boolean resumed = false;
+    static volatile MainActivity instance;   // for the phone remote's keys while Home is in front (CursorService)
+
+    /** A key from the phone remote, while Home is in front: as the TV remote's own (Android doesn't pass an app's
+     *  arrow keys on to other windows on Google TV). False when Home isn't in front. */
+    boolean remoteKey(String k) {
+        final int code;
+        switch (k) {
+            case "up": code = KeyEvent.KEYCODE_DPAD_UP; break;
+            case "down": code = KeyEvent.KEYCODE_DPAD_DOWN; break;
+            case "left": code = KeyEvent.KEYCODE_DPAD_LEFT; break;
+            case "right": code = KeyEvent.KEYCODE_DPAD_RIGHT; break;
+            case "ok": code = KeyEvent.KEYCODE_DPAD_CENTER; break;
+            case "back": code = KeyEvent.KEYCODE_BACK; break;
+            case "menu": code = KeyEvent.KEYCODE_MENU; break;
+            default: return false;
+        }
+        if (!resumed) return false;
+        ui.post(() -> { dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, code)); dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, code)); });
+        return true;
+    }
 
     // =====================================================================================================
     @Override
     protected void onCreate(Bundle saved) {
+        if (getSharedPreferences("home", MODE_PRIVATE).getBoolean("hub", false)) BASE = HUB;
+        instance = this;
         super.onCreate(saved);
         prefs = getSharedPreferences("home", MODE_PRIVATE);
         try { cfg = new JSONObject(prefs.getString("cfg", "{}")); } catch (Exception e) { cfg = new JSONObject(); }
@@ -181,6 +213,9 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        // Moved to the Chromecast's own server (or back) while Home was open: start again, from the right one.
+        boolean wantHub = getSharedPreferences("home", MODE_PRIVATE).getBoolean("hub", false);
+        if (wantHub != BASE.equals(HUB)) { BASE = wantHub ? HUB : BuildConfig.HELPER; recreate(); return; }
         resumed = true;
         AdbKeeper.watch(this);
         ui.post(tick);
@@ -220,6 +255,7 @@ public class MainActivity extends Activity {
         ui.removeCallbacksAndMessages(null);
         io.shutdownNow();
         super.onDestroy();
+        if (instance == this) instance = null;
     }
 
     List<String> ids() { List<String> l = new ArrayList<>(); for (App a : apps) l.add(a.id); return l; }
@@ -968,12 +1004,13 @@ public class MainActivity extends Activity {
     // Focus
     // =====================================================================================================
     boolean onTop() { return area.equals("pills") || area.equals("admin") || area.equals("screen") || area.equals("edit") || (area.equals("menu") && !menuKind.equals("tile")); }
-    App focused() { return onTop() || index >= apps.size() ? null : apps.get(index); }
+    App focused() { return onTop() || area.equals("np") || index >= apps.size() ? null : apps.get(index); }
     final DecelerateInterpolator decel = new DecelerateInterpolator(2f);
 
     void render() {
-        boolean top = onTop();
-        for (int i = 0; i < pillViews.size(); i++) stylePill(pillViews.get(i), top && i == pill);
+        boolean top = onTop() || area.equals("np");   // the Now playing buttons: no tile has the focus either
+        for (int i = 0; i < pillViews.size(); i++) stylePill(pillViews.get(i), onTop() && i == pill);
+        if (npBox != null) styleNp();
         for (int i = 0; i < tiles.size(); i++) {
             boolean on = !top && i == index;
             boolean lift = on && area.equals("move");
@@ -1033,8 +1070,16 @@ public class MainActivity extends Activity {
 
     void move(int dx, int dy) {
         int n = apps.size(), dock = Math.min(dockSize, n);
+        if (area.equals("np")) {   // the Now playing card's buttons: between the top buttons and the dock
+            if (dx != 0) npFocus = Math.max(0, Math.min(npBtns.size() - 1, npFocus + dx));
+            if (dy < 0) area = "pills";
+            if (dy > 0 && n > 0) { area = "dock"; index = dock > 0 ? Math.min(lastDock, dock - 1) : (lines.size() > 1 ? lines.get(1).get(0) : 0); }
+            render();
+            return;
+        }
         if (area.equals("pills")) {
             if (dx != 0) pill = Math.max(0, Math.min(pillViews.size() - 1, pill + dx));
+            if (dy > 0 && npReach()) { area = "np"; render(); return; }
             if (dy > 0 && n > 0) {
                 area = "dock";
                 index = dock > 0 ? Math.min(lastDock, dock - 1) : (lines.size() > 1 ? lines.get(1).get(0) : 0);
@@ -1045,7 +1090,7 @@ public class MainActivity extends Activity {
         if (index >= pos.size()) { render(); return; }
         Pos p = pos.get(index);
         if (dx != 0 && index + dx >= 0 && index + dx < pos.size() && pos.get(index + dx).line == p.line) index += dx;
-        if (dy < 0 && p.line == 0) { lastDock = index; area = "pills"; render(); return; }
+        if (dy < 0 && p.line == 0) { lastDock = index; area = npReach() ? "np" : "pills"; render(); return; }
         else if (dy != 0) {
             int l = p.line + dy;
             if (l >= 0 && l < lines.size() && !lines.get(l).isEmpty()) {
@@ -1124,6 +1169,8 @@ public class MainActivity extends Activity {
         if (area.equals("edit") || area.equals("screen") || area.equals("admin") || area.equals("move")) { activate(); return; }
         for (int i = 0; i < pillViews.size(); i++)
             if (hit(pillViews.get(i), x, y)) { area = "pills"; pill = i; render(); activate(); return; }
+        for (int i = 0; i < npBtns.size(); i++)   // the Now playing card's buttons
+            if (hit(npBtns.get(i), x, y)) { area = "np"; npFocus = i; render(); npPress(i); return; }
         for (int i = 0; i < tiles.size(); i++)
             if (hit(tiles.get(i), x, y)) {
                 area = i < dockSize ? "dock" : "grid"; index = i; render();
@@ -1145,6 +1192,7 @@ public class MainActivity extends Activity {
     }
 
     void back() {
+        if (area.equals("np")) { area = "dock"; index = Math.max(0, Math.min(lastDock, dockSize - 1)); render(); return; }
         if (area.equals("edit")) { editBack(); return; }
         if (area.equals("screen")) { closeScreen(); return; }
         if (area.equals("admin")) { closeAdmin(); return; }
@@ -1158,6 +1206,7 @@ public class MainActivity extends Activity {
     }
 
     void activate() {
+        if (area.equals("np")) { npPress(npFocus); return; }
         if (area.equals("edit")) { editOk(); return; }
         if (area.equals("screen")) { screenOk(); return; }
         if (area.equals("admin")) { closeAdmin(); return; }
@@ -2700,14 +2749,29 @@ public class MainActivity extends Activity {
         ui.postDelayed(hideToast, 3500);
     }
 
-    // ---------- Now playing: what this Chromecast plays (its media sessions, read by the Mac), as a block on Home ----------
+    // ---------- Now playing: like a music app's mini player, as a block on Home ----------
+    // The launcher reads this Chromecast's media sessions itself (MediaWatch, allowed by the helper over adb): the cover,
+    // title, artist, how far in, live; and its buttons are reached with the remote (up from the dock). Without that
+    // access (an older install), the helper's answer is shown, without buttons.
     LinearLayout npBox;
     JSONObject npNow;
-    TextView npTime;
+    TextView npTime, npDur;
+    View npFill;
     boolean npOn = false;
-    int npRows = 2;
+    int npRows = 2, npFocus = 1;
     long lastNp = 0, npAt = 0;
     String npKey = "";
+    MediaController npCtl;
+    MediaSessionManager npMsm;
+    final List<View> npBtns = new ArrayList<>();
+    final List<String> npKinds = new ArrayList<>();
+    final Map<String, String> npLabels = new HashMap<>();
+    final MediaController.Callback npCb = new MediaController.Callback() {
+        @Override public void onPlaybackStateChanged(PlaybackState s) { renderNp(); }
+        @Override public void onMetadataChanged(MediaMetadata m) { renderNp(); }
+        @Override public void onSessionDestroyed() { npPick(); }
+    };
+    final MediaSessionManager.OnActiveSessionsChangedListener npSessions = list -> ui.post(this::npPick);
 
     void buildNowPlaying() {
         npBox = newCard();
@@ -2715,10 +2779,39 @@ public class MainActivity extends Activity {
         npBox.setGravity(Gravity.CENTER_VERTICAL);
         npBox.setVisibility(View.GONE);
         blocksLayer.addView(npBox, at(GX, GY + 4 * RH, 5 * CW, ViewGroup.LayoutParams.WRAP_CONTENT));
+        try {
+            npMsm = (MediaSessionManager) getSystemService(Context.MEDIA_SESSION_SERVICE);
+            npMsm.addOnActiveSessionsChangedListener(npSessions, new ComponentName(this, MediaWatch.class), ui);
+        } catch (Exception e) { npMsm = null; }   // no media access: the helper's answer
+        npPick();
+    }
+
+    /** The session to show: the first one playing, else the first one paused. */
+    void npPick() {
+        MediaController best = null, paused = null;
+        if (npMsm != null) {
+            try {
+                for (MediaController m : npMsm.getActiveSessions(new ComponentName(this, MediaWatch.class))) {
+                    PlaybackState st = m.getPlaybackState();
+                    if (st == null) continue;
+                    if (st.getState() == PlaybackState.STATE_PLAYING) { best = m; break; }
+                    if (paused == null && st.getState() == PlaybackState.STATE_PAUSED) paused = m;
+                }
+            } catch (Exception e) { npMsm = null; }
+        }
+        if (best == null) best = paused;
+        boolean same = best != null && npCtl != null && best.getSessionToken().equals(npCtl.getSessionToken());
+        if (!same) {
+            if (npCtl != null) try { npCtl.unregisterCallback(npCb); } catch (Exception ignored) { }
+            if (best != null) best.registerCallback(npCb, ui);
+            npCtl = best;
+        }
+        renderNp();
     }
 
     void refreshNp() {
         lastNp = System.currentTimeMillis();
+        if (npMsm != null) { npPick(); return; }
         io.execute(() -> {
             try {
                 JSONObject r = new JSONObject(get("/api/now-playing", 8000));
@@ -2728,54 +2821,228 @@ public class MainActivity extends Activity {
         });
     }
 
+    String appLabel(String pkg) {
+        String n = npLabels.get(pkg);
+        if (n == null) {
+            try { n = getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(pkg, 0)).toString(); }
+            catch (Exception e) { n = pkg.substring(pkg.lastIndexOf('.') + 1); }
+            npLabels.put(pkg, n);
+        }
+        return n;
+    }
+
+    static String mdText(MediaMetadata md, String... keys) {
+        for (String k : keys) { CharSequence c = md.getText(k); if (c != null && c.length() > 0) return c.toString(); }
+        return "";
+    }
+
+    boolean npPlaying() {
+        if (npCtl != null) { PlaybackState s = npCtl.getPlaybackState(); return s != null && s.getState() == PlaybackState.STATE_PLAYING; }
+        return npNow != null && npNow.optString("state").equals("playing");
+    }
+
+    /** The buttons can be reached: the card is on Home, shows a session, and Home's blocks are on screen. */
+    boolean npReach() { return npOn && npCtl != null && !npBtns.isEmpty() && npBox.isShown() && blocksLayer.getAlpha() > .5f; }
+
     void renderNp() {
-        if (!npOn) { npBox.setVisibility(View.GONE); return; }
+        if (!npOn) { npBox.setVisibility(View.GONE); if (area.equals("np")) { area = "dock"; render(); } return; }
         npBox.setVisibility(View.VISIBLE);
-        JSONObject p = npNow;
-        String key = (p == null ? "" : p.optString("app") + "|" + p.optString("title") + "|" + p.optString("state")) + "|" + npRows;
-        if (key.equals(npKey) && npBox.getChildCount() > 0) { npTick(); return; }   // same song: only the time moves
+        String app = "", title = "", sub = "";
+        Bitmap art = null;
+        long dur = 0;
+        boolean any = npCtl != null || npNow != null, playing = npPlaying();
+        if (npCtl != null) {
+            app = npCtl.getPackageName();
+            MediaMetadata md = npCtl.getMetadata();
+            if (md != null) {
+                title = mdText(md, MediaMetadata.METADATA_KEY_DISPLAY_TITLE, MediaMetadata.METADATA_KEY_TITLE);
+                sub = mdText(md, MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE, MediaMetadata.METADATA_KEY_ARTIST, MediaMetadata.METADATA_KEY_ALBUM);
+                dur = Math.max(0, md.getLong(MediaMetadata.METADATA_KEY_DURATION));
+                art = CursorService.picture(md);
+            }
+        } else if (npNow != null) {
+            app = npNow.optString("app");
+            title = npNow.optString("title");
+            sub = npNow.optString("subtitle");
+            dur = npNow.optLong("duration") * 1000;
+        }
+        String name = app.isEmpty() ? "" : npNow != null && npCtl == null ? npNow.optString("name", appLabel(app)) : appLabel(app);
+        String key = app + "|" + title + "|" + sub + "|" + playing + "|" + npRows + "|" + (art != null) + "|" + (npCtl != null) + "|" + (dur > 0);
+        if (key.equals(npKey) && npBox.getChildCount() > 0) { npTick(); styleNp(); return; }   // same song: only the time moves
         npKey = key;
         npBox.removeAllViews();
+        npBtns.clear(); npKinds.clear();
+        npTime = npDur = null; npFill = null;
         boolean small = npRows < 2;
-        if (p != null && !small) {
-            ImageView art = new ImageView(this);
-            art.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            round(art, 14);
-            art.setBackgroundColor(white(.08));
-            LinearLayout.LayoutParams al = new LinearLayout.LayoutParams(192, 108);
-            al.rightMargin = 22;
-            npBox.addView(art, al);
-            loadImage(BASE + p.optString("screen_icon"), art, 240);
+        if (any && !small) {
+            ImageView cover = new ImageView(this);
+            cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            round(cover, 16);
+            cover.setBackgroundColor(white(.08));
+            LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(196, 196);
+            cl.rightMargin = 26;
+            npBox.addView(cover, cl);
+            if (art != null) cover.setImageBitmap(art);
+            else loadImage(BASE + "/api/cc-icon/" + app, cover, 240);
         }
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        TextView app = text(24, 500, white(.74), .1f, true);
-        app.setText(p == null ? "♫  Now playing" : (p.optString("state").equals("playing") ? "▶  " : "❚❚  ") + p.optString("name"));
-        col.addView(app);
-        TextView t = text(small ? 24 : 28, 500, Color.WHITE, 0, false);
-        if (!small) { t.setSingleLine(false); t.setMaxLines(2); }
-        t.setText(p == null ? "Nothing playing" : p.optString("title", p.optString("name")));
-        col.addView(t, below(small ? 4 : 8));
-        if (p != null && !small && !p.optString("subtitle").isEmpty()) {
-            TextView sub = text(22, 400, white(.7), 0, false);
-            sub.setText(p.optString("subtitle"));
-            col.addView(sub, below(4));
+        TextView top = text(22, 500, white(.74), .06f, false);
+        top.setText(!any ? "♫  Now playing" : name + (playing ? "  ·  playing" : "  ·  paused"));
+        col.addView(top);
+        TextView t = text(small ? 24 : 30, 600, Color.WHITE, 0, false);
+        t.setSingleLine(true);
+        t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        t.setText(!any ? "Nothing playing" : title.isEmpty() ? name : title);
+        col.addView(t, below(small ? 4 : 6));
+        if (any && !small && !sub.isEmpty()) {
+            TextView s2 = text(22, 400, white(.72), 0, false);
+            s2.setSingleLine(true);
+            s2.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            s2.setText(sub);
+            col.addView(s2, below(2));
         }
-        npTime = null;
-        if (p != null && !small) {
-            npTime = text(24, 400, white(.74), 0, false);
-            col.addView(npTime, below(6));
+        if (any && !small) {
+            if (dur > 0) {   // the progress bar, its fill scaled from the left
+                FrameLayout bar = new FrameLayout(this);
+                GradientDrawable bg = new GradientDrawable(); bg.setColor(white(.22)); bg.setCornerRadius(3);
+                bar.setBackground(bg);
+                npFill = new View(this);
+                GradientDrawable fg = new GradientDrawable(); fg.setColor(Color.WHITE); fg.setCornerRadius(3);
+                npFill.setBackground(fg);
+                npFill.setPivotX(0);
+                bar.addView(npFill, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 6));
+                col.addView(bar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 6) {{ topMargin = 14; }});
+                LinearLayout times = new LinearLayout(this);
+                npTime = text(18, 400, white(.7), 0, false);
+                npDur = text(18, 400, white(.7), 0, false);
+                times.addView(npTime, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                times.addView(npDur);
+                col.addView(times, below(4));
+            } else if (npCtl == null) {
+                npTime = text(22, 400, white(.74), 0, false);
+                col.addView(npTime, below(6));
+            }
+        }
+        if (npCtl != null) {   // the buttons: previous, play/pause, next, open the app
+            LinearLayout ctl = new LinearLayout(this);
+            ctl.setGravity(Gravity.CENTER_VERTICAL);
+            String[] kinds = small ? new String[]{"play", "open"} : new String[]{"prev", "play", "next", "open"};
+            for (String k : kinds) {
+                View b;
+                if (k.equals("open")) {
+                    TextView o = text(20, 500, Color.WHITE, 0, false);
+                    o.setText("Open " + name);
+                    o.setSingleLine(true);
+                    o.setPadding(24, 12, 24, 12);
+                    b = o;
+                } else {
+                    b = new NpIcon(this, k.equals("play") ? (playing ? "pause" : "play") : k, k.equals("play"));
+                }
+                LinearLayout.LayoutParams lp = k.equals("open") ? new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, 58)
+                        : new LinearLayout.LayoutParams(k.equals("play") ? 70 : 58, k.equals("play") ? 70 : 58);
+                lp.rightMargin = 14;
+                if (k.equals("open")) lp.leftMargin = 10;
+                ctl.addView(b, lp);
+                npBtns.add(b); npKinds.add(k);
+            }
+            col.addView(ctl, below(small ? 6 : 14));
+            npFocus = Math.max(0, Math.min(npFocus, npBtns.size() - 1));
         }
         npBox.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         if (hasWallpaper) shadowAll(npBox);
+        if (npBtns.isEmpty() && area.equals("np")) { area = "dock"; render(); }
         npTick();
+        styleNp();
+    }
+
+    /** The focused button: a white ring and a little bigger; the others plain. */
+    void styleNp() {
+        boolean in = area.equals("np");
+        for (int i = 0; i < npBtns.size(); i++) {
+            View b = npBtns.get(i);
+            boolean f = in && i == npFocus, main = npKinds.get(i).equals("play"), open = npKinds.get(i).equals("open");
+            GradientDrawable d = new GradientDrawable();
+            d.setShape(open ? GradientDrawable.RECTANGLE : GradientDrawable.OVAL);
+            if (open) d.setCornerRadius(29);
+            d.setColor(main ? Color.WHITE : f ? white(.3) : white(.13));
+            if (f) d.setStroke(4, main ? 0xFF4C8DFF : Color.WHITE);
+            b.setBackground(d);
+            float sc = f ? 1.12f : 1f;
+            if (b.getScaleX() != sc) b.animate().scaleX(sc).scaleY(sc).setDuration(160).start();
+        }
     }
 
     void npTick() {
-        if (npTime == null || npNow == null) return;
-        long sec = npNow.optLong("position") + (npNow.optString("state").equals("playing") ? (System.currentTimeMillis() - npAt) / 1000 : 0);
-        npTime.setText(sec >= 3600 ? String.format(Locale.ROOT, "%d:%02d:%02d", sec / 3600, sec % 3600 / 60, sec % 60)
-                : String.format(Locale.ROOT, "%d:%02d", sec / 60, sec % 60));
+        long pos, dur = 0;
+        if (npCtl != null) {
+            PlaybackState s = npCtl.getPlaybackState();
+            if (s == null) return;
+            pos = s.getPosition();
+            if (s.getState() == PlaybackState.STATE_PLAYING && s.getLastPositionUpdateTime() > 0)
+                pos += (long) ((android.os.SystemClock.elapsedRealtime() - s.getLastPositionUpdateTime()) * s.getPlaybackSpeed());
+            MediaMetadata md = npCtl.getMetadata();
+            if (md != null) dur = Math.max(0, md.getLong(MediaMetadata.METADATA_KEY_DURATION));
+        } else if (npNow != null) {
+            pos = (npNow.optLong("position") + (npNow.optString("state").equals("playing") ? (System.currentTimeMillis() - npAt) / 1000 : 0)) * 1000;
+            dur = npNow.optLong("duration") * 1000;
+        } else return;
+        if (dur > 0) pos = Math.min(pos, dur);
+        if (npTime != null) npTime.setText(clockOf(pos / 1000));
+        if (npDur != null) npDur.setText(clockOf(dur / 1000));
+        if (npFill != null && dur > 0) npFill.setScaleX(Math.max(0.005f, Math.min(1f, pos / (float) dur)));
+    }
+
+    static String clockOf(long sec) {
+        sec = Math.max(0, sec);
+        return sec >= 3600 ? String.format(Locale.ROOT, "%d:%02d:%02d", sec / 3600, sec % 3600 / 60, sec % 60)
+                : String.format(Locale.ROOT, "%d:%02d", sec / 60, sec % 60);
+    }
+
+    /** A button of the card: the session's own controls; Open brings its app to the front. */
+    void npPress(int i) {
+        if (npCtl == null || i < 0 || i >= npBtns.size()) return;
+        View b = npBtns.get(i);
+        b.animate().scaleX(.9f).scaleY(.9f).setDuration(90).withEndAction(this::styleNp).start();
+        MediaController.TransportControls tc = npCtl.getTransportControls();
+        switch (npKinds.get(i)) {
+            case "prev": tc.skipToPrevious(); break;
+            case "next": tc.skipToNext(); break;
+            case "play": if (npPlaying()) tc.pause(); else tc.play(); break;
+            case "open": {
+                android.app.PendingIntent pi = npCtl.getSessionActivity();
+                try { if (pi != null) { pi.send(); break; } } catch (Exception ignored) { }
+                Intent li = getPackageManager().getLeanbackLaunchIntentForPackage(npCtl.getPackageName());
+                if (li == null) li = getPackageManager().getLaunchIntentForPackage(npCtl.getPackageName());
+                if (li != null) startSafely(li);
+                break;
+            }
+            default: break;
+        }
+        ui.postDelayed(this::npPick, 400);
+    }
+
+    /** The card's round buttons: previous, play, pause, next, drawn (no font needed). */
+    static final class NpIcon extends View {
+        final String kind;
+        final boolean dark;
+        final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        NpIcon(Context c, String kind, boolean dark) { super(c); this.kind = kind; this.dark = dark; }
+        @Override protected void onDraw(Canvas c) {
+            float s = Math.min(getWidth(), getHeight()) / 24f * .55f, ox = getWidth() / 2f - 12 * s, oy = getHeight() / 2f - 12 * s;
+            paint.setColor(dark ? 0xFF111111 : Color.WHITE);
+            Path p = new Path();
+            switch (kind) {
+                case "play": p.moveTo(8, 5); p.lineTo(19, 12); p.lineTo(8, 19); p.close(); break;
+                case "pause": p.addRect(7, 5, 10.6f, 19, Path.Direction.CW); p.addRect(13.4f, 5, 17, 19, Path.Direction.CW); break;
+                case "prev": p.addRect(6, 5, 8.4f, 19, Path.Direction.CW); p.moveTo(19, 5.5f); p.lineTo(19, 18.5f); p.lineTo(9.5f, 12); p.close(); break;
+                default: p.addRect(15.6f, 5, 18, 19, Path.Direction.CW); p.moveTo(5, 5.5f); p.lineTo(5, 18.5f); p.lineTo(14.5f, 12); p.close(); break;
+            }
+            android.graphics.Matrix m = new android.graphics.Matrix();
+            m.setScale(s, s); m.postTranslate(ox, oy);
+            p.transform(m);
+            c.drawPath(p, paint);
+        }
     }
 
     // ---------- clock styles: Classic, Bold, Stacked, Tiles, Analog and Words; one, or a different one each day ----------

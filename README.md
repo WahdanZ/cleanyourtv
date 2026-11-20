@@ -226,6 +226,9 @@ cp config.example.json config.json      # set tv_name to the TV's network name
 python helper/cyt_helper.py
 ```
 
+The Chromecast can also run on its own, with its own server and VPN, once its settings are moved over
+(`tools/move-to-chromecast.py`; see [setup/chromecast.md](docs/setup/chromecast.md#on-its-own-without-the-laptop)).
+
 Optional: `python -m pip install cryptography` adds a secure (https) address for the admin panel and phone
 notifications ([setup/helper.md](docs/setup/helper.md#4-the-admin-panel)).
 

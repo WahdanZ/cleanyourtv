@@ -11,7 +11,8 @@ or with the TV remote. A save shows on the TV and the Chromecast within about 3 
 | **VPN** | The country now, a button per country, and which countries the TV's Region menu offers. Only with a VPN set up ([setup/vpn.md](setup/vpn.md)) |
 | **TV** | A picture of the TV's Home. Tap anything on it to change it: the clock, a widget block, the dock, the wallpaper |
 | **Chromecast** | The same for the Chromecast, plus its dock and rows, names, hidden apps, the VPN country per app, and **Real screen** (a photo of what the Chromecast shows now) |
-| **Settings** | Your name for the greeting, 24-hour clock, the weather's city, the wallpaper, the TV's Home takeover; then status, open Home on the TV, restart the helper, sign out; the secure address and notifications, scenes, phone shortcuts. Every save keeps a copy of the settings before it (the last 20, in `data/config-backups`) |
+| **Usage** | How long the TV and the Chromecast were used, per day and per app (see below) |
+| **Settings** (the ⚙ button at the top) | Your name for the greeting, 24-hour clock, the weather's city, the wallpaper, the TV's Home takeover; then status, open Home on the TV, restart the helper, sign out; the secure address and notifications, scenes, phone shortcuts. Every save keeps a copy of the settings before it (the last 20, in `data/config-backups`) |
 
 Each tab shows only when you have that device: no Chromecast in `config.json`, no Chromecast tab; `"vidaa": false`,
 no TV tab; no VPN, no VPN tab. On a phone the tabs move to the bottom of the screen.
@@ -108,7 +109,9 @@ In the admin panel (best as an app on your phone's Home screen, see [setup/helpe
 - **Without Wireless debugging** the Chromecast's remote keeps working through the launcher: arrows, OK, Back, Home,
   volume (to the TV over HDMI-CEC), play/pause and opening apps. Typing, Wake, the live screen and trackpad clicks
   need Wireless debugging.
-- **Watch time** (the Home tab, at the bottom; today, 7 or 30 days):
+- **Usage** (its own tab; today, 7 or 30 days):
+  - **All:** the TV and the Chromecast together, one bar per day (TV blue, Chromecast orange) and one list; the
+    Chromecast's input is counted once, by what played on it ("Chromecast: menus and other" is the rest).
   - **TV:** how long it was on, per day and per screen: each app, Live TV, each input (the Chromecast's input is
     found by itself and named so, or set it: `"tv_input": "HDMI2"` under `chromecast` in `config.json`), the home screen.
   - **Chromecast:** how long something played, per day and per app, and the titles watched most.
@@ -137,8 +140,29 @@ In the admin panel (best as an app on your phone's Home screen, see [setup/helpe
 - **QR codes** on Home (the **Admin** pill, top right): point your phone at one to open the panel, the remote or the
   player, no typing.
 
+**Now playing on the Chromecast's Home** (switch the *Now playing* block on in the Chromecast tab): like a music
+app's mini player, for Spotify, YouTube, YouTube Music or any player: the cover, title and artist, a progress bar,
+and ⏮ ⏯ ⏭ and *Open* (back to the app). Press ▲ from the dock to reach the buttons, ◀ ▶ to move, OK to press, ▼ or
+Back to return. It follows the player live (the launcher reads the media sessions itself) and shows only while
+something is playing or paused; at one row tall it's a slim line with ⏯ and *Open*.
+
 The TV's remote can control what's playing on the Chromecast too: show **Now playing** on Home (tap Now playing in
 the layout), then use the remote's media keys, or the ♫ pill.
+
+## Websites as apps
+
+*Settings > Websites as apps*: a name and an address, on the TV and/or the Chromecast. Each becomes a tile you place
+like an app in the TV and Chromecast tabs (it starts under More); it opens in the TV's browser, or the Chromecast's
+(BrowseHere when it's installed; `"web_browser"` under `chromecast` in `config.json` picks another). While a browser
+is in front on the Chromecast, the phone's remote switches to the trackpad by itself, and back afterwards.
+
+## Logs
+
+*Settings > Logs* shows what happened lately, newest at the bottom: **Helper** (its log), **Chromecast** (the
+launcher's pointer service: connections, every move and where the pointer went, keys, and the app's crashes from
+Android's own log) and **This phone** (what the panel sent and the errors it showed). They're kept in memory only.
+When something goes wrong, open the right one right away and **Copy** it. Addresses are shown with a name: the TV,
+the Chromecast, this computer, a phone that opened the panel ("iPhone"), or the router's name for it.
 
 ## Settings that are only in config.json
 
