@@ -4,6 +4,26 @@ A small helper on an always-on computer at home (a Mac, a PC, a Linux box or a R
 its remote and its VPN; the Chromecast has the launcher app. Everything the Chromecast can do on its own it does on its
 own, and the helper adds what only it can: taps, typing and the live screen on the Chromecast (adb), and the TV.
 
+## What you need
+
+| | VIDAA TV | Chromecast | VPN (Mac) |
+|---|---|---|---|
+| A computer that stays on at home (Mac, Windows, Linux or a Raspberry Pi) with **Python 3.10+** | ✓ | ✓ | ✓ (a Mac) |
+| [Sidee](https://github.com/Empi9245/Sidee), to pair with the TV once (PIN on screen) | ✓ | | |
+| **adb** (Android platform-tools), with Wireless debugging on the Chromecast | | ✓ | |
+| To build the launcher yourself (not needed with the [ready-made app](https://github.com/WahdanZ/cleanyourtv/releases/latest)): **JDK 17+**, a Kotlin compiler, and the Android SDK's `build-tools;35.0.0` and `platforms;android-34` (Android Studio has them all) | | ✓ | |
+| [Homebrew](https://brew.sh) with `wireguard-tools` and `wireguard-go` | | | ✓ |
+| A VPN with WireGuard (NordVPN, Mullvad, Proton VPN, Surfshark…) or your own WireGuard server | | | ✓ |
+| A fixed address for each device, with the Mac as its gateway | | | ✓ |
+
+Optional: **ffmpeg** and **Node.js** (YouTube without ads, Stremio's streaming server), [AdGuard Home](https://adguard.com/adguard-home/overview.html)
+(blocks the TV's ads; can send the devices' DNS through the VPN), a static host such as Vercel (the VIDAA launcher
+keeps working with the computer off).
+
+A cloud server can't be the helper: the TV only takes commands from its own network. Check your TV is VIDAA, not
+Android TV: if ports 5555/8008/8009 are closed, 36669 and 38400 are open, and `http://<tv ip>:7000/info` says
+`Linux`, it is VIDAA. If it is Android, use [CleanYourTV](https://github.com/Gathin23/cleanyourtv) instead.
+
 ## Install
 
 1. **The helper:** [setup/helper.md](setup/helper.md) (Python, the TV's pairing with Sidee, `config.json` with your

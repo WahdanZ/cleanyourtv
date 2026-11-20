@@ -19,13 +19,13 @@ Pi. A cloud server can't do it: the TV only takes commands from its own network.
 ## 1. Get the code
 
 ```bash
-git clone https://github.com/WahdanZ/cleanyourtv-vidaa.git
-cd cleanyourtv-vidaa
+git clone https://github.com/WahdanZ/cleanyourtv.git
+cd cleanyourtv
 cp config.example.json config.json
 ```
 
 **With a VIDAA TV**, also put [Sidee](https://github.com/Empi9245/Sidee) next to it and pair once (README,
-[step 1](../../README.md#1-pair-with-the-tv-once)). **Chromecast only:** skip Sidee and set `"vidaa": false` in
+[step 1](../vidaa.md#1-pair-with-the-tv-once)). **Chromecast only:** skip Sidee and set `"vidaa": false` in
 `config.json`.
 
 ## 2. Fill in config.json
@@ -42,10 +42,10 @@ Most of it is set later in the admin panel; by hand you need only what lets the 
 | `weather` | `{"city", "lat", "lon"}`; easier from the admin panel (city search) |
 | `vpn_countries`, `vpn_home_name`, `app_vpn` | The VPN's countries, the name for "no VPN", and apps that switch it ([vpn.md](vpn.md)) |
 | `home_layout`, `addons` | Written by the admin panel: the Home layout, and which add-ons are on Home with their settings |
-| `launcher_url`, `launcher_origins`, `tile_icon` | The hosted launcher page (VIDAA, README [step 3](../../README.md#3-host-the-page)) |
+| `launcher_url`, `launcher_origins`, `tile_icon` | The hosted launcher page (VIDAA guide [step 3](../vidaa.md#3-host-the-page)) |
 
 The VIDAA-only keys (`dock`, `native_apps`, `browser`, `stremio`, `youtube`…) are described in the
-[README](../../README.md#2-configure-and-start-the-helper).
+[the VIDAA guide](../vidaa.md#2-configure-and-start-the-helper).
 
 ## 3. Run it as a service
 
@@ -55,7 +55,7 @@ Try it once by hand first (`python3 helper/cyt_helper.py`, stop with Ctrl-C), th
   keeps the Mac awake while it runs. Restart: `launchctl kickstart -k gui/$(id -u)/com.cleanyourtv.helper`.
   Log: `data/helper.log`. Allow Python on the local network when macOS asks.
 - **Windows:** `powershell -ExecutionPolicy Bypass -File setup\windows\install.ps1` (README,
-  [step 5](../../README.md#5-keep-the-helper-running)).
+  [step 5](../vidaa.md#5-keep-the-helper-running)).
 - **Linux:** `bash setup/linux/install.sh` (a systemd user service; written for Arch, change `pacman` to your package
   manager). Log: `journalctl --user -u cyt-helper -f`.
 

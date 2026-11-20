@@ -7,7 +7,7 @@ one launcher tile; deleting the tile undoes it.
 ## Install
 
 1. **Pair the TV** with [Sidee](https://github.com/Empi9245/Sidee) (its PIN pairing) and
-   **start the helper**: the README's [quick start](../README.md#quick-start) and [setup/helper.md](setup/helper.md).
+   **start the helper**: the [VIDAA guide's set-up](vidaa.md#set-up) and [setup/helper.md](setup/helper.md).
    Leave `"chromecast"` out of `config.json`.
 2. **The admin panel:** set its password (`helper/set_admin_password.py`), then open `http://<computer>:8765/admin`
    on your phone ([customize.md](customize.md)).

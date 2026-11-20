@@ -168,4 +168,4 @@ the Chromecast, this computer, a phone that opened the panel ("iPhone"), or the 
 
 A few things have no button: `allowed_clients`, the VIDAA app ids (`dock`, `native_apps`, `web_urls`), the browser's
 search engine, Stremio and YouTube settings, `vpn_home_name`. See [setup/helper.md](setup/helper.md) and the
-[README](../README.md#2-configure-and-start-the-helper). Restart the helper after changing them by hand.
+[the VIDAA guide](vidaa.md#2-configure-and-start-the-helper). Restart the helper after changing them by hand.
