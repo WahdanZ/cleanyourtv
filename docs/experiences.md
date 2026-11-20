@@ -40,10 +40,15 @@ In every layout: **hold OK** (or Menu) for the menu: All apps, Sources, the phon
 Play and Listen, the app a match opens, the frames and strip size, the scenes allowed on Home, and **Motion**
 (gentle or none).
 
-**App icons:** icons fit every tile shape (a banner fills only a wide tile; in a bubble or a frame it is fitted
-whole). An **icon theme** restyles them all: phone panel → Home layout → App icons (Glass, Monochrome, Light
-tiles, or your own: [making an icon theme](../addons/README.md#icon-themes)). Themes apply to the layouts here, not
-to Classic.
+**App icons fit their shape.** Each icon is redrawn for the tile it's in, from the app's own artwork. An app with an
+adaptive icon (most Android apps) has it drawn into the shape, the way Android does. A TV app that only has a
+banner (Netflix, YouTube TV…) has its background colour read from the banner's edges and its logo cut out. The
+whole circle or frame is then filled with that colour, with the logo set inside as large as fits. A wide tile
+keeps the banner edge to edge. No rectangle pasted on a colour, and no logo redrawn by hand (they belong to their
+owners). An **icon theme** restyles them all: phone panel → Home layout → App icons (Glass, Monochrome, Light
+tiles, or your own: [making an icon theme](../addons/README.md#icon-themes)). A theme puts each app's colour and logo on the theme's
+plate (round, rounded or square), on the theme's background, grey if it says so. Themes apply to the layouts here,
+not to Classic.
 
 ## How it is built
 
@@ -230,6 +235,7 @@ has been validated (p.30). Nothing below has been tested with people yet.
 | The catalog, both renderers implementing every layout, validation, scene scoping, icon themes | `tests/experiences_test.py` |
 | Both servers: the choice round-trips, a bad one is refused, scenes are scoped, the catalog is served | `tests/api_contract.py`: the helper 40/40, the Chromecast's server 39/39 (on the emulator) |
 | The TV page against a real (test) helper with 53 real app entries: the layout loads, switches live after a save, opens an app through the helper | desktop Chrome at 1920 × 1080 |
+| Icons designed for their shape, natively: adaptive icons in circles; banner-only test apps (dark, white, gradient banners) as filled circles and frames; the Monochrome theme | Google TV emulator; three code-free test apps with TV banners (your apps are 32-bit and can't install there) |
 | The native Chromecast layouts: all 14 chosen through the server, a sequence of arrows, OK, Back and Home in each: no crash, no fallback; screenshots | Google TV emulator (arm64) |
 | The panel's picker: choose, save, the screen follows | the emulator's panel in a phone-sized browser |
 | The real Chromecast: the new app installs; its server serves the catalog and the TV's inputs through the helper | adb |

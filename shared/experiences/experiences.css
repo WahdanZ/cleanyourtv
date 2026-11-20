@@ -47,6 +47,7 @@
 .x-tile { position: relative; width: 300px; border-radius: 22px; }
 .x-art { position: relative; width: 100%; height: 170px; border-radius: 20px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #22313f; }
 .x-art img.x-fill { width: 100%; height: 100%; object-fit: cover; }
+.x-art img.x-wait { visibility: hidden; }
 .x-ic { object-fit: cover; }
 .x-ic-round { border-radius: 50%; } .x-ic-squircle { border-radius: 24%; } .x-ic-square { border-radius: 0; } .x-ic-keep { border-radius: 14%; object-fit: contain; }
 .x-ic-fit { object-fit: contain; border-radius: 0; }

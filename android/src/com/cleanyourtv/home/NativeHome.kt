@@ -143,42 +143,31 @@ class NativeHome(val a: MainActivity, private val root: FrameLayout) {
         box.addView(art, LinearLayout.LayoutParams(w, h))
         val th = if (it.type == "app") data.theme?.optJSONObject("style") else null
         val own = if (it.type == "app") themeSrc(it) else ""
-        val wide = shape == "wide" && th == null
-        val d = it.icon ?: if (it.type == "app") appIcon(it.id, wide) else null
-        if (d != null || own.isNotEmpty() || it.iconUrl.isNotEmpty()) {
-            val iv = ImageView(a)
-            if (th != null) {
+        val designed = th != null || shape != "wide"   // drawn for its shape (IconFit); a wide tile may show a banner as it is
+        val d = it.icon ?: if (it.type == "app") appIcon(it.id, !designed) else null
+        val iv = ImageView(a)
+        when {
+            own.isNotEmpty() && th != null -> {   // the theme's own picture: on its plate, tinted or grey if asked
                 val bg = th.optString("background", "brand")
-                art.background = if (shape == "round") GradientDrawable().apply { this.shape = GradientDrawable.OVAL; setColor(if (bg == "brand") it.color else if (bg == "none") Color.TRANSPARENT else MainActivity.parseColor(bg, it.color)) }
-                    else round(if (bg == "brand") it.color else if (bg == "none") Color.TRANSPARENT else MainActivity.parseColor(bg, it.color), 20f)
+                art.background = round(if (bg == "brand") it.color else if (bg == "none") Color.TRANSPARENT else MainActivity.parseColor(bg, it.color), if (shape == "round") w / 2f else 20f)
                 val side = (Math.min(w, h) * (1 - 2 * th.optDouble("padding", .18))).toInt()
-                iv.scaleType = ImageView.ScaleType.CENTER_CROP
-                val sh = th.optString("shape", "squircle")
-                iv.outlineProvider = object : android.view.ViewOutlineProvider() {
-                    override fun getOutline(v: View, o: android.graphics.Outline) {
-                        when (sh) { "round" -> o.setOval(0, 0, v.width, v.height); "square" -> o.setRect(0, 0, v.width, v.height); else -> o.setRoundRect(0, 0, v.width, v.height, v.width * if (sh == "keep") .14f else .24f) }
-                    }
-                }
-                iv.clipToOutline = true
+                iv.scaleType = ImageView.ScaleType.FIT_CENTER
                 if (th.optBoolean("monochrome")) iv.colorFilter = android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(0f) })
-                val tint = th.optString("tint")
-                if (tint.isNotEmpty() && own.isNotEmpty()) iv.setColorFilter(MainActivity.parseColor(tint, Color.WHITE), android.graphics.PorterDuff.Mode.SRC_IN)
-                art.addView(iv, FrameLayout.LayoutParams(side, side, Gravity.CENTER))
-                if (own.isNotEmpty()) a.loadImage(own, iv, side) else if (d != null) { iv.setImageDrawable(d); if (d.intrinsicWidth > d.intrinsicHeight * 1.3) { iv.scaleType = ImageView.ScaleType.FIT_CENTER; iv.clipToOutline = false } }
-            } else if (d != null) {
-                iv.setImageDrawable(d)
-                val banner = d.intrinsicWidth > d.intrinsicHeight * 1.3
-                val fill = banner && shape == "wide"   // a banner fills only a wide tile; anywhere else it fits, whole
-                iv.scaleType = if (fill) ImageView.ScaleType.CENTER_CROP else ImageView.ScaleType.FIT_CENTER
-                if (fill) art.addView(iv, FrameLayout.LayoutParams(w, h))
-                else { val side = (Math.min(w, h) * if (banner) .86 else .62).toInt(); art.addView(iv, FrameLayout.LayoutParams(if (banner) (w * .82).toInt() else side, side, Gravity.CENTER)) }
-            } else {
-                iv.scaleType = ImageView.ScaleType.CENTER_CROP
-                art.addView(iv, FrameLayout.LayoutParams(w, h)); a.loadImage(it.iconUrl, iv, w)
+                th.optString("tint").takeIf { t -> t.isNotEmpty() }?.let { t -> iv.setColorFilter(MainActivity.parseColor(t, Color.WHITE), android.graphics.PorterDuff.Mode.SRC_IN) }
+                art.addView(iv, FrameLayout.LayoutParams(side, side, Gravity.CENTER)); a.loadImage(own, iv, side)
             }
-        } else {
-            val m = text(mono(it), h * .42f, Color.WHITE, 700); m.gravity = Gravity.CENTER
-            art.addView(m, FrameLayout.LayoutParams(w, h))
+            d != null && designed -> {
+                iv.scaleType = ImageView.ScaleType.FIT_XY
+                iv.setImageBitmap(IconFit.bitmap(it.id, d, w, h, shape, th, it.color))
+                art.addView(iv, FrameLayout.LayoutParams(w, h))
+            }
+            d != null -> {   // a wide tile, no theme: the banner edge to edge, or the icon designed for it
+                if (d.intrinsicWidth > d.intrinsicHeight * 1.3) { iv.setImageDrawable(d); iv.scaleType = ImageView.ScaleType.CENTER_CROP }
+                else { iv.setImageBitmap(IconFit.bitmap(it.id, d, w, h, "wide", null, it.color)); iv.scaleType = ImageView.ScaleType.FIT_XY }
+                art.addView(iv, FrameLayout.LayoutParams(w, h))
+            }
+            it.iconUrl.isNotEmpty() -> { iv.scaleType = ImageView.ScaleType.CENTER_CROP; art.addView(iv, FrameLayout.LayoutParams(w, h)); a.loadImage(it.iconUrl, iv, w) }
+            else -> { val m = text(mono(it), h * .42f, Color.WHITE, 700); m.gravity = Gravity.CENTER; art.addView(m, FrameLayout.LayoutParams(w, h)) }
         }
         if (showName) {
             val n = text(it.name, nameSize, Color.rgb(230, 238, 244), 500); n.gravity = Gravity.CENTER
@@ -198,10 +187,15 @@ class NativeHome(val a: MainActivity, private val root: FrameLayout) {
         it.type == "source" -> if (it.badge == "LIVE") "TV" else Regex("\\d+").find(it.id)?.value ?: it.name.take(1)
         else -> it.name.filter { c -> c.isLetterOrDigit() }.take(1).uppercase().ifEmpty { "•" }
     }
-    /** The app's banner (for a wide tile) or its own icon (adaptive on Android 8+), whichever it has. */
+    /** For a wide tile, the app's banner; for any other shape, its adaptive icon (it fills any shape) when it has one,
+     *  else its banner (more of its logo than an old square icon), else its icon. */
     private fun appIcon(pkg: String, wide: Boolean): Drawable? = icons.getOrPut(pkg + wide) {
         val pm = a.packageManager
-        try { if (wide) pm.getApplicationBanner(pkg) ?: pm.getApplicationIcon(pkg) else pm.getApplicationIcon(pkg) } catch (e: Exception) { null }
+        try {
+            val icon = pm.getApplicationIcon(pkg)
+            if (wide) pm.getApplicationBanner(pkg) ?: icon
+            else if (icon is android.graphics.drawable.AdaptiveIconDrawable) icon else pm.getApplicationBanner(pkg) ?: icon
+        } catch (e: Exception) { null }
     }
 
     // ------------------------------------------------------------------ item helpers (engine.js E.items)

@@ -104,7 +104,8 @@ data/addons/my-icons/
 }
 ```
 
-Apps your theme has no picture for keep their own icon, drawn in your style. A bad value falls back to the
+Apps your theme has no picture for keep their own artwork, redrawn in your style: the app's colour (read from its
+icon or banner) on your plate, its logo inside. A bad value falls back to the
 default (`squircle`, `brand`, `0.18`), so a theme never breaks Home. Press **Reload add-ons** in the panel after
 adding the folder.
 

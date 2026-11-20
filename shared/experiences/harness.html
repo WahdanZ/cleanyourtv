@@ -185,24 +185,24 @@
   s = fresh('channel'); s.c.key('3');
   ok(/03/.test(focusText(s.box)), 'Channel Zero: number key jumps to channel 3');
   s.box.remove();
-  // icons adapt to the tile: a wide banner fills a wide tile, and is fitted (never cropped) in a round one
+  // icons fit their shape: drawn for the circle (or frame) from the app's own picture, once it has loaded
   var lq = fresh('liquid');
-  var roundImgs = lq.box.querySelectorAll('.x-round .x-art img');
-  ok(roundImgs.length > 0 && [].every.call(roundImgs, function (i) { return i.className.indexOf('x-fill') < 0; }), 'icons: none fills a round bubble edge to edge');
-  lq.box.remove();
-  var th = fresh('theater');
-  ok(th.box.querySelectorAll('.x-th-row .x-art img.x-fill').length > 0, 'icons: wide tiles show banners full');
-  th.box.remove();
-  // an icon theme restyles every app icon (shape, background, grey) and leaves inputs and the rest alone
+  var thm = fresh('theater');
   var themed = demo(); themed.iconTheme = { id: 'icons-mono', style: { shape: 'round', background: '#17293B', monochrome: true, tint: '', padding: 0.24 }, icons: {} };
-  th = fresh('theater', themed);
-  var ics = th.box.querySelectorAll('.x-th-row .x-art img');
-  ok(ics.length > 0 && [].every.call(ics, function (i) { return /x-ic-(round|fit)/.test(i.className) && /grayscale/.test(i.style.filter); }), 'icon theme: shape and grey on every app icon');
-  th.box.remove();
-  CYTX.theme = null;
-  out.unshift((fails ? 'FAIL ' + fails : 'PASS') + ' ' + (out.length) + ' checks');
-  document.getElementById('results').textContent = out.join('\n');
-  document.title = fails ? 'FAIL' : 'PASS';
+  var tht = fresh('theater', themed);
+  setTimeout(function () {
+    var roundImgs = lq.box.querySelectorAll('.x-round .x-art img');
+    ok(roundImgs.length > 0 && [].every.call(roundImgs, function (i) { return /^data:image\/png/.test(i.src); }), 'icons: every bubble gets an icon designed for its circle');
+    ok([].every.call(roundImgs, function (i) { return i.className.indexOf('x-wait') < 0; }), 'icons: none left hidden');
+    // a wide tile keeps the banner edge to edge; with a theme, every app icon is redrawn
+    ok([].some.call(thm.box.querySelectorAll('.x-th-row .x-art img'), function (i) { return !/^data:image\/png/.test(i.src); }), 'icons: wide tiles keep banners full');
+    var ics = tht.box.querySelectorAll('.x-th-row .x-art img');
+    ok(ics.length > 0 && [].every.call(ics, function (i) { return /^data:image\/png/.test(i.src); }), 'icon theme: every app icon redrawn with the theme');
+    lq.box.remove(); thm.box.remove(); tht.box.remove(); CYTX.theme = null;
+    out.unshift((fails ? 'FAIL ' + fails : 'PASS') + ' ' + (out.length) + ' checks');
+    document.getElementById('results').textContent = out.join('\n');
+    document.title = fails ? 'FAIL' : 'PASS';
+  }, 1500);
 })();
 </script>
 </body>

@@ -1303,6 +1303,7 @@ public class MainActivity extends Activity {
         try {
             JSONObject h = new JSONObject(get("/api/addons/home", 15_000));
             ui.post(() -> {
+                if (isDestroyed()) return;   // Home was closed meanwhile (made the Home app again, updated): nothing to draw
                 boolean layoutChanged = !String.valueOf(h.optJSONArray("rows")).equals(String.valueOf(addonHome.optJSONArray("rows")))
                         || !String.valueOf(h.optJSONArray("tiles")).equals(String.valueOf(addonHome.optJSONArray("tiles")));
                 addonHome = h;

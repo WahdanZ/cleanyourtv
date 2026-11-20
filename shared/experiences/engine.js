@@ -189,6 +189,78 @@
     if (!t || !t.icons || item.type !== 'app') return '';
     return t.icons[String(item.id).toLowerCase()] || t.icons[String(item.name).toLowerCase()] || '';
   }
+  // ---------- icons that fit their shape ----------
+  // An app's artwork is redrawn for the tile it's in (a "designed" icon, made from the app's own picture):
+  //   1. the picture's own background colour is read from its edges (Netflix: black, YouTube: white…);
+  //   2. the logo is cut out of it (whatever differs from that colour);
+  //   3. the whole shape (a circle, a frame, a square) is filled with that colour, and the logo set in it as large
+  //      as fits inside the shape (in a circle: its corners within the circle).
+  // So a banner never shows as a rectangle pasted on a colour. An icon theme adds its plate on top: the theme's
+  // background around, the app's colour in the theme's shape, the logo inside. A wide tile with no theme keeps the
+  // banner edge to edge. Done once per picture and shape (cached); without canvas access, the picture is fitted.
+  var FIT = {};
+  var CANVAS = { round: [320, 320], square: [320, 320], tall: [280, 400], wide: [384, 216] };
+  function shapePath(x, kind, l, t, w, h) {
+    x.beginPath();
+    if (kind === 'round') { x.ellipse(l + w / 2, t + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2); return; }
+    var r = kind === 'squircle' ? Math.min(w, h) * 0.24 : kind === 'keep' ? Math.min(w, h) * 0.14 : 0;
+    x.moveTo(l + r, t); x.arcTo(l + w, t, l + w, t + h, r); x.arcTo(l + w, t + h, l, t + h, r); x.arcTo(l, t + h, l, t, r); x.arcTo(l, t, l + w, t, r);
+    x.closePath();
+  }
+  function fitIcon(img, shape, th, fallback) {
+    var key = img.src + '|' + shape + '|' + (th ? JSON.stringify(th) : '');
+    if (FIT[key] !== undefined) return FIT[key];
+    var out = null;
+    try {
+      var sw = img.naturalWidth, sh = img.naturalHeight;
+      if (!sw || !sh) return null;
+      var k = Math.min(1, 256 / Math.max(sw, sh)), w = Math.max(1, Math.round(sw * k)), h = Math.max(1, Math.round(sh * k));
+      var c = document.createElement('canvas'); c.width = w; c.height = h;
+      var x = c.getContext('2d'); x.drawImage(img, 0, 0, w, h);
+      var px = x.getImageData(0, 0, w, h).data;
+      var rs = [], gs = [], bs = [], clear = 0, n = 0, i, j, o;
+      var edge = function (a, b) { o = (b * w + a) * 4; n++; if (px[o + 3] < 40) { clear++; return; } rs.push(px[o]); gs.push(px[o + 1]); bs.push(px[o + 2]); };
+      for (i = 0; i < w; i++) { edge(i, 0); edge(i, h - 1); }
+      for (j = 0; j < h; j++) { edge(0, j); edge(w - 1, j); }
+      var med = function (a) { a.sort(function (p, q) { return p - q; }); return a[a.length >> 1]; };
+      var bg = clear < n / 2 && rs.length ? [med(rs), med(gs), med(bs)] : null;
+      var x0 = w, y0 = h, x1 = -1, y1 = -1;
+      for (j = 0; j < h; j++) for (i = 0; i < w; i++) {
+        o = (j * w + i) * 4;
+        if (px[o + 3] < 40) continue;
+        if (bg && Math.abs(px[o] - bg[0]) + Math.abs(px[o + 1] - bg[1]) + Math.abs(px[o + 2] - bg[2]) < 90) continue;
+        if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j;
+      }
+      if (x1 < 0) { x0 = 0; y0 = 0; x1 = w - 1; y1 = h - 1; }
+      var lw = x1 - x0 + 1, lh = y1 - y0 + 1, brand = bg ? 'rgb(' + bg.join(',') + ')' : fallback;
+      var W = CANVAS[shape][0], H = CANVAS[shape][1];
+      var oc = document.createElement('canvas'); oc.width = W; oc.height = H;
+      var y = oc.getContext('2d');
+      y.fillStyle = th ? (th.background === 'brand' ? brand : th.background === 'none' ? 'rgba(0,0,0,0)' : th.background) : brand;
+      y.fillRect(0, 0, W, H);
+      var plate = shape === 'round' ? 'round' : 'rect', L = 0, T = 0, PW = W, PH = H, pad = shape === 'round' ? 0.18 : 0.14;
+      if (th) {   // the theme's plate: its shape, the app's colour
+        var side = Math.min(W, H) * (shape === 'round' ? 0.78 : 0.82);
+        L = (W - side) / 2; T = (H - side) / 2; PW = PH = side; plate = th.shape === 'round' ? 'round' : th.shape; pad = th.padding;
+        shapePath(y, plate, L, T, PW, PH); y.fillStyle = brand; y.fill();
+      }
+      y.save(); shapePath(y, plate, L, T, PW, PH); y.clip();
+      var s = plate === 'round' ? (Math.min(PW, PH) / 2 * (1 - pad)) / Math.sqrt(lw * lw / 4 + lh * lh / 4)
+                                : Math.min(PW * (1 - 2 * pad) / lw, PH * (1 - 2 * pad) / lh);
+      y.drawImage(c, x0, y0, lw, lh, L + (PW - lw * s) / 2, T + (PH - lh * s) / 2, lw * s, lh * s);
+      y.restore();
+      if (th && th.monochrome) {
+        var d = y.getImageData(0, 0, W, H), q = d.data;
+        for (i = 0; i < q.length; i += 4) { var g = Math.round(q[i] * 0.3 + q[i + 1] * 0.59 + q[i + 2] * 0.11); q[i] = q[i + 1] = q[i + 2] = g; }
+        y.putImageData(d, 0, 0);
+      }
+      out = oc.toDataURL('image/png');
+    } catch (e) { out = null; }   // a picture from elsewhere (no canvas access): fitted as it is
+    FIT[key] = out;
+    return out;
+  }
+  E.fitIcon = fitIcon;
+
   // A tile: the icon if it loads, else the initial on its colour. The name is always written under it.
   // shape: 'wide' (default), 'round', 'square' or 'tall'.
   E.tile = function (item, cls, shape) {
@@ -198,23 +270,24 @@
     art.style.background = item.color || '#22313f';
     var th = E.theme && item.type === 'app' ? E.theme.style : null, own = themeSrc(item), src = own || item.icon;
     if (src && item.type !== 'photo') {
-      var img = add(art, el('img', th ? 'x-ic x-ic-' + th.shape : shape === 'wide' ? 'x-fill' : 'x-ic x-ic-keep'));
+      var designed = !!th || shape !== 'wide';
+      var img = add(art, el('img', designed ? 'x-fill x-wait' : 'x-fill'));
       img.alt = '';
-      if (th) {
-        art.style.background = th.background === 'brand' ? item.color : th.background === 'none' ? 'transparent' : th.background;
-        var size = Math.round(100 - th.padding * 200) + '%';
-        img.style.width = img.style.height = size;
-        if (th.monochrome) img.style.filter = 'grayscale(1) contrast(1.05)';
-        if (th.tint && own) {   // the theme's own picture as a tinted silhouette
-          var sil = add(art, el('div', 'x-ic x-sil'));
-          sil.style.width = sil.style.height = size; sil.style.background = th.tint;
-          sil.style.webkitMaskImage = sil.style.maskImage = 'url("' + own + '")';
-          img.style.display = 'none';
-        }
-      } else if (shape !== 'wide') img.style.width = img.style.height = '70%';
-      img.onload = function () {   // a wide banner in a shaped icon: fitted whole, not cut to the shape
-        if (img.naturalWidth > img.naturalHeight * 1.3 && img.className.indexOf('x-ic') >= 0) { img.className = 'x-ic x-ic-fit'; img.style.width = '86%'; img.style.height = '70%'; }
-      };
+      if (th && th.tint && own) {   // the theme's own picture as a tinted silhouette on its plate
+        var sil = add(art, el('div', 'x-ic x-sil'));
+        sil.style.width = sil.style.height = Math.round(100 - th.padding * 200) + '%'; sil.style.background = th.tint;
+        sil.style.webkitMaskImage = sil.style.maskImage = 'url("' + own + '")';
+        art.style.background = th.background === 'brand' ? item.color : th.background;
+        img.style.display = 'none';
+      } else if (designed) {
+        img.onload = function () {
+          var url = fitIcon(img, shape === 'wide' ? 'wide' : shape, th, item.color || '#22313f');
+          img.onload = null;
+          if (url) img.src = url;
+          else { img.className = 'x-ic x-ic-fit'; img.style.width = '80%'; img.style.height = '70%'; if (th && th.monochrome) img.style.filter = 'grayscale(1)'; }
+          img.classList.remove('x-wait');
+        };
+      }
       img.onerror = function () { art.innerHTML = ''; add(art, el('span', 'x-mono', mono(item))); };
       img.src = src;
     } else if (item.type === 'photo' && item.icon) {
