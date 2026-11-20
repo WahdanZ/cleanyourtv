@@ -1,8 +1,14 @@
 # Clean Your TV for VIDAA and Chromecast
 
-A calm, ad-free Home screen for **Hisense VIDAA** TVs and the **Chromecast with Google TV**, run by one small helper
-on a computer at home. Your apps, a clock, the weather, live football scores, a daily photo, and nothing you didn't
-ask for. Change any of it from your phone, or with the TV remote.
+A calm, ad-free Home screen for **Hisense VIDAA** TVs and the **Chromecast with Google TV**. Your apps, a clock, the
+weather, live football scores, a daily photo, and nothing you didn't ask for. Change any of it from your phone, or
+with the TV remote.
+
+| You have | You need | Guide |
+|---|---|---|
+| **A Chromecast with Google TV** only | The app ([download](https://github.com/WahdanZ/cleanyourtv/releases/latest)); adb once, to install it | [Chromecast only →](docs/chromecast-only.md) |
+| **A Chromecast and a Hisense VIDAA TV** | The app + the helper on an always-on computer | [Chromecast + VIDAA →](docs/chromecast-vidaa.md) |
+| **A Hisense VIDAA TV** only | The helper on an always-on computer | [VIDAA only →](docs/vidaa-only.md) |
 
 <p align="center">
   <img src="docs/screens/tv-home-layout.jpg" width="49%" alt="The VIDAA TV's Home: clock with the weather, a football scores card, a NASA news card, a quote, and a four-app dock over today's photo">
@@ -87,7 +93,8 @@ your own server included; otherwise use your router. ([vpn.md](docs/setup/vpn.md
 
 ## Pick your setup
 
-One helper on a computer at home serves both screens; use one or both.
+The three guides above are the short way in. In more detail: one helper on a computer at home serves both screens;
+the Chromecast can also run on its own ([Chromecast only](docs/chromecast-only.md)).
 
 | You have | You get | Start here |
 |---|---|---|
@@ -388,6 +395,20 @@ The probe pages in `web/probes/` are how everything here was found. Open one on 
 ## Contributing
 
 Read [docs/GUIDELINES.md](docs/GUIDELINES.md) first, and [docs/CHALLENGES.md](docs/CHALLENGES.md) for what was tried and why things are the way they are. The most useful contributions are tests on other VIDAA models and firmware, and progress on the [open problems](docs/OPEN-PROBLEMS.md): blocking ads and tracking safely, detecting when web apps close, and replacing VIDAA's home outright. Please never post your TV's serial number, MAC address, IP, pairing file or Wi-Fi name in issues or screenshots.
+
+**Where things are:**
+
+| Folder | What | Used by |
+|---|---|---|
+| `android/` | The Chromecast app: Home (Java), its own server, VPN and content (Kotlin) | Chromecast setups |
+| `helper/` | The helper for a computer at home (Python) | Setups with a VIDAA TV; extras for the Chromecast |
+| `shared/` | What both back ends use: the phone panel, the layout rules, and the API they both answer ([shared/API.md](shared/API.md)) | Both |
+| `addons/` | The built-in add-ons: `addon.json` (both), `addon.py` (the helper; the app has its own copy in Kotlin) | Both |
+| `web/` | The VIDAA TV's own pages (its Home, YouTube, Live TV) and the built-in quotes | The helper |
+| `vpn/`, `setup/` | The computer's VPN for the TV, and start-at-login installers | The helper |
+| `tests/` | `api_contract.py`: the same checks against both back ends | Development, CI |
+
+A change to a request or an answer goes into `shared/API.md`, both back ends and `tests/api_contract.py` together.
 
 ## Credits
 
