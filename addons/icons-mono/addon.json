@@ -1,0 +1,9 @@
+{
+  "id": "icons-mono",
+  "name": "Monochrome",
+  "type": "icons",
+  "emoji": "⚪",
+  "color": "#17293b",
+  "description": "Grey icons in circles on the night colour: a calm, uniform Home.",
+  "style": {"shape": "round", "background": "#17293B", "monochrome": true, "padding": 0.24}
+}

@@ -126,7 +126,7 @@ public class MainActivity extends Activity {
     final List<View> sectionViews = new ArrayList<>();
 
     // ---------- apps and layout ----------
-    static class App {
+    public static class App {
         String id, name, vpn; boolean banner; long v;
         String kind = "app";            // app, addon (an add-on's tile), item (a picture in an add-on's row)
         String emoji, color, addonKind, image;
@@ -134,7 +134,7 @@ public class MainActivity extends Activity {
     }
     JSONObject addonHome = new JSONObject();   // /api/addons/home: widgets, rows and tiles of the enabled add-ons
     static class Pos { int x, y, w, h, line, col; float fs; }   // fs: how much it grows when focused (0: by its size)
-    static class Section { String title; int start, count, y; }
+    public static class Section { String title; int start, count, y; }
     List<App> apps = new ArrayList<>();
     int dockSize = 0;
     boolean rowsMode = false;
@@ -208,6 +208,7 @@ public class MainActivity extends Activity {
         loadApps();
         build();
         render();
+        xh.apply(expId());
         refreshAll(true);
     }
 
@@ -217,6 +218,7 @@ public class MainActivity extends Activity {
         // Moved to the Chromecast's own server (or back) while Home was open: start again, from the right one.
         if (!Hub.homeBase(this).equals(BASE)) { BASE = Hub.homeBase(this); recreate(); return; }
         resumed = true;
+        if (xh != null) xh.resume();
         AdbKeeper.watch(this);
         ui.post(tick);
         if (quoteEach) { quoteDay = -1; showQuote(); }   // back on Home: the next quote
@@ -232,6 +234,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         resumed = false;
+        if (xh != null) xh.pause();
         ui.removeCallbacks(slideNext);
         stopWidgets();
         ui.removeCallbacks(tick);
@@ -455,7 +458,12 @@ public class MainActivity extends Activity {
         stage.setPivotX(0); stage.setPivotY(0);
         stage.setScaleX(scale); stage.setScaleY(scale);
         setContentView(root);
+        xh = new NativeHome(this, root);   // a Home layout other than Classic, over this one (NativeHome.kt, NativeLayouts.kt)
     }
+
+    // ---------- Home layouts (shared/experiences): the one the settings ask for; Classic is this activity's own ----------
+    NativeHome xh;
+    String expId() { JSONObject e = cfg.optJSONObject("experience"); return e == null ? "classic" : e.optString("id", "classic"); }
 
     FrameLayout blocksLayer;
     LinearLayout clockBlock, clockRow;
@@ -941,6 +949,7 @@ public class MainActivity extends Activity {
             names.add(n);
         }
         glassPlaced = false;
+        if (xh != null) xh.appsChanged();
     }
 
     // The app's TV banner (16:9, fills the tile), or its icon on its own edge colour.
@@ -1113,6 +1122,7 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
+        if (xh != null && xh.visible() && xh.dispatch(e)) return true;   // a Home layout is showing: its keys
         int k = e.getKeyCode();
         boolean down = e.getAction() == KeyEvent.ACTION_DOWN, up = e.getAction() == KeyEvent.ACTION_UP;
         switch (k) {
@@ -1145,6 +1155,10 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent e) {
+        if (xh != null && xh.visible()) {   // the phone's trackpad over a Home layout: a click is OK on what has focus
+            if (e.getActionMasked() == MotionEvent.ACTION_UP) xh.key("ok");
+            return true;
+        }
         if (e.getActionMasked() == MotionEvent.ACTION_DOWN) { touchX = e.getRawX(); touchY = e.getRawY(); touchAt = e.getEventTime(); }
         else if (e.getActionMasked() == MotionEvent.ACTION_UP) {
             float moved = Math.abs(e.getRawX() - touchX) + Math.abs(e.getRawY() - touchY);
@@ -2141,6 +2155,7 @@ public class MainActivity extends Activity {
         scrim.animate().alpha(0f).setDuration(200).withEndAction(() -> scrim.setVisibility(View.GONE)).start();
         area = "pills";
         render();
+        if (xh != null) xh.adminClosed();
     }
 
     // =====================================================================================================
@@ -3336,6 +3351,7 @@ public class MainActivity extends Activity {
                     boolean changed = !c.toString().equals(cfg.toString());
                     cfg = c;
                     if (changed || first) { lastMinute = -1; applyLayout(); applyWeatherVisibility(); loadApps(); build(); render(); tick.run(); }
+                    xh.apply(expId());
                     quoteDay = -1; showQuote();
                     refreshWeather(); refreshWallpaper(); refreshRegion();
                 });

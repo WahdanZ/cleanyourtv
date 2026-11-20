@@ -163,6 +163,13 @@ class Hub(val ctx: Context) {
             return asset("web/app/$name", type)
         }
         if (p.startsWith("/q/")) return api.quick(r)
+        if (p.startsWith("/experiences/")) {   // the Home layouts' catalog and previews (shared/experiences), for the phone panel
+            val name = p.removePrefix("/experiences/")
+            if (!Regex("^[a-z0-9-]+(/[a-z0-9-]+)?\\.(js|css|html|jpg|png)$").matches(name)) return Res.err(404)
+            val type = mapOf("js" to "text/javascript; charset=utf-8", "css" to "text/css; charset=utf-8", "html" to "text/html; charset=utf-8",
+                "jpg" to "image/jpeg", "png" to "image/png")[name.substringAfterLast('.')]!!
+            return asset("experiences/$name", type)
+        }
         if (p.startsWith("/api/hub/")) {   // the move from the Mac (tools/move-to-chromecast.py): the helper's key for this app
             val tok = CursorService.instance?.token().orEmpty()
             if (!r.local && (tok.isEmpty() || r.headers["x-token"] != tok)) return Res.err(403, "wrong key")

@@ -15,6 +15,8 @@ import java.util.Locale
 class HubApi(private val hub: Hub) {
     private val store = hub.store
     val content = Content(hub)
+    private val exp: Experience by lazy { Experience(hub.ctx.assets.open("experiences/catalog.js").use { it.readBytes() }.toString(Charsets.UTF_8)) }
+    private fun appNames(): Map<String, String> = ccApps().optJSONArray("apps")?.let { a -> (0 until a.length()).associate { a.getJSONObject(it).let { x -> x.optString("id") to x.optString("name") } } }.orEmpty()
     private val spec: JSONObject by lazy { JSONObject(hub.ctx.assets.open("layout_spec.json").use { it.readBytes() }.toString(Charsets.UTF_8)) }
     private fun cfg() = store.config()
     private fun cc() = cfg().optJSONObject("chromecast") ?: JSONObject()
@@ -40,6 +42,10 @@ class HubApi(private val hub: Hub) {
             p == "/api/home-edit" -> Hub.Res.json(JSONObject().put("layout", layout()).put("spec", spec).put("widgets", homeEditWidgets()))
             p == "/api/region" -> Hub.Res.json(JSONObject().put("region", if (Vpn.configured(hub.ctx)) Vpn.country else JSONObject.NULL).put("regions", regions()))
             p == "/api/now-playing" -> Hub.Res.json(nowPlaying())
+            p == "/api/home-scenes" -> Hub.Res.json(JSONObject().put("ok", true).put("scenes", exp.homeScenes(cfg(), store.list("scenes.json"), appNames())))
+            // the TV's inputs come from the helper (a VIDAA TV); none without it
+            p == "/api/tv-sources" -> helper("/api/tv-sources", null)?.takeIf { it.first == 200 }?.let { Hub.Res(200, "application/json; charset=utf-8", it.second) }
+                ?: Hub.Res.json(JSONObject().put("ok", false).put("sources", JSONArray()).put("error", "no helper"))
             p.startsWith("/api/cc-icon/") -> icon(p.substringAfterLast('/'))
             p == "/api/admin-link" -> adminLink()
             p == "/api/weather" -> Hub.Res.json(content.weather())
@@ -59,6 +65,10 @@ class HubApi(private val hub: Hub) {
             "/api/cc-open" -> { vpnForApp(d.optString("appId")); ok() }
             "/api/cc-apps" -> { storeApps(d.optJSONArray("apps") ?: JSONArray()); ok() }
             "/api/home-edit" -> homeEditSave(d)
+            "/api/home-scene-run" -> if (exp.sceneAllowed(cfg(), d.optString("id"))) Hub.Res.json(runScene(d.optString("id")))
+                else Hub.Res.json(JSONObject().put("ok", false).put("error", "That scene isn't allowed on Home (phone panel: Layout)."), 403)
+            "/api/tv-source" -> helper("/api/tv-source", JSONObject().put("id", d.optString("id")), 15_000)?.let { Hub.Res(it.first, "application/json; charset=utf-8", it.second) }
+                ?: Hub.Res.json(JSONObject().put("ok", false).put("error", "Switching the TV's input needs the helper, which isn't reachable."), 502)
             else -> if (r.path.startsWith("/api/addons/")) addonsGet(r.path) else Hub.Res.err(404)
         }
     }
@@ -70,7 +80,7 @@ class HubApi(private val hub: Hub) {
             .put("app_vpn", cc.optJSONObject("app_vpn") ?: JSONObject()).put("greeting_name", c.optString("greeting_name"))
             .put("quotes", content.quoteOn()).put("weather", content.place() != null).put("wallpaper", content.wallOn())
             .put("region", Vpn.configured(hub.ctx)).put("clock_24h", c.optBoolean("clock_24h")).put("rev", cc.optLong("rev"))
-            .put("layout", layout()).put("live_refresh", c.optBoolean("live_refresh", true))
+            .put("layout", layout()).put("live_refresh", c.optBoolean("live_refresh", true)).put("experience", exp.forScreen(c, "cc"))
             .put("cursor", JSONObject().put("port", CursorService.PORT).put("token", svc()?.token().orEmpty())).put("started", hub.started).put("saved", hub.saved).put("api", Hub.API_VERSION)
     }
 
@@ -292,7 +302,7 @@ class HubApi(private val hub: Hub) {
             .put("wallpaper_source", c.optString("wallpaper_source", "bing")).put("wallpaper_market", c.optString("wallpaper_market", "en-US"))
             .put("wallpaper_pick", c.optString("wallpaper_pick")).put("nasa_key_set", c.has("nasa_api_key"))
             .put("vpn_countries", c.optJSONArray("vpn_countries") ?: JSONArray()).put("home_takeover", false).put("addons", content.addonsConf())
-            .put("home_layout", c.opt("home_layout") ?: JSONObject.NULL).put("takeover_on_power_on", false).put("power_on_delay_seconds", 5)
+            .put("home_layout", c.opt("home_layout") ?: JSONObject.NULL).put("home_experience", exp.current(c)).put("takeover_on_power_on", false).put("power_on_delay_seconds", 5)
             .put("tv", JSONObject().put("dock", JSONArray()).put("rows", JSONArray()).put("rename", JSONObject()).put("hidden", JSONArray()).put("app_vpn", JSONObject()))
             .put("chromecast", JSONObject().put("dock", cc.optJSONArray("dock") ?: JSONArray()).put("rows", cc.optJSONArray("rows") ?: JSONArray())
                 .put("rename", cc.optJSONObject("rename") ?: JSONObject()).put("hidden", cc.optJSONArray("hidden") ?: JSONArray()).put("app_vpn", cc.optJSONObject("app_vpn") ?: JSONObject()))
@@ -339,6 +349,7 @@ class HubApi(private val hub: Hub) {
                 "nasa_api_key" -> { val s = v.toString().trim(); if (s.isEmpty()) c.remove(key) else { require(Regex("^[A-Za-z0-9]{20,60}$").matches(s)) { "that doesn't look like a NASA API key" }; c.put(key, s) } }
                 "nasa_key_set", "home_takeover", "power_on_delay_seconds", "tv" -> { }
                 "home_layout" -> c.put(key, validateLayout(v as JSONObject))
+                "home_experience" -> c.put(key, exp.validate(v as JSONObject))
                 "addons" -> { c.put(key, validateAddons(v as JSONObject)); c.remove("quotes"); c.remove("weather") }
                 "weather" -> if (v == JSONObject.NULL) c.remove("weather") else (v as JSONObject).let { c.put("weather", JSONObject().put("city", it.optString("city").take(60)).put("lat", it.getDouble("lat")).put("lon", it.getDouble("lon"))) }
                 "vpn_countries" -> { val a = v as JSONArray; val codes = LinkedHashSet<String>(); for (i in 0 until a.length()) codes.add(a.getString(i).lowercase())

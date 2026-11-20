@@ -55,6 +55,11 @@ mkdir -p build/assets/web/app build/assets/addons
 cp ../shared/panel/admin.html ../shared/panel/admin-sw.js build/assets/web/
 cp ../shared/panel/app/* build/assets/web/app/
 cp ../shared/layout.json build/assets/layout_spec.json
+# The Home layouts: their catalog (shared/experiences/catalog.js; NativeLayouts.kt draws them here) and the previews
+# the phone panel shows.
+mkdir -p build/assets/experiences/previews
+cp ../shared/experiences/catalog.js build/assets/experiences/
+cp ../shared/experiences/previews/*.jpg build/assets/experiences/previews/ 2>/dev/null || true
 for a in ../addons/*/addon.json; do cp "$a" "build/assets/addons/$(basename "$(dirname "$a")").json"; done
 
 mkdir -p build/gen/com/cleanyourtv/home

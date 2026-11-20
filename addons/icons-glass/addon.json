@@ -1,0 +1,9 @@
+{
+  "id": "icons-glass",
+  "name": "Glass",
+  "type": "icons",
+  "emoji": "🔷",
+  "color": "#2a6f97",
+  "description": "Each app's own icon on its brand colour, in a rounded square. No cropped banners.",
+  "style": {"shape": "squircle", "background": "brand", "padding": 0.2}
+}

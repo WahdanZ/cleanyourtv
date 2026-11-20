@@ -1,0 +1,9 @@
+{
+  "id": "icons-light",
+  "name": "Light tiles",
+  "type": "icons",
+  "emoji": "⬜",
+  "color": "#f3f8fb",
+  "description": "Every icon in a square on a light tile, like a printed menu.",
+  "style": {"shape": "square", "background": "#F3F8FB", "padding": 0.18}
+}

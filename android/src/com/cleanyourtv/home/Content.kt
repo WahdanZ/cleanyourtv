@@ -299,7 +299,7 @@ class Content(private val hub: Hub) {
 
     fun refresh(id: String, force: Boolean = false) {
         val m = manifests[id] ?: return
-        if (m.optString("type") == "action" || m.has("slot")) return
+        if (m.optString("type") == "action" || m.optString("type") == "icons" || m.has("slot")) return
         val every = maxOf(1, m.optInt("refresh_minutes", 30)) * 60_000L
         val at = fetchedAt[id] ?: 0
         if (!force && results[id] != null && System.currentTimeMillis() - at < every) return
@@ -338,6 +338,24 @@ class Content(private val hub: Hub) {
             }
         }
         return JSONObject().put("widgets", widgets).put("rows", rows).put("tiles", tiles).put("widget_seconds", addonsConf().optInt("widget_seconds", 10))
+            .put("icon_theme", iconTheme() ?: JSONObject.NULL)
+    }
+
+    /** The first enabled icon theme (helper/addons.py icon_theme()): its style; pictures only the helper serves. */
+    private fun iconTheme(): JSONObject? {
+        for (id in enabledIds()) {
+            val m = manifests[id] ?: continue
+            if (m.optString("type") != "icons") continue
+            val st = m.optJSONObject("style") ?: JSONObject()
+            val color = { v: String -> if (Regex("^#[0-9A-Fa-f]{6}$").matches(v)) v else "" }
+            val bg = st.optString("background")
+            val style = JSONObject().put("shape", st.optString("shape").takeIf { it in listOf("round", "squircle", "square", "keep") } ?: "squircle")
+                .put("background", if (bg == "brand" || bg == "none") bg else color(bg).ifEmpty { "brand" })
+                .put("monochrome", st.optBoolean("monochrome")).put("tint", color(st.optString("tint")))
+                .put("padding", Math.max(0.0, Math.min(0.4, st.optDouble("padding", 0.18))))
+            return JSONObject().put("id", id).put("name", m.optString("name", id)).put("style", style).put("icons", JSONObject())
+        }
+        return null
     }
 
     fun screen(id: String): JSONObject? {
