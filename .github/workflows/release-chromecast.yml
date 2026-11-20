@@ -1,0 +1,39 @@
+# The Chromecast app as a GitHub Release, on a tag chromecast-v<version> (android/VERSION must match):
+#   echo 1.5.1 > android/VERSION; git commit …; git tag chromecast-v1.5.1; git push mine chromecast-v1.5.1
+# Signed with the same key as every earlier install (secrets ANDROID_KEYSTORE_B64: the keystore in base64, and
+# ANDROID_KS_PASS), so it installs over them; a different key would mean uninstalling, which clears the app's settings.
+name: Release the Chromecast app
+on:
+  push:
+    tags: ["chromecast-v*"]
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: The tag matches android/VERSION
+        run: test "chromecast-v$(cat android/VERSION)" = "$GITHUB_REF_NAME"
+      - uses: ./.github/actions/android-tools
+      - name: Build and sign
+        working-directory: android
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_KS_PASS }}
+        run: |
+          test -n "$KEYSTORE_B64" || { echo "Add the ANDROID_KEYSTORE_B64 and ANDROID_KS_PASS secrets"; exit 1; }
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          RELEASE=1 KEYSTORE="$RUNNER_TEMP/release.keystore" ./build.sh
+          v=$(cat VERSION)
+          cp build/home.apk "$RUNNER_TEMP/cleanyourtv-chromecast-$v.apk"
+          (cd "$RUNNER_TEMP" && sha256sum "cleanyourtv-chromecast-$v.apk" > "cleanyourtv-chromecast-$v.apk.sha256")
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(cat android/VERSION)
+          gh release create "$GITHUB_REF_NAME" --draft --title "Chromecast app $v" \
+            --notes "Install: docs/chromecast-only.md. Updates install over the previous version (same signing key)." \
+            "$RUNNER_TEMP/cleanyourtv-chromecast-$v.apk" "$RUNNER_TEMP/cleanyourtv-chromecast-$v.apk.sha256"

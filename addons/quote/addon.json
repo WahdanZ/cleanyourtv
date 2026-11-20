@@ -1,0 +1,70 @@
+{
+  "id": "quote",
+  "version": "1.1",
+  "name": "Quote of the day",
+  "type": "widget",
+  "slot": "quote",
+  "emoji": "❝",
+  "color": "#5b4a8a",
+  "description": "A quote each day on Home: ZenQuotes.io's (with the author's portrait), your own list, or the built-in one.",
+  "settings": [
+    {
+      "key": "source",
+      "label": "Where quotes come from",
+      "type": "select",
+      "default": "zenquotes",
+      "options": [
+        [
+          "zenquotes",
+          "ZenQuotes.io: a new one each day, with a portrait"
+        ],
+        [
+          "mine",
+          "My quotes (below)"
+        ],
+        [
+          "builtin",
+          "The built-in list (30 quotes, no internet needed)"
+        ]
+      ]
+    },
+    {
+      "key": "pick",
+      "label": "From a list",
+      "type": "select",
+      "default": "order",
+      "options": [
+        [
+          "order",
+          "One a day, in order"
+        ],
+        [
+          "random",
+          "One a day, at random"
+        ],
+        [
+          "each",
+          "A different one each time Home opens"
+        ]
+      ],
+      "show_if": {
+        "source": [
+          "mine",
+          "builtin"
+        ]
+      }
+    },
+    {
+      "key": "mine",
+      "label": "My quotes: one per line, the author after a dash (— or -)",
+      "type": "lines",
+      "default": "",
+      "placeholder": "The best time to plant a tree was 20 years ago. The second best time is now. — Chinese proverb",
+      "show_if": {
+        "source": [
+          "mine"
+        ]
+      }
+    }
+  ]
+}

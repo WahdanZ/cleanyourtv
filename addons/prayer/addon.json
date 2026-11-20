@@ -1,0 +1,45 @@
+{
+  "id": "prayer",
+  "version": "1.0",
+  "name": "Prayer times",
+  "type": "widget",
+  "emoji": "🕌",
+  "color": "#7a5b2e",
+  "refresh_minutes": 60,
+  "description": "Today's prayer times and the next one (from AlAdhan), for your city.",
+  "settings": [
+    {
+      "key": "place",
+      "label": "City (empty: the weather's city)",
+      "type": "place"
+    },
+    {
+      "key": "method",
+      "label": "Calculation method",
+      "type": "select",
+      "default": "3",
+      "options": [
+        [
+          "3",
+          "Muslim World League"
+        ],
+        [
+          "5",
+          "Egyptian General Authority"
+        ],
+        [
+          "4",
+          "Umm al-Qura, Makkah"
+        ],
+        [
+          "2",
+          "ISNA (North America)"
+        ],
+        [
+          "13",
+          "Diyanet (Turkey)"
+        ]
+      ]
+    }
+  ]
+}

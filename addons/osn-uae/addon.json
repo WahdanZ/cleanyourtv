@@ -1,0 +1,17 @@
+{
+  "id": "osn-uae",
+  "version": "1.0",
+  "name": "OSN+ UAE",
+  "type": "action",
+  "emoji": "🇦🇪",
+  "color": "#5a2d82",
+  "description": "Switches the VPN to the UAE, then opens OSN+.",
+  "steps": [
+    {
+      "vpn": "ae"
+    },
+    {
+      "open": "com.osn.go"
+    }
+  ]
+}

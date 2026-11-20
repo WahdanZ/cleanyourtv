@@ -1,0 +1,17 @@
+{
+  "id": "netflix-usa",
+  "version": "1.0",
+  "name": "Netflix USA",
+  "type": "action",
+  "emoji": "🇺🇸",
+  "color": "#b1060f",
+  "description": "Switches the VPN to the USA, then opens Netflix.",
+  "steps": [
+    {
+      "vpn": "us"
+    },
+    {
+      "open": "com.netflix.ninja"
+    }
+  ]
+}

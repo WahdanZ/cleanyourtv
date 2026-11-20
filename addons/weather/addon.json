@@ -1,0 +1,17 @@
+{
+  "id": "weather",
+  "version": "1.0",
+  "name": "Weather",
+  "type": "widget",
+  "slot": "weather",
+  "emoji": "⛅",
+  "color": "#2f6db3",
+  "description": "Now and today's high and low from Open-Meteo, at the top right of Home.",
+  "settings": [
+    {
+      "key": "place",
+      "label": "City",
+      "type": "place"
+    }
+  ]
+}

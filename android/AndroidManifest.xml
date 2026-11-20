@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Chromecast's home screen: a native app with the TV launcher's design (see src/.../MainActivity.java). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.cleanyourtv.home">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- To list the installed TV apps for the tiles. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <!-- To switch Wireless debugging back on after a restart or a Wi-Fi drop (AdbKeeper). Only works once the
+         helper grants it over adb; it can't be granted any other way. -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- The remote's Wake without adb (CursorService). -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <application
+        android:label="Home"
+        android:icon="@drawable/ic_launcher"
+        android:banner="@drawable/banner"
+        android:usesCleartextTraffic="true"
+        android:hardwareAccelerated="true"
+        android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:stateNotNeeded="true"
+            android:clearTaskOnLaunch="true"
+            android:screenOrientation="landscape"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|density">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <!-- The phone remote's trackpad: a pointer over any app (switched on by the helper over adb). -->
+        <service
+            android:name=".CursorService"
+            android:label="Home trackpad"
+            android:exported="false"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/cursor_service" />
+        </service>
+            <!-- The launcher's own VPN (WireGuard; Vpn.java): one country at a time, for the apps you choose. -->
+        <service
+            android:name="com.wireguard.android.backend.GoBackend$VpnService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+        <!-- Lets CursorService read what's playing (length, position, picture) for the phone's Now playing. The helper
+             allows it over adb; it reads no notifications. -->
+        <service
+            android:name=".MediaWatch"
+            android:exported="true"
+            android:label="Home now playing"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

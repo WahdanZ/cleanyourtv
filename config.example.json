@@ -17,9 +17,33 @@
   "browser": {"search": "https://search.brave.com/search?q=%s", "region": "za-en",
               "links": [{"name": "Brave Search", "url": "https://search.brave.com/"}, {"name": "Wikipedia", "url": "https://www.wikipedia.org/"}]},
   "greeting_name": "",
+  "rows": [
+    {"title": "Free TV", "apps": ["cyt-tv", "284"]},
+    {"title": "Streaming & music", "apps": ["351", "2256"]}
+  ],
+  "rename": {"2256": "Spotify"},
+  "weather": {"city": "London", "lat": 51.51, "lon": -0.13},
+  "quotes": true,
+  "app_browser": {"osnplus": "https://osnplus.com/"},
+  "app_vpn": {"osnplus": "ae"},
+  "vpn_countries": ["us", "gb"],
+  "wallpaper": true,
+  "wallpaper_market": "en-US",
+  "wallpaper_size": "1920x1080",
+  "wallpaper_source": "bing",
+  "wallpaper_pick": "",
+  "live_refresh": true,
   "clock_24h": false,
   "home_takeover": true,
   "takeover_on_power_on": true,
   "power_on_delay_seconds": 5,
-  "app_list_refresh_minutes": 5
+  "app_list_refresh_minutes": 5,
+  "chromecast": {
+    "ip": "192.168.1.60",
+    "dock": ["com.netflix.ninja", "com.google.android.youtube.tv", "com.amazon.amazonvideo.livingroom", "com.disney.disneyplus"],
+    "rows": [{"title": "Streaming", "apps": ["com.osn.go", "net.mbc.shahidTV"]}],
+    "rename": {"com.osn.go": "OSN+"},
+    "hidden": ["com.google.android.videos"],
+    "app_vpn": {"com.osn.go": "ae"}
+  }
 }

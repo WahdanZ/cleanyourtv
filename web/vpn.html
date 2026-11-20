@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV VPN</title>
+<style>
+  /* A phone page for the TV's VPN country, served by the helper to devices on the home network.
+     Only this page and /api/region are open to them, so everything is inline (no fonts, no icons from the helper). */
+  :root { --bg: #f4f4f6; --card: #fff; --text: #111; --muted: #6b6b75; --line: #e3e3e8; --accent: #2563eb; --on: #16a34a; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0b0b0d; --card: #17171b; --text: #f2f2f4; --muted: #9a9aa5; --line: #2a2a30; --accent: #5b8cff; --on: #34d399; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 480px; margin: 0 auto; padding: 24px 16px 40px; }
+  h1 { margin: 0 0 4px; font-size: 26px; font-weight: 650; }
+  #now { margin: 0 0 20px; color: var(--muted); }
+  #now b { color: var(--text); }
+  .list { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  button { display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 16px 18px; border: 0;
+           border-bottom: 1px solid var(--line); background: none; color: var(--text); font: inherit; font-size: 17px; text-align: left; }
+  button:last-child { border-bottom: 0; }
+  button:active { background: var(--line); }
+  button[disabled] { opacity: .5; }
+  .tick { color: var(--on); font-weight: 700; }
+  #msg { min-height: 1.4em; margin: 16px 2px 0; color: var(--muted); }
+  #msg.err { color: #dc2626; }
+  footer { margin-top: 28px; font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>TV VPN</h1>
+  <p id="now">Checking…</p>
+  <div class="list" id="list"></div>
+  <p id="msg"></p>
+  <footer>Only the TV changes. After switching, close and reopen Netflix or Disney+ on the TV.</footer>
+</main>
+<script>
+(function () {
+  'use strict';
+  var state = { now: null, list: [], busy: false };
+  function $(id) { return document.getElementById(id); }
+  function nameOf(id) { var r = state.list.filter(function (x) { return x.id === id; })[0]; return r ? r.name : id; }
+
+  function render() {
+    $('now').innerHTML = state.now === null ? 'The VPN switch is not set up (docs/setup/vpn.md).'
+      : 'The TV is in <b></b>' + (state.now === 'off' ? '' : ' through NordVPN') + '.';
+    if (state.now !== null) $('now').querySelector('b').textContent = nameOf(state.now);
+    var box = $('list');
+    box.innerHTML = '';
+    state.list.forEach(function (r) {
+      var b = document.createElement('button');
+      b.disabled = state.busy;
+      b.appendChild(document.createTextNode(r.name));
+      if (r.id === state.now) { var t = document.createElement('span'); t.className = 'tick'; t.textContent = '✓'; b.appendChild(t); }
+      b.onclick = function () { choose(r.id); };
+      box.appendChild(b);
+    });
+  }
+  function say(text, err) { $('msg').textContent = text; $('msg').className = err ? 'err' : ''; }
+
+  function load() {
+    return fetch('/api/region', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+      state.now = d.region; state.list = d.regions || []; render();
+    }, function () { say('Cannot reach the helper. Is its computer on, and is this phone on the home Wi-Fi?', true); });
+  }
+  function choose(id) {
+    if (state.busy || id === state.now) return;
+    state.busy = true; render(); say('Switching to ' + nameOf(id) + '… (up to 20 seconds)');
+    fetch('/api/region', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ region: id }) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        state.busy = false;
+        if (d.ok) { state.now = d.region; say('Done: the TV is in ' + nameOf(d.region) + '.'); }
+        else say('Could not switch: ' + (d.error || 'no answer'), true);
+        render();
+      }, function () { state.busy = false; render(); say('Cannot reach the helper.', true); });
+  }
+  load();
+})();
+</script>
+</body>
+</html>

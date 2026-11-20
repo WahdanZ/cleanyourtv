@@ -1,0 +1,92 @@
+"""The Home layout: where the clock, quote, weather, widgets and app name sit above the dock, and how big the
+dock's and the rows' tiles are.
+
+A grid of 12 columns by 6 rows covers the screen above the dock, inside the edges some TVs cut off. Each block has
+a few allowed sizes (so its text always fits) and can be hidden; the top right (columns 7-11, rows 0-1) is kept for
+the buttons and the photo credit. Saved in config.json as "home_layout"; the Chromecast and the TV draw it (the TV keeps its
+own dock), the admin panel's Chromecast tab edits it. The same presets and sizes are used by both, from here.
+
+There are three widget blocks. Each shows the widget add-ons picked for it ("addons"; none picked: every widget no
+other block has picked); a card fills its block and shows as much as fits, and a block of four rows or more stacks cards
+(one per two rows). Every block can be any size from its "resize" minimum up to the whole grid; its "sizes" are quick
+picks. The screens shrink a block's content to fit when it's bigger than its block (a big clock in a small block).
+"""
+import json
+import re
+from pathlib import Path
+
+# The rules themselves (grid, blocks and their sizes, presets, tile sizes, clock styles) are in shared/layout.json,
+# the one copy both back ends use: this helper, and the Chromecast's own server (android/, built in by build.sh).
+_SPEC = json.loads((Path(__file__).resolve().parent.parent / "shared" / "layout.json").read_text(encoding="utf-8"))
+COLS, ROWS = _SPEC["cols"], _SPEC["rows"]
+RESERVED = _SPEC["reserved"]                 # the buttons and the photo credit
+CLOCK_STYLES = _SPEC["clock_styles"]         # one of these, or a different one each day from a chosen few ("rotate")
+WIDGET_BLOCKS = tuple(_SPEC["widget_blocks"])
+TILE_SIZES = _SPEC["tile_sizes"]             # tiles across the screen
+BLOCKS = _SPEC["blocks"]
+PRESETS = _SPEC["presets"]
+
+
+def spec() -> dict:
+    """Everything the admin panel's Layout tab needs to draw and check a layout (shared/layout.json, as it is)."""
+    return _SPEC
+
+
+def dock_max(lay) -> int:
+    """How many apps the Chromecast's dock holds with this layout's dock tiles."""
+    size = (lay or {}).get("dock") if isinstance(lay, dict) else None
+    return TILE_SIZES.get(size, TILE_SIZES["big"])[1]
+
+
+def _overlap(a, b) -> bool:
+    return a["x"] < b["x"] + b["w"] and b["x"] < a["x"] + a["w"] and a["y"] < b["y"] + b["h"] and b["y"] < a["y"] + a["h"]
+
+
+def validate(v) -> dict:
+    """A layout from the admin panel, checked: known blocks, allowed sizes, inside the grid, no overlaps."""
+    if not isinstance(v, dict) or not isinstance(v.get("blocks"), dict):
+        raise ValueError("bad layout")
+    out = {}
+    for bid, b in v["blocks"].items():
+        if bid not in BLOCKS:
+            raise ValueError(f"unknown block {bid}")
+        x, y, w, h, on = int(b["x"]), int(b["y"]), int(b["w"]), int(b["h"]), bool(b.get("on", True))
+        rz = BLOCKS[bid].get("resize")
+        if rz:
+            if w < rz["min"][0] or h < rz["min"][1]:
+                raise ValueError(f"{BLOCKS[bid]['name']}: at least {rz['min'][0]} columns by {rz['min'][1]} row")
+        elif [w, h] not in [s[:2] for s in BLOCKS[bid]["sizes"]]:
+            raise ValueError(f"{BLOCKS[bid]['name']}: that size isn't one of its sizes")
+        if not (0 <= x and x + w <= COLS and 0 <= y and y + h <= ROWS):
+            raise ValueError(f"{BLOCKS[bid]['name']} is outside the grid")
+        out[bid] = {"x": x, "y": y, "w": w, "h": h, "on": on}
+        if bid == "clock":
+            names = [c[0] for c in CLOCK_STYLES]
+            style = str(b.get("style") or "classic")
+            out[bid]["style"] = style if style in names else "classic"
+            rot = b.get("rotate") or []
+            if not isinstance(rot, list):
+                raise ValueError("bad clock rotation")
+            out[bid]["rotate"] = [r for r in names if r in rot]
+            out[bid]["weather"] = bool(b.get("weather"))
+        if bid in WIDGET_BLOCKS:
+            picks = b.get("addons") or []
+            if not isinstance(picks, list):
+                raise ValueError("bad add-on list")
+            out[bid]["addons"] = [str(i) for i in picks[:20] if re.match(r"^[a-z0-9][a-z0-9-]{0,40}$", str(i))]
+    shown = [(k, b) for k, b in out.items() if b["on"]]
+    for k, b in shown:
+        if _overlap(b, RESERVED):
+            raise ValueError(f"{BLOCKS[k]['name']} is over the buttons' corner")
+    for i, (k1, b1) in enumerate(shown):
+        for k2, b2 in shown[i + 1:]:
+            if _overlap(b1, b2):
+                raise ValueError(f"{BLOCKS[k1]['name']} and {BLOCKS[k2]['name']} overlap")
+    for bid in BLOCKS:   # a block the panel didn't send keeps its Classic place, hidden
+        out.setdefault(bid, dict(PRESETS["classic"]["blocks"][bid], on=False))
+    sizes = {}
+    for k in ("dock", "rows"):
+        sizes[k] = v.get(k) or "big"
+        if sizes[k] not in TILE_SIZES:
+            raise ValueError(f"bad {k} size")
+    return {"blocks": out, "preset": str(v.get("preset", ""))[:30], **sizes, "dock_full": bool(v.get("dock_full"))}

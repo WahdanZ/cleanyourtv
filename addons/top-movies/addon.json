@@ -1,0 +1,40 @@
+{
+  "id": "top-movies",
+  "version": "1.0",
+  "name": "Top movies",
+  "type": "row",
+  "emoji": "🎬",
+  "color": "#8a2f6d",
+  "refresh_minutes": 360,
+  "description": "This week's most popular films (Apple's chart); OK opens the trailer on YouTube.",
+  "settings": [
+    {
+      "key": "country",
+      "label": "Chart of",
+      "type": "select",
+      "default": "us",
+      "options": [
+        [
+          "us",
+          "USA"
+        ],
+        [
+          "gb",
+          "UK"
+        ],
+        [
+          "de",
+          "Germany"
+        ],
+        [
+          "ae",
+          "UAE"
+        ],
+        [
+          "eg",
+          "Egypt"
+        ]
+      ]
+    }
+  ]
+}
