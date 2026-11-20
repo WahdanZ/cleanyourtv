@@ -1,0 +1,33 @@
+# Checks on every push and pull request: the helper compiles and answers the API (shared/API.md), the app builds.
+name: CI
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  helper:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Compile
+        run: python -m py_compile helper/*.py tools/*.py tests/*.py
+      - name: Layout rules load
+        run: python -c "import sys; sys.path.insert(0, 'helper'); import layout; layout.validate(layout.PRESETS['classic'])"
+      - name: API contract (a throw-away helper)
+        run: tests/run_helper_contract.sh
+
+  chromecast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/android-tools
+      - name: Build (release-style: no helper address)
+        working-directory: android
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/ci.keystore" -storepass android -keypass android -alias ci \
+            -keyalg RSA -keysize 2048 -validity 1 -dname "CN=CI" >/dev/null 2>&1
+          RELEASE=1 KEYSTORE="$RUNNER_TEMP/ci.keystore" ./build.sh

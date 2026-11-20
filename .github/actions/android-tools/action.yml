@@ -1,0 +1,19 @@
+# What android/build.sh needs, pinned: JDK 17, the Android SDK's build-tools 35.0.0 and platform 34, Kotlin 2.3.10.
+name: Android tools
+description: JDK, Android SDK and Kotlin for android/build.sh
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: "17"
+    - uses: android-actions/setup-android@v4
+      with:
+        packages: "build-tools;35.0.0 platforms;android-34"
+    - name: Kotlin
+      shell: bash
+      run: |
+        curl -fsSL -o "$RUNNER_TEMP/kotlin.zip" https://github.com/JetBrains/kotlin/releases/download/v2.3.10/kotlin-compiler-2.3.10.zip
+        unzip -q "$RUNNER_TEMP/kotlin.zip" -d "$RUNNER_TEMP"
+        echo "KOTLINC=$RUNNER_TEMP/kotlinc/bin/kotlinc" >> "$GITHUB_ENV"

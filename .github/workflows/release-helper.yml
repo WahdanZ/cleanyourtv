@@ -1,0 +1,29 @@
+# The helper as a GitHub Release (a zip to unpack on the computer), on a tag helper-v<version> (helper/VERSION must
+# match). Most people use git pull instead; this is for a computer without git.
+name: Release the helper
+on:
+  push:
+    tags: ["helper-v*"]
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: The tag matches helper/VERSION
+        run: test "helper-v$(cat helper/VERSION)" = "$GITHUB_REF_NAME"
+      - name: Zip
+        run: |
+          v=$(cat helper/VERSION)
+          zip -qr "$RUNNER_TEMP/cleanyourtv-helper-$v.zip" helper shared web addons vpn setup tools docs README.md LICENSE config.example.json \
+            -x '*/__pycache__/*'
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(cat helper/VERSION)
+          gh release create "$GITHUB_REF_NAME" --draft --title "Helper $v" \
+            --notes "Unpack, then follow docs/chromecast-vidaa.md or docs/vidaa-only.md. Updating: keep your config.json and data/." \
+            "$RUNNER_TEMP/cleanyourtv-helper-$v.zip"
