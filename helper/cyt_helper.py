@@ -59,7 +59,9 @@ import addons  # noqa: E402
 import layout  # noqa: E402
 import secure  # noqa: E402
 
-WEB = ROOT / "web"
+API_VERSION = 1                       # shared/API.md: the requests both back ends answer the same way
+WEB = ROOT / "web"                    # the TV's own pages (launcher, YouTube, Live TV)
+PANEL = ROOT / "shared" / "panel"     # the phone panel, the same page the Chromecast's own server serves
 DATA = ROOT / "data"
 ICONS = DATA / "icons"
 APPS_CACHE = DATA / "apps.json"
@@ -953,7 +955,7 @@ def chromecast_settings() -> dict:
             "wallpaper": bool(WALLPAPER_ON), "region": vpn_available(), "clock_24h": CONFIG.get("clock_24h", False),
             "rev": CHROMECAST.get("rev", 0), "layout": CONFIG.get("home_layout") or layout.PRESETS["classic"],
             "live_refresh": CONFIG.get("live_refresh", True) is not False,
-            "cursor": {"port": POINTER_PORT, "token": pointer_token()},
+            "cursor": {"port": POINTER_PORT, "token": pointer_token()}, "api": API_VERSION,
             "started": STARTED, "saved": SAVED["at"]}
 
 
@@ -1032,7 +1034,7 @@ def validate_addons(v: dict) -> dict:
     return out
 
 
-# ---------- admin panel (web/admin.html, helper/admin.py) ----------
+# ---------- admin panel (shared/panel/admin.html, helper/admin.py) ----------
 ADMIN = admin.Admin(CONFIG_PATH, DATA, log)
 ADMIN.validate_addons = validate_addons
 ADMIN.load_sessions()
@@ -2764,10 +2766,10 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(200, {"started": STARTED, "wall": wall, "saved": SAVED["at"], "code": page_code("index.html")})
             return
         if path == "/admin":
-            self._send((WEB / "admin.html").read_bytes(), "text/html; charset=utf-8")
+            self._send((PANEL / "admin.html").read_bytes(), "text/html; charset=utf-8")
             return
         if path == "/admin-sw.js":   # the panel's service worker: shows the notifications
-            body = (WEB / "admin-sw.js").read_bytes()
+            body = (PANEL / "admin-sw.js").read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "text/javascript; charset=utf-8")
             self.send_header("Service-Worker-Allowed", "/")
@@ -2937,11 +2939,11 @@ class Handler(SimpleHTTPRequestHandler):
     def _admin_get(self, path: str):
         if path == "/api/admin/hello":   # whether a password exists and this browser is signed in
             self._json(200, {"password_set": ADMIN.password_set(), "signed_in": ADMIN.signed_in(self.headers.get("Cookie")),
-                             "code": page_code("admin.html")})
+                             "code": page_code("admin.html"), "api": API_VERSION})
             return
         if path.startswith("/api/admin/app/"):   # the panel as a phone app: its manifest and icons (asked for without the sign-in)
             name = path.rsplit("/", 1)[1]
-            f = WEB / "app" / name
+            f = PANEL / "app" / name
             if not re.match(r"^[a-z0-9-]+\.(png|svg|webmanifest)$", name) or not f.exists():
                 self.send_error(404)
                 return
@@ -3578,7 +3580,7 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
 def page_code(name: str) -> int:
     """The version of a page's code (when its file last changed): a screen that has an older one reloads itself."""
     try:
-        return int((WEB / name).stat().st_mtime)
+        return int(((PANEL if name.startswith("admin") else WEB) / name).stat().st_mtime)
     except OSError:
         return 0
 

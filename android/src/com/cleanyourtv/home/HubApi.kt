@@ -71,7 +71,7 @@ class HubApi(private val hub: Hub) {
             .put("quotes", content.quoteOn()).put("weather", content.place() != null).put("wallpaper", content.wallOn())
             .put("region", Vpn.configured(hub.ctx)).put("clock_24h", c.optBoolean("clock_24h")).put("rev", cc.optLong("rev"))
             .put("layout", layout()).put("live_refresh", c.optBoolean("live_refresh", true))
-            .put("cursor", JSONObject().put("port", CursorService.PORT).put("token", svc()?.token().orEmpty())).put("started", hub.started).put("saved", hub.saved)
+            .put("cursor", JSONObject().put("port", CursorService.PORT).put("token", svc()?.token().orEmpty())).put("started", hub.started).put("saved", hub.saved).put("api", Hub.API_VERSION)
     }
 
     fun layout(): JSONObject = cfg().optJSONObject("home_layout") ?: spec.getJSONObject("presets").getJSONObject("classic")
@@ -201,9 +201,11 @@ class HubApi(private val hub: Hub) {
                 if (d.has("apps")) e.putString("apps", d.optString("apps"))
                 e.apply(); log("vpn: settings moved over"); ok()
             }
-            "/api/hub/mode" -> {   // Home uses this server from now on (or the Mac again)
+            "/api/hub/mode" -> {   // Home uses this server from now on (or the Mac again); "helper": where the helper is
                 val on = d.optBoolean("on")
-                hub.ctx.getSharedPreferences("home", android.content.Context.MODE_PRIVATE).edit().putBoolean("hub", on).remove("reported").apply()
+                val e = hub.ctx.getSharedPreferences("home", android.content.Context.MODE_PRIVATE).edit().putBoolean("hub", on).remove("reported")
+                if (d.has("helper")) e.putString("helper", d.optString("helper").trimEnd('/'))
+                e.apply()
                 hub.saved = System.currentTimeMillis() / 1000
                 log("hub: Home uses " + if (on) "this Chromecast's own server" else "the Mac's helper")
                 ok()
@@ -253,7 +255,7 @@ class HubApi(private val hub: Hub) {
         val d = r.json
         return when (r.path) {
             "/api/admin/logout" -> { store.endSession(r.cookie(Hub.COOKIE)); ok() }
-            "/api/admin/save" -> try { save(d.optJSONObject("changes") ?: d); ok(JSONObject().put("restarting", false)) } catch (e: Exception) { Hub.Res.err(400, e.message ?: "") }
+            "/api/admin/save" -> try { save(d.optJSONObject("changes") ?: JSONObject()); ok(JSONObject().put("live", true)) } catch (e: Exception) { Hub.Res.err(400, e.message ?: "") }
             "/api/admin/remote" -> remote(d)
             "/api/admin/launch" -> launch(d)
             "/api/admin/pointer" -> pointer(d.optJSONArray("ops") ?: JSONArray())
@@ -495,7 +497,9 @@ class HubApi(private val hub: Hub) {
     private fun helper(path: String, body: JSONObject?, timeout: Int = 6000): Pair<Int, ByteArray>? {
         if (System.currentTimeMillis() < helperDownUntil) return null
         return try {
-            val h = java.net.URL(BuildConfig.HELPER + path).openConnection() as java.net.HttpURLConnection
+            val base = Hub.helperUrl(hub.ctx)
+            if (base.isEmpty()) return null
+            val h = java.net.URL(base + path).openConnection() as java.net.HttpURLConnection
             h.connectTimeout = 1500; h.readTimeout = timeout
             h.setRequestProperty("X-Token", svc()?.token().orEmpty())
             if (body != null) { h.requestMethod = "POST"; h.doOutput = true; h.setRequestProperty("Content-Type", "application/json")
@@ -529,7 +533,9 @@ class HubApi(private val hub: Hub) {
 
     /** A tap at (x, y) by the laptop's helper over adb (it checks the key it gave this app). False when it's not there. */
     private fun helperTap(x: Float, y: Float, long: Boolean): Boolean = try {
-        val h = java.net.URL(BuildConfig.HELPER + "/api/hub/tap").openConnection() as java.net.HttpURLConnection
+        val base = Hub.helperUrl(hub.ctx)
+        if (base.isEmpty()) return false
+        val h = java.net.URL("$base/api/hub/tap").openConnection() as java.net.HttpURLConnection
         h.connectTimeout = 1500; h.readTimeout = 4000; h.requestMethod = "POST"; h.doOutput = true
         h.setRequestProperty("Content-Type", "application/json"); h.setRequestProperty("X-Token", svc()?.token().orEmpty())
         h.outputStream.use { it.write(JSONObject().put("x", Math.round(x)).put("y", Math.round(y)).put("long", long).toString().toByteArray()) }

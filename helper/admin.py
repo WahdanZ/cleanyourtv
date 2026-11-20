@@ -1,6 +1,6 @@
 """The admin panel's back end: sign-in, and reading and saving the settings both launchers use.
 
-The page is web/admin.html, opened from a phone or computer at home (http://<this computer>:8765/admin). Every
+The page is shared/panel/admin.html, opened from a phone or computer at home (http://<this computer>:8765/admin). Every
 /api/admin/ call needs the session cookie from signing in with the admin password, which is set with
 helper/set_admin_password.py (only a salted hash is kept, in data/admin.json). Saving checks every value, keeps a
 copy of the old config.json in data/config-backups/ and then restarts the helper, so everything picks it up.

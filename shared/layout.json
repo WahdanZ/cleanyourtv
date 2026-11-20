@@ -1,0 +1,679 @@
+{
+ "cols": 12,
+ "rows": 6,
+ "reserved": {
+  "x": 7,
+  "y": 0,
+  "w": 5,
+  "h": 2
+ },
+ "blocks": {
+  "clock": {
+   "name": "Clock",
+   "emoji": "🕒",
+   "sizes": [
+    [
+     6,
+     2,
+     "Normal"
+    ],
+    [
+     3,
+     1,
+     "Small"
+    ],
+    [
+     7,
+     3,
+     "Big"
+    ]
+   ],
+   "resize": {
+    "min": [
+     3,
+     1
+    ]
+   }
+  },
+  "quote": {
+   "name": "Quote",
+   "emoji": "❝",
+   "sizes": [
+    [
+     8,
+     2,
+     "Wide"
+    ],
+    [
+     6,
+     2,
+     "Normal"
+    ],
+    [
+     5,
+     2,
+     "Narrow"
+    ]
+   ],
+   "resize": {
+    "min": [
+     3,
+     1
+    ]
+   }
+  },
+  "weather": {
+   "name": "Weather",
+   "emoji": "⛅",
+   "sizes": [
+    [
+     3,
+     2,
+     "Normal"
+    ],
+    [
+     2,
+     1,
+     "Small"
+    ]
+   ],
+   "resize": {
+    "min": [
+     2,
+     1
+    ]
+   }
+  },
+  "widgets": {
+   "name": "Widgets",
+   "emoji": "🧩",
+   "sizes": [
+    [
+     4,
+     2,
+     "Normal"
+    ],
+    [
+     5,
+     2,
+     "Wide"
+    ],
+    [
+     4,
+     4,
+     "Two stacked"
+    ],
+    [
+     5,
+     4,
+     "Two stacked, wide"
+    ],
+    [
+     4,
+     1,
+     "One line"
+    ]
+   ],
+   "resize": {
+    "min": [
+     3,
+     1
+    ]
+   }
+  },
+  "widgets2": {
+   "name": "Widgets 2",
+   "emoji": "🧩",
+   "sizes": [
+    [
+     4,
+     2,
+     "Normal"
+    ],
+    [
+     5,
+     2,
+     "Wide"
+    ],
+    [
+     4,
+     4,
+     "Two stacked"
+    ],
+    [
+     5,
+     4,
+     "Two stacked, wide"
+    ],
+    [
+     4,
+     1,
+     "One line"
+    ]
+   ],
+   "resize": {
+    "min": [
+     3,
+     1
+    ]
+   }
+  },
+  "widgets3": {
+   "name": "Widgets 3",
+   "emoji": "🧩",
+   "sizes": [
+    [
+     4,
+     2,
+     "Normal"
+    ],
+    [
+     5,
+     2,
+     "Wide"
+    ],
+    [
+     4,
+     4,
+     "Two stacked"
+    ],
+    [
+     5,
+     4,
+     "Two stacked, wide"
+    ],
+    [
+     4,
+     1,
+     "One line"
+    ]
+   ],
+   "resize": {
+    "min": [
+     3,
+     1
+    ]
+   }
+  },
+  "hero": {
+   "name": "App name",
+   "emoji": "🔤",
+   "sizes": [
+    [
+     7,
+     2,
+     "Normal"
+    ],
+    [
+     5,
+     2,
+     "Narrow"
+    ]
+   ],
+   "resize": {
+    "min": [
+     3,
+     1
+    ]
+   }
+  },
+  "nowplaying": {
+   "name": "Now playing",
+   "emoji": "🎵",
+   "sizes": [
+    [
+     5,
+     2,
+     "Normal"
+    ],
+    [
+     4,
+     1,
+     "Small"
+    ],
+    [
+     6,
+     2,
+     "Wide"
+    ]
+   ],
+   "resize": {
+    "min": [
+     3,
+     1
+    ]
+   }
+  }
+ },
+ "presets": {
+  "classic": {
+   "name": "Classic",
+   "blocks": {
+    "clock": {
+     "x": 0,
+     "y": 0,
+     "w": 6,
+     "h": 2,
+     "on": true
+    },
+    "quote": {
+     "x": 0,
+     "y": 2,
+     "w": 8,
+     "h": 2,
+     "on": true
+    },
+    "weather": {
+     "x": 9,
+     "y": 2,
+     "w": 3,
+     "h": 2,
+     "on": true
+    },
+    "hero": {
+     "x": 0,
+     "y": 4,
+     "w": 7,
+     "h": 2,
+     "on": true
+    },
+    "widgets": {
+     "x": 8,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": true
+    },
+    "widgets2": {
+     "x": 0,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": false
+    },
+    "widgets3": {
+     "x": 4,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": false
+    },
+    "nowplaying": {
+     "x": 0,
+     "y": 4,
+     "w": 5,
+     "h": 2,
+     "on": false
+    }
+   },
+   "dock": "big",
+   "rows": "big",
+   "dock_full": false
+  },
+  "widgets-left": {
+   "name": "Widgets left",
+   "blocks": {
+    "clock": {
+     "x": 0,
+     "y": 0,
+     "w": 6,
+     "h": 2,
+     "on": true
+    },
+    "widgets": {
+     "x": 0,
+     "y": 2,
+     "w": 5,
+     "h": 2,
+     "on": true
+    },
+    "weather": {
+     "x": 9,
+     "y": 2,
+     "w": 3,
+     "h": 2,
+     "on": true
+    },
+    "quote": {
+     "x": 0,
+     "y": 4,
+     "w": 6,
+     "h": 2,
+     "on": true
+    },
+    "hero": {
+     "x": 7,
+     "y": 4,
+     "w": 5,
+     "h": 2,
+     "on": true
+    },
+    "widgets2": {
+     "x": 0,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": false
+    },
+    "widgets3": {
+     "x": 4,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": false
+    },
+    "nowplaying": {
+     "x": 0,
+     "y": 4,
+     "w": 5,
+     "h": 2,
+     "on": false
+    }
+   },
+   "dock": "big",
+   "rows": "big",
+   "dock_full": false
+  },
+  "big-clock": {
+   "name": "Big clock",
+   "blocks": {
+    "clock": {
+     "x": 0,
+     "y": 1,
+     "w": 7,
+     "h": 3,
+     "on": true
+    },
+    "weather": {
+     "x": 9,
+     "y": 2,
+     "w": 3,
+     "h": 2,
+     "on": true
+    },
+    "widgets": {
+     "x": 8,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": true
+    },
+    "quote": {
+     "x": 0,
+     "y": 4,
+     "w": 6,
+     "h": 2,
+     "on": false
+    },
+    "hero": {
+     "x": 0,
+     "y": 4,
+     "w": 7,
+     "h": 2,
+     "on": false
+    },
+    "widgets2": {
+     "x": 0,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": false
+    },
+    "widgets3": {
+     "x": 4,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": false
+    },
+    "nowplaying": {
+     "x": 0,
+     "y": 4,
+     "w": 5,
+     "h": 2,
+     "on": false
+    }
+   },
+   "dock": "big",
+   "rows": "big",
+   "dock_full": false
+  },
+  "dashboard": {
+   "name": "Dashboard",
+   "blocks": {
+    "clock": {
+     "x": 0,
+     "y": 0,
+     "w": 3,
+     "h": 1,
+     "on": true
+    },
+    "weather": {
+     "x": 3,
+     "y": 0,
+     "w": 2,
+     "h": 1,
+     "on": true
+    },
+    "widgets": {
+     "x": 0,
+     "y": 2,
+     "w": 5,
+     "h": 4,
+     "on": true
+    },
+    "widgets2": {
+     "x": 7,
+     "y": 2,
+     "w": 5,
+     "h": 4,
+     "on": true
+    },
+    "quote": {
+     "x": 0,
+     "y": 2,
+     "w": 8,
+     "h": 2,
+     "on": false
+    },
+    "hero": {
+     "x": 0,
+     "y": 4,
+     "w": 7,
+     "h": 2,
+     "on": false
+    },
+    "widgets3": {
+     "x": 4,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": false
+    },
+    "nowplaying": {
+     "x": 0,
+     "y": 4,
+     "w": 5,
+     "h": 2,
+     "on": false
+    }
+   },
+   "dock": "big",
+   "rows": "big",
+   "dock_full": false
+  },
+  "calm": {
+   "name": "Calm",
+   "blocks": {
+    "clock": {
+     "x": 0,
+     "y": 1,
+     "w": 6,
+     "h": 2,
+     "on": true
+    },
+    "weather": {
+     "x": 9,
+     "y": 2,
+     "w": 3,
+     "h": 2,
+     "on": true
+    },
+    "widgets": {
+     "x": 8,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": true
+    },
+    "quote": {
+     "x": 0,
+     "y": 4,
+     "w": 6,
+     "h": 2,
+     "on": false
+    },
+    "hero": {
+     "x": 0,
+     "y": 4,
+     "w": 7,
+     "h": 2,
+     "on": false
+    },
+    "widgets2": {
+     "x": 0,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": false
+    },
+    "widgets3": {
+     "x": 4,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": false
+    },
+    "nowplaying": {
+     "x": 0,
+     "y": 4,
+     "w": 5,
+     "h": 2,
+     "on": false
+    }
+   },
+   "dock": "big",
+   "rows": "big",
+   "dock_full": false
+  },
+  "photo-frame": {
+   "name": "Photo frame",
+   "blocks": {
+    "clock": {
+     "x": 0,
+     "y": 0,
+     "w": 3,
+     "h": 1,
+     "on": true
+    },
+    "weather": {
+     "x": 3,
+     "y": 0,
+     "w": 2,
+     "h": 1,
+     "on": true
+    },
+    "quote": {
+     "x": 0,
+     "y": 2,
+     "w": 8,
+     "h": 2,
+     "on": false
+    },
+    "widgets": {
+     "x": 8,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": false
+    },
+    "hero": {
+     "x": 0,
+     "y": 4,
+     "w": 7,
+     "h": 2,
+     "on": false
+    },
+    "widgets2": {
+     "x": 0,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": false
+    },
+    "widgets3": {
+     "x": 4,
+     "y": 4,
+     "w": 4,
+     "h": 2,
+     "on": false
+    },
+    "nowplaying": {
+     "x": 0,
+     "y": 4,
+     "w": 5,
+     "h": 2,
+     "on": false
+    }
+   },
+   "dock": "big",
+   "rows": "big",
+   "dock_full": false
+  }
+ },
+ "widget_blocks": [
+  "widgets",
+  "widgets2",
+  "widgets3"
+ ],
+ "tile_sizes": {
+  "big": [
+   "Big",
+   4
+  ],
+  "normal": [
+   "Normal",
+   5
+  ],
+  "small": [
+   "Small",
+   6
+  ]
+ },
+ "clock_styles": [
+  [
+   "classic",
+   "Classic"
+  ],
+  [
+   "bold",
+   "Bold"
+  ],
+  [
+   "stacked",
+   "Stacked"
+  ],
+  [
+   "tiles",
+   "Tiles"
+  ],
+  [
+   "analog",
+   "Analog"
+  ],
+  [
+   "words",
+   "Words"
+  ]
+ ]
+}

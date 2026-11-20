@@ -1011,9 +1011,14 @@
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
   // ---------- sign in ----------
+  var canSetPassword = false;   // the Chromecast's own server takes the first password here (the helper sets it on its computer)
   function showLogin(passwordSet) {
     $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); $('saveBar').classList.remove('open');
-    if (!passwordSet) {
+    if (!passwordSet && canSetPassword) {
+      $('loginNote').textContent = 'Choose the panel\'s password (at least 6 characters). You\'ll need it on every new phone or computer.';
+      $('password').placeholder = 'New password'; $('password').autocomplete = 'new-password';
+      $('loginForm').classList.remove('hidden'); setTimeout(function () { $('password').focus(); }, 50);
+    } else if (!passwordSet) {
       $('loginNote').textContent = 'No admin password yet. On the helper\'s computer, run: python helper/set_admin_password.py, then reload this page.';
       $('loginForm').classList.add('hidden');
     } else { $('loginForm').classList.remove('hidden'); setTimeout(function () { $('password').focus(); }, 50); }
@@ -3506,8 +3511,9 @@
   var pageCode = 0, toldNew = false;
   fetch('/api/admin/hello', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (h) {
     pageCode = h.code || 0;
+    canSetPassword = !!h.first_password_here;
     if (h.signed_in) load(); else showLogin(h.password_set);
-  }, function () { snack('Cannot reach the helper: is its computer on?', 20000); });
+  }, function () { snack('Cannot reach the helper (or the Chromecast): is it on?', 20000); });
   // A panel left open (or kept as an app on a phone) picks up a new version of itself: reloads when nothing is unsaved.
   function checkCode() {
     if (document.hidden || !pageCode) return;

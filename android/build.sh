@@ -17,12 +17,18 @@ KOTLINC="${KOTLINC:-$(command -v kotlinc || true)}"
 [ -n "$KOTLINC" ] || KOTLINC="/Applications/Android Studio.app/Contents/plugins/Kotlin/kotlinc/bin/kotlinc"
 [ -x "$KOTLINC" ] || { echo "No Kotlin compiler: install Android Studio, or: brew install kotlin"; exit 1; }
 KSTDLIB="$(cd "$(dirname "$KOTLINC")/../lib" && pwd)/kotlin-stdlib.jar"
-KEYSTORE="$HOME/.android/debug.keystore"   # the same key every build, so an update installs over the old one
+# The signing key: the same every build, so an update installs over the old app (a new key would mean uninstalling,
+# which wipes the app's settings). CI passes the same key file and its password (KEYSTORE, KS_PASS).
+KEYSTORE="${KEYSTORE:-$HOME/.android/debug.keystore}"
+KS_PASS="${KS_PASS:-android}"
+VERSION_NAME="$(cat VERSION 2>/dev/null || echo 1.0.0)"   # android/VERSION: the app's version (the Release tag)
 ADB="${ADB:-$([ -x /opt/homebrew/bin/adb ] && echo /opt/homebrew/bin/adb || command -v adb || true)}"
 VERSION_CODE=$(date +%s | cut -c1-9)
 # Where the app finds the helper: this computer's address on the home network, unless HELPER is given
 # (HELPER=http://192.168.1.20:8765 ./build.sh when the helper runs on another computer).
-if [ -z "${HELPER:-}" ]; then
+# RELEASE=1 (the downloadable app, CI): no helper address; it runs on its own server until one is set.
+if [ "${RELEASE:-}" = 1 ]; then HELPER="${HELPER:-}"
+elif [ -z "${HELPER:-}" ]; then
   ip=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')
   HELPER="http://$ip:8765"
 fi
@@ -43,12 +49,12 @@ fi
 rm -rf build; mkdir -p build/classes build/assets/fonts build/dex build/gen
 cp ../web/quotes.json build/assets/
 cp ../web/fonts/outfit.ttf build/assets/fonts/
-# The Chromecast's own server (Hub.kt): the same admin panel page, the layout rules from helper/layout.py (one
-# source for both), and the built-in add-ons' descriptions.
+# The Chromecast's own server (Hub.kt): from shared/, the same phone panel and layout rules the helper uses, and the
+# built-in add-ons' descriptions.
 mkdir -p build/assets/web/app build/assets/addons
-cp ../web/admin.html ../web/admin-sw.js build/assets/web/
-cp ../web/app/* build/assets/web/app/
-/usr/bin/python3 -c 'import sys, json; sys.path.insert(0, "../helper"); import layout; print(json.dumps(layout.spec()))' > build/assets/layout_spec.json
+cp ../shared/panel/admin.html ../shared/panel/admin-sw.js build/assets/web/
+cp ../shared/panel/app/* build/assets/web/app/
+cp ../shared/layout.json build/assets/layout_spec.json
 for a in ../addons/*/addon.json; do cp "$a" "build/assets/addons/$(basename "$(dirname "$a")").json"; done
 
 mkdir -p build/gen/com/cleanyourtv/home
@@ -56,7 +62,7 @@ printf 'package com.cleanyourtv.home;\nfinal class BuildConfig { static final St
 echo "helper: $HELPER"
 "$BT/aapt2" compile --dir res -o build/res.zip
 "$BT/aapt2" link -o build/base.apk -I "$JAR" --manifest AndroidManifest.xml -A build/assets -R build/res.zip --java build/gen --auto-add-overlay \
-  --min-sdk-version 28 --target-sdk-version 34 --version-code "$VERSION_CODE" --version-name "1.0"
+  --min-sdk-version 28 --target-sdk-version 34 --version-code "$VERSION_CODE" --version-name "$VERSION_NAME"
 # Kotlin first (it reads the Java sources for their names), then Java with the Kotlin classes on its path.
 mkdir -p build/kt
 "$KOTLINC" -nowarn -jvm-target 11 -no-reflect -classpath "$JAR:$WG/x/classes.jar" -d build/kt \
@@ -72,7 +78,7 @@ mkdir -p build/native
 for abi in $ABIS; do mkdir -p "build/native/lib/$abi"; cp "$WG/x/jni/$abi/libwg-go.so" "build/native/lib/$abi/"; done
 (cd build/native && zip -q -X -r ../base.apk lib)
 "$BT/zipalign" -f -p 4 build/base.apk build/aligned.apk
-"$BT/apksigner" sign --ks "$KEYSTORE" --ks-pass pass:android --key-pass pass:android --out build/home.apk build/aligned.apk
+"$BT/apksigner" sign --ks "$KEYSTORE" --ks-pass "pass:$KS_PASS" --key-pass "pass:$KS_PASS" --out build/home.apk build/aligned.apk
 echo "built $(pwd)/build/home.apk ($(du -h build/home.apk | cut -f1))"
 
 if [ "${1:-}" = install ]; then

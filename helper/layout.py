@@ -11,69 +11,25 @@ other block has picked); a card fills its block and shows as much as fits, and a
 (one per two rows). Every block can be any size from its "resize" minimum up to the whole grid; its "sizes" are quick
 picks. The screens shrink a block's content to fit when it's bigger than its block (a big clock in a small block).
 """
+import json
 import re
-COLS, ROWS = 12, 6
-RESERVED = {"x": 7, "y": 0, "w": 5, "h": 2}   # the buttons and the photo credit
+from pathlib import Path
 
-# The clock's look: one of these, or a different one each day from a chosen few ("rotate"); "weather" puts the
-# temperature on the clock's date line.
-CLOCK_STYLES = [["classic", "Classic"], ["bold", "Bold"], ["stacked", "Stacked"], ["tiles", "Tiles"], ["analog", "Analog"],
-                ["words", "Words"]]
-WIDGET_SIZES = [[4, 2, "Normal"], [5, 2, "Wide"], [4, 4, "Two stacked"], [5, 4, "Two stacked, wide"], [4, 1, "One line"]]
-MIN_WIDGET = [3, 1]   # widget blocks: any width and height from this up (the sizes above are quick picks)
-WIDGET_BLOCKS = ("widgets", "widgets2", "widgets3")
-TILE_SIZES = {"big": ["Big", 4], "normal": ["Normal", 5], "small": ["Small", 6]}   # tiles across the screen
-
-BLOCKS = {
-    "clock":   {"name": "Clock", "emoji": "🕒", "sizes": [[6, 2, "Normal"], [3, 1, "Small"], [7, 3, "Big"]], "resize": {"min": [3, 1]}},
-    "quote":   {"name": "Quote", "emoji": "❝", "sizes": [[8, 2, "Wide"], [6, 2, "Normal"], [5, 2, "Narrow"]], "resize": {"min": [3, 1]}},
-    "weather": {"name": "Weather", "emoji": "⛅", "sizes": [[3, 2, "Normal"], [2, 1, "Small"]], "resize": {"min": [2, 1]}},
-    "widgets": {"name": "Widgets", "emoji": "🧩", "sizes": WIDGET_SIZES, "resize": {"min": MIN_WIDGET}},
-    "widgets2": {"name": "Widgets 2", "emoji": "🧩", "sizes": WIDGET_SIZES, "resize": {"min": MIN_WIDGET}},
-    "widgets3": {"name": "Widgets 3", "emoji": "🧩", "sizes": WIDGET_SIZES, "resize": {"min": MIN_WIDGET}},
-    "hero":    {"name": "App name", "emoji": "🔤", "sizes": [[7, 2, "Normal"], [5, 2, "Narrow"]], "resize": {"min": [3, 1]}},
-    "nowplaying": {"name": "Now playing", "emoji": "🎵", "sizes": [[5, 2, "Normal"], [4, 1, "Small"], [6, 2, "Wide"]], "resize": {"min": [3, 1]}},
-}
-
-
-def _b(x, y, w, h, on=True):
-    return {"x": x, "y": y, "w": w, "h": h, "on": on}
-
-
-PRESETS = {
-    "classic": {"name": "Classic", "blocks": {
-        "clock": _b(0, 0, 6, 2), "quote": _b(0, 2, 8, 2), "weather": _b(9, 2, 3, 2),
-        "hero": _b(0, 4, 7, 2), "widgets": _b(8, 4, 4, 2)}},
-    "widgets-left": {"name": "Widgets left", "blocks": {
-        "clock": _b(0, 0, 6, 2), "widgets": _b(0, 2, 5, 2), "weather": _b(9, 2, 3, 2),
-        "quote": _b(0, 4, 6, 2), "hero": _b(7, 4, 5, 2)}},
-    "big-clock": {"name": "Big clock", "blocks": {
-        "clock": _b(0, 1, 7, 3), "weather": _b(9, 2, 3, 2), "widgets": _b(8, 4, 4, 2),
-        "quote": _b(0, 4, 6, 2, False), "hero": _b(0, 4, 7, 2, False)}},
-    "dashboard": {"name": "Dashboard", "blocks": {
-        "clock": _b(0, 0, 3, 1), "weather": _b(3, 0, 2, 1), "widgets": _b(0, 2, 5, 4), "widgets2": _b(7, 2, 5, 4),
-        "quote": _b(0, 2, 8, 2, False), "hero": _b(0, 4, 7, 2, False)}},
-    "calm": {"name": "Calm", "blocks": {   # little on screen: the clock, the weather and one widget card
-        "clock": _b(0, 1, 6, 2), "weather": _b(9, 2, 3, 2), "widgets": _b(8, 4, 4, 2),
-        "quote": _b(0, 4, 6, 2, False), "hero": _b(0, 4, 7, 2, False)}},
-    "photo-frame": {"name": "Photo frame", "blocks": {
-        "clock": _b(0, 0, 3, 1), "weather": _b(3, 0, 2, 1), "quote": _b(0, 2, 8, 2, False),
-        "widgets": _b(8, 4, 4, 2, False), "hero": _b(0, 4, 7, 2, False)}},
-}
-_SPARE = {"widgets2": _b(0, 4, 4, 2, False), "widgets3": _b(4, 4, 4, 2, False),
-          "nowplaying": _b(0, 4, 5, 2, False)}   # hidden until shown
-for _p in PRESETS.values():
-    for _k, _v in _SPARE.items():
-        _p["blocks"].setdefault(_k, dict(_v))
-    _p.setdefault("dock", "big")
-    _p.setdefault("rows", "big")
-    _p.setdefault("dock_full", False)
+# The rules themselves (grid, blocks and their sizes, presets, tile sizes, clock styles) are in shared/layout.json,
+# the one copy both back ends use: this helper, and the Chromecast's own server (android/, built in by build.sh).
+_SPEC = json.loads((Path(__file__).resolve().parent.parent / "shared" / "layout.json").read_text(encoding="utf-8"))
+COLS, ROWS = _SPEC["cols"], _SPEC["rows"]
+RESERVED = _SPEC["reserved"]                 # the buttons and the photo credit
+CLOCK_STYLES = _SPEC["clock_styles"]         # one of these, or a different one each day from a chosen few ("rotate")
+WIDGET_BLOCKS = tuple(_SPEC["widget_blocks"])
+TILE_SIZES = _SPEC["tile_sizes"]             # tiles across the screen
+BLOCKS = _SPEC["blocks"]
+PRESETS = _SPEC["presets"]
 
 
 def spec() -> dict:
-    """Everything the admin panel's Layout tab needs to draw and check a layout."""
-    return {"cols": COLS, "rows": ROWS, "reserved": RESERVED, "blocks": BLOCKS, "presets": PRESETS,
-            "widget_blocks": list(WIDGET_BLOCKS), "tile_sizes": TILE_SIZES, "clock_styles": CLOCK_STYLES}
+    """Everything the admin panel's Layout tab needs to draw and check a layout (shared/layout.json, as it is)."""
+    return _SPEC
 
 
 def dock_max(lay) -> int:

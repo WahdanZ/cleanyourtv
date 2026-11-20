@@ -168,7 +168,7 @@ class Hub(val ctx: Context) {
             if (!r.local && (tok.isEmpty() || r.headers["x-token"] != tok)) return Res.err(403, "wrong key")
             return api.hubPost(r)
         }
-        if (p == "/api/admin/hello") return Res.json(JSONObject().put("password_set", store.passwordSet()).put("signed_in", signedIn(r)).put("code", started))
+        if (p == "/api/admin/hello") return Res.json(JSONObject().put("password_set", store.passwordSet()).put("signed_in", signedIn(r)).put("code", started).put("api", API_VERSION).put("first_password_here", true))
         if (p == "/api/admin/login" && r.method == "POST") return api.login(r)
         if (p.startsWith("/api/admin/")) {
             if (!signedIn(r)) return Res.json(JSONObject().put("ok", false).put("error", "sign in").put("password_set", store.passwordSet()), 401)
@@ -187,12 +187,25 @@ class Hub(val ctx: Context) {
 
     companion object {
         const val PORT = 8765
+        const val API_VERSION = 1   // shared/API.md
         const val COOKIE = "cyt_admin"
         const val MAX_BODY = 25 * 1024 * 1024   // photo uploads
         @JvmStatic var instance: Hub? = null
 
-        /** Started by CursorService (at boot, and after an update). */
-        @JvmStatic fun start(c: Context) { if (instance == null) instance = Hub(c.applicationContext).also { it.start() } }
+        /** Started by CursorService (at boot, and after an update) and by Home. */
+        @JvmStatic @Synchronized fun start(c: Context) { if (instance == null) instance = Hub(c.applicationContext).also { it.start() } }
+
+        /** Where the helper is (a computer at home), or "" when there is none: set by tools/move-to-chromecast.py,
+         *  else the address a developer build was made with (build.sh; release builds have none). */
+        @JvmStatic fun helperUrl(c: Context): String =
+            c.getSharedPreferences("home", Context.MODE_PRIVATE).getString("helper", null) ?: BuildConfig.HELPER
+
+        /** Where Home gets its settings: this Chromecast's own server once moved over, or with no helper at all. */
+        @JvmStatic fun homeBase(c: Context): String {
+            val p = c.getSharedPreferences("home", Context.MODE_PRIVATE)
+            val helper = helperUrl(c)
+            return if (p.getBoolean("hub", helper.isEmpty())) "http://127.0.0.1:$PORT" else helper
+        }
 
         fun arr(vararg xs: Any?) = JSONArray().apply { xs.forEach { put(it) } }
     }
