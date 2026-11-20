@@ -57,6 +57,7 @@ stays on your normal connection; an app can have its own country (OSN+ → UAE) 
 |---|---|
 | [Chromecast only](docs/chromecast-only.md) · [Chromecast + VIDAA](docs/chromecast-vidaa.md) · [VIDAA only](docs/vidaa-only.md) | Getting started, per setup |
 | [The VIDAA TV](docs/vidaa.md) | Everything about the TV: how it works, its set-up steps, Browser, Stremio, YouTube, Live TV, troubleshooting |
+| [Clean your Chromecast](docs/chromecast-clean.md) | Turn off Google's ads, suggestions, screensaver and tracking (all reversible) |
 | [The helper](docs/setup/helper.md) · [The Chromecast](docs/setup/chromecast.md) · [The VPN](docs/setup/vpn.md) | Each part in detail |
 | [Make Home yours](docs/customize.md) · [Add-ons](addons/README.md) | Using the panel; writing your own widget |
 | [Open problems](docs/OPEN-PROBLEMS.md) · [Challenges](docs/CHALLENGES.md) · [Findings](docs/FINDINGS.md) | What's not solved, and why things are the way they are |

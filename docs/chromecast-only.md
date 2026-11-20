@@ -43,6 +43,9 @@ to install it and make it the Home screen; Google TV allows that only through ad
 6. **On your phone:** open the Admin button's QR code on the Chromecast's Home (or `http://<Chromecast>:8765/admin`)
    and choose the panel's password. Everything else is set up there ([customize.md](customize.md)).
 
+7. **Optional, still with adb:** turn off the Google parts you don't use (ads, suggestions, the Ambient screensaver,
+   tracking): [chromecast-clean.md](chromecast-clean.md).
+
 Wireless debugging can go off again afterwards.
 
 ## What works without a computer
