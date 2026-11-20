@@ -55,6 +55,16 @@ json() {   # json <python expression over d> : reads JSON on stdin
   "$PY" -c "import json,sys; d=json.load(sys.stdin); print($1)"
 }
 
+# Reads Nord's recommended servers on stdin; prints "host ip publickey" of a random one that isn't $LAST.
+PICK_SERVER='
+import json, os, random, sys
+d = json.load(sys.stdin)
+pool = [s for s in d if s["hostname"] != os.environ.get("LAST", "")] or d
+s = random.choice(pool)
+pub = next(m["value"] for t in s["technologies"] if t["identifier"] == "wireguard_udp"
+           for m in t["metadata"] if m["name"] == "public_key")
+print(s["hostname"], s["station"], pub)'
+
 valid_ip() { printf '%s' "$1" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; }
 
 # ---------- NordVPN key ----------
@@ -150,7 +160,7 @@ wait_status() {   # wait_status <code|off> <seconds>
   local want="$1" i
   for i in $(seq 1 $(( $2 * 2 ))); do
     case "$(cmd_status)" in
-      "on $want"*) return 0 ;;
+      "on $want "?*) return 0 ;;   # with the server name: the tunnel has answered, not just been made
       off) [ "$want" = off ] && return 0 ;;
     esac
     sleep 0.5
@@ -192,8 +202,10 @@ nord_server() {   # nord_server <CC> : "host ip publickey" of a recommended Nord
   cid=$(curl -fsS --max-time 15 "$API/servers/countries" | json "next((c['id'] for c in d if c['code']=='$1'), '')") || {
     say "can't reach Nord (no internet yet?)" >&2; return 1; }
   [ -n "$cid" ] || { say "Nord has no servers in $1" >&2; rm -f "$CONF_DIR/country"; return 2; }
-  curl -fsS --max-time 15 -g "$API/servers/recommendations?filters[servers_technologies][identifier]=wireguard_udp&filters[country_id]=$cid&limit=1" |
-    json "' '.join([d[0]['hostname'], d[0]['station'], next(m['value'] for t in d[0]['technologies'] if t['identifier']=='wireguard_udp' for m in t['metadata'] if m['name']=='public_key')])" || {
+  # One of Nord's 5 recommended servers at random, never the one used last time: when a site (Netflix) blocks a
+  # server, choosing the country again gets another one.
+  curl -fsS --max-time 15 -g "$API/servers/recommendations?filters[servers_technologies][identifier]=wireguard_udp&filters[country_id]=$cid&limit=5" |
+    LAST="$(cat "$CONF_DIR/last_server" 2>/dev/null || true)" "$PY" -c "$PICK_SERVER" || {
     say "Nord sent no WireGuard server for $1" >&2; return 1; }
 }
 
@@ -253,6 +265,7 @@ cmd_run() {
   local who="{ $CLIENT_IPS }"
   printf '%s\n' \
     "nat on $IF inet from $who to any -> ($IF)" \
+    "pass in quick on $LAN_IF inet from $who to { 224.0.0.0/4, 255.255.255.255 }" \
     "pass in quick on $LAN_IF route-to ($IF $addr) inet from $who to ! $LAN_NET keep state" |
     pfctl -a "$ANCHOR" -f - 2>/dev/null
   pfctl -E 2>&1 | sed -n 's/.*Token : \([0-9]*\).*/\1/p' > "$RUN_DIR/pf_token"
@@ -265,6 +278,7 @@ cmd_run() {
     sleep 0.5
   done
   if [ "${hs:-0}" = 0 ]; then cleanup; say "the VPN server $host did not answer"; exit 1; fi
+  echo "$host" > "$CONF_DIR/last_server"
   echo "$code $host" > "$RUN_DIR/server"; chmod 644 "$RUN_DIR/server" "$RUN_DIR/iface"
   say "tunnel up: $host ($code) on $IF"
   wait "$wgpid" || true      # stays here while the tunnel runs
