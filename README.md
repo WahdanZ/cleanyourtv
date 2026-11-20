@@ -43,7 +43,12 @@ report yours.
 </p>
 
 **The Chromecast** runs a native launcher that can run on its own, with no computer: its own server, phone panel and
-VPN ([chromecast-only.md](docs/chromecast-only.md)).
+VPN ([chromecast-only.md](docs/chromecast-only.md)). Its Home shows what is playing in any app (Spotify, YouTube…),
+with the cover, a progress bar, ⏮ ⏯ ⏭, and a button that opens the app:
+
+<p align="center">
+  <img src="docs/screens/chromecast-now-playing.jpg" width="70%" alt="The Chromecast's Home with the Now playing card under the football score: a cover, the song and artist, a progress bar, previous, play and next buttons and an Open player button (a test track, on the emulator)">
+</p>
 
 **The VIDAA TV** gets its Home, native apps, a browser with search, Stremio, YouTube without ads and free live TV,
 through the helper on a computer: VIDAA can't run apps of its own ([vidaa.md](docs/vidaa.md)).
