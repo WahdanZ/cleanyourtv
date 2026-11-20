@@ -209,6 +209,7 @@ public class MainActivity extends Activity {
         build();
         render();
         xh.apply(expId());
+        usePack();
         refreshAll(true);
     }
 
@@ -464,6 +465,11 @@ public class MainActivity extends Activity {
     // ---------- Home layouts (shared/experiences): the one the settings ask for; Classic is this activity's own ----------
     NativeHome xh;
     String expId() { JSONObject e = cfg.optJSONObject("experience"); return e == null ? "classic" : e.optString("id", "classic"); }
+    // The Android icon pack chosen in the panel (IconPacks): read in the background, then every tile drawn again.
+    void usePack() {
+        JSONObject e = cfg.optJSONObject("experience");
+        IconPacks.use(this, e == null ? "" : e.optString("icon_pack", ""), () -> { if (isDestroyed()) return; art.clear(); artBg.clear(); build(); });
+    }
 
     FrameLayout blocksLayer;
     LinearLayout clockBlock, clockRow;
@@ -917,9 +923,12 @@ public class MainActivity extends Activity {
             t.setBackgroundColor(0xFF1C1C1E);
             round(t, 32);
             ImageView img = new ImageView(this);
-            img.setScaleType(app.banner ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.FIT_CENTER);
-            t.addView(img, app.banner ? new FrameLayout.LayoutParams(p.w, p.h)
-                    : new FrameLayout.LayoutParams(p.h, p.h, Gravity.CENTER));
+            boolean packed = !"addon".equals(app.kind) && IconPacks.icon(this, app.id) != null;   // the icon pack's (square) icon
+            boolean wide = app.banner && !packed;
+            img.setScaleType(wide ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.FIT_CENTER);
+            int side = packed ? p.h * 4 / 5 : p.h;
+            t.addView(img, wide ? new FrameLayout.LayoutParams(p.w, p.h)
+                    : new FrameLayout.LayoutParams(side, side, Gravity.CENTER));
             TextView label = text(Math.max(20, 30 * p.h / 202), 500, Color.WHITE, 0, false);
             label.setText(app.name);
             label.setGravity(Gravity.CENTER);
@@ -964,7 +973,8 @@ public class MainActivity extends Activity {
             try {
                 Intent li = pm.getLeanbackLaunchIntentForPackage(app.id);
                 ComponentName cn = li == null ? null : li.getComponent();
-                if (app.banner) {
+                got = IconPacks.icon(this, app.id);   // the icon pack's, if one is chosen and has it
+                if (got == null && app.banner) {
                     if (cn != null) got = pm.getActivityBanner(cn);
                     if (got == null) got = pm.getApplicationBanner(app.id);
                 }
@@ -3353,6 +3363,7 @@ public class MainActivity extends Activity {
                     cfg = c;
                     if (changed || first) { lastMinute = -1; applyLayout(); applyWeatherVisibility(); loadApps(); build(); render(); tick.run(); }
                     xh.apply(expId());
+                    usePack();
                     quoteDay = -1; showQuote();
                     refreshWeather(); refreshWallpaper(); refreshRegion();
                 });
@@ -3380,6 +3391,11 @@ public class MainActivity extends Activity {
                 try { v = pm.getPackageInfo(pkg, 0).lastUpdateTime; } catch (Exception ignored) { }
                 key.append(pkg).append(v).append(';');
             }
+            JSONArray packs = new JSONArray();   // the Android icon packs installed, for the panel's Icon pack choice
+            for (kotlin.Pair<String, String> ip : IconPacks.installed(this)) {
+                packs.put(new JSONObject().put("pkg", ip.getFirst()).put("name", ip.getSecond()));
+                key.append("pack:").append(ip.getFirst()).append(';');
+            }
             String sig = Integer.toHexString(key.toString().hashCode());
             if (sig.equals(prefs.getString("reported", ""))) return;
             JSONArray list = new JSONArray();
@@ -3403,7 +3419,7 @@ public class MainActivity extends Activity {
                 o.put("icon", android.util.Base64.encodeToString(png.toByteArray(), android.util.Base64.NO_WRAP));
                 list.put(o);
             }
-            post("/api/cc-apps", new JSONObject().put("apps", list).toString(), 30_000);
+            post("/api/cc-apps", new JSONObject().put("apps", list).put("icon_packs", packs).toString(), 30_000);
             prefs.edit().putString("reported", sig).apply();
         } catch (Exception ignored) {
         }

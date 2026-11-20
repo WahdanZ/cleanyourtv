@@ -3547,6 +3547,26 @@
       });
       iw.appendChild(ich); card.appendChild(iw);
     }
+    // Icon pack: an Android icon pack installed on the Chromecast (Arcticons, Delta…), for every layout, Classic too
+    if (dev === 'cc') {
+      var packs = (S.cc && S.cc.icon_packs) || [], pw = document.createElement('div'); pw.className = 'xp-opt';
+      pw.innerHTML = '<label>Icon pack <small style="font-weight:400;opacity:.7">· Android icon packs installed on the Chromecast, every layout</small></label>';
+      var pch = document.createElement('div'), curPack = h.icon_pack || ''; pch.className = 'chips';
+      [{ id: '', name: 'None' }].concat(packs).forEach(function (pk) {
+        var bt = document.createElement('button'); bt.type = 'button'; bt.textContent = pk.name;
+        bt.className = curPack === pk.id ? 'on' : '';
+        bt.onclick = function () { xpState().icon_pack = pk.id; dirty(); renderExperience(); };
+        pch.appendChild(bt);
+      });
+      if (curPack && !packs.some(function (pk) { return pk.id === curPack; })) {   // chosen, then removed from the Chromecast
+        var gone = document.createElement('button'); gone.type = 'button'; gone.className = 'on'; gone.textContent = curPack + ' (not installed)'; pch.appendChild(gone);
+      }
+      pw.appendChild(pch);
+      var ph = document.createElement('p'); ph.className = 'hint'; ph.style.margin = '6px 0 0';
+      ph.textContent = packs.length ? 'Apps the pack has no icon for get its frame around their own icon, or keep their own. It wins over the App icons theme.'
+        : 'None installed. Icon packs are phone apps the TV\'s Play Store doesn\'t list: install one\'s APK with adb (see the Home layouts guide), and it shows here.';
+      pw.appendChild(ph); card.appendChild(pw);
+    }
     var x = C.get(cur);
     if (!x) return;
     var det = document.createElement('div'); det.className = 'xp-detail'; card.appendChild(det);

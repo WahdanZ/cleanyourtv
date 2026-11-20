@@ -296,7 +296,7 @@ class Admin:
     def cc_apps_file(self) -> Path:
         return self.data / "cc-apps.json"
 
-    def store_cc_apps(self, apps: list):
+    def store_cc_apps(self, apps: list, packs: list | None = None):
         icons = self.data / "cc-icons"
         icons.mkdir(parents=True, exist_ok=True)
         out = []
@@ -312,7 +312,10 @@ class Admin:
                     (icons / f"{pkg}.png").write_bytes(base64.b64decode(png))
                 except ValueError:
                     pass
-        self.cc_apps_file().write_text(json.dumps({"seen": int(time.time()), "apps": out}, ensure_ascii=False),
+        # the Android icon packs installed there (Home layout → Icon pack in the panel)
+        icon_packs = [{"id": str(x.get("pkg")), "name": str(x.get("name") or x.get("pkg"))[:60]} for x in (packs or [])[:50]
+                      if isinstance(x, dict) and re.match(r"^[A-Za-z0-9_.]{1,120}$", str(x.get("pkg", "")))]
+        self.cc_apps_file().write_text(json.dumps({"seen": int(time.time()), "apps": out, "icon_packs": icon_packs}, ensure_ascii=False),
                                        encoding="utf-8")
 
     def cc_apps(self) -> dict:

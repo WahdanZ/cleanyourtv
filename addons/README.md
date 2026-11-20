@@ -75,6 +75,9 @@ TV and the Chromecast. It is an add-on with `"type": "icons"`: one `addon.json`,
 pictures for some apps. Three come built in: `icons-glass`, `icons-mono`, `icons-light`. You choose one in the phone
 panel under **Home layout → App icons**; one theme is on at a time.
 
+On the Chromecast you can also use any **Android icon pack** made for phone launchers (Arcticons, Delta…); it needs
+no add-on: [docs/experiences.md](../docs/experiences.md#the-layouts).
+
 ```
 data/addons/my-icons/
   addon.json

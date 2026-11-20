@@ -63,7 +63,7 @@ class HubApi(private val hub: Hub) {
         return when (r.path) {
             "/api/region" -> region(d.optString("region"))
             "/api/cc-open" -> { vpnForApp(d.optString("appId")); ok() }
-            "/api/cc-apps" -> { storeApps(d.optJSONArray("apps") ?: JSONArray()); ok() }
+            "/api/cc-apps" -> { storeApps(d.optJSONArray("apps") ?: JSONArray(), d.optJSONArray("icon_packs") ?: JSONArray()); ok() }
             "/api/home-edit" -> homeEditSave(d)
             "/api/home-scene-run" -> if (exp.sceneAllowed(cfg(), d.optString("id"))) Hub.Res.json(runScene(d.optString("id")))
                 else Hub.Res.json(JSONObject().put("ok", false).put("error", "That scene isn't allowed on Home (phone panel: Layout)."), 403)
@@ -142,7 +142,7 @@ class HubApi(private val hub: Hub) {
     private fun appsFile() = store.file("cc-apps.json")
     fun ccApps(): JSONObject = (store.readJson("cc-apps.json") as? JSONObject) ?: JSONObject().put("seen", 0).put("apps", JSONArray())
 
-    private fun storeApps(apps: JSONArray) {
+    private fun storeApps(apps: JSONArray, packs: JSONArray) {
         val dir = File(store.dir, "cc-icons").apply { mkdirs() }
         val out = JSONArray()
         for (i in 0 until minOf(apps.length(), 300)) {
@@ -152,7 +152,12 @@ class HubApi(private val hub: Hub) {
             out.put(JSONObject().put("id", pkg).put("name", a.optString("name", pkg).take(60)).put("banner", a.optBoolean("banner")))
             a.optString("icon").takeIf { it.isNotEmpty() && it.length < 400_000 }?.let { try { File(dir, "$pkg.png").writeBytes(Base64.decode(it, Base64.DEFAULT)) } catch (_: Exception) { } }
         }
-        store.writeText("cc-apps.json", JSONObject().put("seen", System.currentTimeMillis() / 1000).put("apps", out).toString())
+        val icp = JSONArray()   // the Android icon packs installed (Home layout → Icon pack in the panel)
+        for (i in 0 until minOf(packs.length(), 50)) packs.optJSONObject(i)?.let { x ->
+            val pkg = x.optString("pkg")
+            if (Regex("^[A-Za-z0-9_.]{1,120}$").matches(pkg)) icp.put(JSONObject().put("id", pkg).put("name", x.optString("name", pkg).take(60)))
+        }
+        store.writeText("cc-apps.json", JSONObject().put("seen", System.currentTimeMillis() / 1000).put("apps", out).put("icon_packs", icp).toString())
     }
 
     private fun icon(pkg: String): Hub.Res {

@@ -3510,7 +3510,7 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
                 if self.client_address[0] not in CC_IPS or not isinstance(data.get("apps"), list):
                     self._json(400, {"ok": False})
                     return
-                ADMIN.store_cc_apps(data["apps"])
+                ADMIN.store_cc_apps(data["apps"], data.get("icon_packs") if isinstance(data.get("icon_packs"), list) else [])
                 self._json(200, {"ok": True})
                 return
             if path in ("/api/hub/pointer", "/api/hub/text"):

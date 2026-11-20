@@ -30,7 +30,8 @@ report yours.
 - A new photo every day: Bing's, Wikipedia's or NASA's picture of the day, or your own.
 - Presets (Classic, Dashboard, Calm, Photo frame…), or move and resize every block. Edit Home with the remote too.
 - Or one of 14 other [Home layouts](docs/experiences.md): a channel dial for apps and HDMI inputs, an ambient clock
-  that shows your places on demand, a four-arrows hub, a timeline of your evening… with icon themes anyone can make.
+  that shows your places on demand, a four-arrows hub, a timeline of your evening… with icon themes anyone can make,
+  and Android icon packs (Arcticons, Delta…) on the Chromecast.
 
 **Your phone: the panel and the remote** (a web page; add it to your Home screen)
 - A remote for both devices, every app to open, a trackpad for the Chromecast, and the player with a sleep timer.

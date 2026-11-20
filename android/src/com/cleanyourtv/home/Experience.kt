@@ -57,6 +57,8 @@ class Experience(catalogJs: String) {
         }
         val sc = v.optJSONArray("scenes") ?: JSONArray()
         out.put("scenes", JSONArray((0 until minOf(sc.length(), 20)).map { sc.optString(it) }.filter { Regex("^[a-z0-9]{1,24}$").matches(it) }))
+        val pack = if (v.isNull("icon_pack")) "" else v.optString("icon_pack")   // an Android icon pack on the Chromecast, or ""
+        out.put("icon_pack", if (Regex("^[A-Za-z0-9_.]{1,120}$").matches(pack)) pack else "")
         return out
     }
 
@@ -71,6 +73,7 @@ class Experience(catalogJs: String) {
 
     fun forScreen(cfg: JSONObject, dev: String): JSONObject = current(cfg).let {
         JSONObject().put("id", it.getString(dev)).put("opts", it.getJSONObject("opts")).put("api", catalog.getInt("version"))
+            .also { o -> if (dev == "cc") o.put("icon_pack", it.optString("icon_pack")) }
     }
 
     fun sceneAllowed(cfg: JSONObject, id: String): Boolean = current(cfg).getJSONArray("scenes").let { a -> (0 until a.length()).any { a.getString(it) == id } }

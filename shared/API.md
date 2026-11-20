@@ -34,7 +34,7 @@ can't read.
 
 | Request | Answer |
 |---|---|
-| `GET /api/cc` | `dock, rows, rename, hidden, app_vpn, layout, experience{id, opts, api}, greeting_name, quotes, weather, wallpaper, region, clock_24h, rev, live_refresh, cursor{port, token}, started, saved, api` |
+| `GET /api/cc` | `dock, rows, rename, hidden, app_vpn, layout, experience{id, opts, api, icon_pack}, greeting_name, quotes, weather, wallpaper, region, clock_24h, rev, live_refresh, cursor{port, token}, started, saved, api` |
 | `GET /api/state` (helper: the TV page) | as before, plus `experience{id, opts, api}` for the TV |
 | `GET /api/home-scenes` | `ok, scenes[{id, name, icon, summary}]`: only the scenes allowed on Home (`home_experience.scenes`), never their raw steps |
 | `POST /api/home-scene-run {id}` | `ok, said` / 403 when that scene isn't allowed on Home (the screens aren't signed in) |
@@ -47,7 +47,7 @@ can't read.
 | `GET /api/weather` · `/api/quote` · `/api/wallpaper` · `/api/wallpaper.jpg` | today's weather, quote, photo |
 | `GET /api/region` / `POST {region}` | `region, regions[{id, name}]`; switch the VPN |
 | `GET /api/now-playing` | `ok, playing{app, name, state, title, subtitle, position, duration, art, icon, screen_icon}` |
-| `POST /api/cc-apps {apps}` · `/api/cc-open {appId}` | the installed apps (names, icons); an app is opening (per-app VPN) |
+| `POST /api/cc-apps {apps, icon_packs[{pkg, name}]}` · `/api/cc-open {appId}` | the installed apps (names, icons) and Android icon packs (in `/api/admin/state` as `cc.icon_packs[{id, name}]`); an app is opening (per-app VPN) |
 | `GET /api/admin-link` | `url, qr, links[{label, url, qr}]` (the Admin button's QR codes) |
 
 ## The panel (signed in; POSTs carry `X-CYT: 1`)
@@ -57,7 +57,7 @@ can't read.
 | `GET /api/admin/hello` | `password_set, signed_in, code, api` |
 | `POST /api/admin/login {password}` · `/logout` | sets / clears the `cyt_admin` cookie |
 | `GET /api/admin/state` | `settings, tv_apps, cc{apps}, devices{tv, cc, vpn}, regions, region, layout_spec, addons, scenes, websites, wallpaper{now, sources, own, active}, preview, quick_base, https, …` |
-| `POST /api/admin/save {changes}` | `ok`; 400 with `error` for anything invalid (checked like `helper/admin.py`). `home_experience: {tv, cc, opts{<layout>: {…}}, scenes[]}` picks the layouts (`helper/experience.py`); an icon theme is chosen by enabling its add-on in `addons` |
+| `POST /api/admin/save {changes}` | `ok`; 400 with `error` for anything invalid (checked like `helper/admin.py`). `home_experience: {tv, cc, opts{<layout>: {…}}, scenes[], icon_pack}` picks the layouts (`helper/experience.py`) and the Chromecast's Android icon pack (a package name, or ""); an icon theme is chosen by enabling its add-on in `addons` |
 | `POST /api/admin/remote {device, key \| text}` · `/launch {device, app \| url}` · `/pointer {ops}` | the remote, opening apps, the trackpad |
 | `GET /api/admin/now-playing` · `np-art` · `POST np-seek {sec}` | the player |
 | `POST /api/admin/sleep {set}` | `sleep{on, end, left, v}` |

@@ -18,7 +18,7 @@ CATALOG = json.loads(_SRC[_SRC.index("/*JSON*/") + 8:_SRC.index("/*END*/")])
 IDS = [e["id"] for e in CATALOG["experiences"]]
 _BY_ID = {e["id"]: e for e in CATALOG["experiences"]}
 _ID = re.compile(r"^[A-Za-z0-9_.:-]{1,120}$")
-DEFAULT = {"tv": "classic", "cc": "classic", "opts": {}, "scenes": []}
+DEFAULT = {"tv": "classic", "cc": "classic", "opts": {}, "scenes": [], "icon_pack": ""}
 
 
 def _option(o: dict, v):
@@ -42,7 +42,7 @@ def validate(v) -> dict:
     """A home_experience from the phone panel, cleaned."""
     if not isinstance(v, dict):
         raise ValueError("bad home layout choice")
-    out = {"tv": "classic", "cc": "classic", "opts": {}, "scenes": []}
+    out = {"tv": "classic", "cc": "classic", "opts": {}, "scenes": [], "icon_pack": ""}
     for dev in ("tv", "cc"):
         if v.get(dev) is not None:
             if v[dev] not in IDS:
@@ -60,6 +60,9 @@ def validate(v) -> dict:
         if kept:
             out["opts"][eid] = kept
     out["scenes"] = [str(s) for s in (v.get("scenes") or [])[:20] if re.match(r"^[a-z0-9]{1,24}$", str(s))]
+    # an Android icon pack installed on the Chromecast (its package), or "" for the apps' own icons
+    pack = str(v.get("icon_pack") or "")
+    out["icon_pack"] = pack if re.match(r"^[A-Za-z0-9_.]{1,120}$", pack) else ""
     return out
 
 
@@ -76,7 +79,10 @@ def current(cfg: dict) -> dict:
 def for_screen(cfg: dict, dev: str) -> dict:
     """What a screen gets in /api/state (the TV) or /api/cc (the Chromecast)."""
     h = current(cfg)
-    return {"id": h[dev], "opts": h["opts"], "api": CATALOG["version"]}
+    out = {"id": h[dev], "opts": h["opts"], "api": CATALOG["version"]}
+    if dev == "cc":
+        out["icon_pack"] = h["icon_pack"]
+    return out
 
 
 STEP_WORDS = {"cc-wake": "Wake the Chromecast", "cc-sleep": "Chromecast to sleep", "tv-on": "TV on", "tv-off": "TV off",

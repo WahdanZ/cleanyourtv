@@ -72,7 +72,11 @@ try:
 except ValueError:
     check("validate: an unknown layout is refused", True)
 check("current: a removed layout becomes Classic, the rest kept",
-      experience.current({"home_experience": {"tv": "gone", "cc": "deck", "scenes": ["a"]}}) == {"tv": "classic", "cc": "deck", "opts": {}, "scenes": ["a"]})
+      experience.current({"home_experience": {"tv": "gone", "cc": "deck", "scenes": ["a"]}}) == {"tv": "classic", "cc": "deck", "opts": {}, "scenes": ["a"], "icon_pack": ""})
+check("icon pack: a package name is kept", experience.validate({"icon_pack": "com.example.arcticons"})["icon_pack"] == "com.example.arcticons")
+check("icon pack: anything else is dropped", experience.validate({"icon_pack": "../x; rm"})["icon_pack"] == "")
+check("icon pack: sent to the Chromecast only", experience.for_screen({"home_experience": {"icon_pack": "a.b"}}, "cc")["icon_pack"] == "a.b"
+      and "icon_pack" not in experience.for_screen({"home_experience": {"icon_pack": "a.b"}}, "tv"))
 check("current: nothing saved is Classic", experience.current({})["tv"] == "classic")
 scenes = [{"id": "a", "name": "A", "icon": "", "steps": ["cc-wake", "wait-5", "vpn-us", "cc-open-com.netflix"]}, {"id": "b", "name": "B", "steps": ["tv-off"]}]
 hs = experience.home_scenes({"home_experience": {"scenes": ["a"]}}, scenes, {"com.netflix": "Netflix"})

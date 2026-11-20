@@ -146,7 +146,15 @@ class NativeHome(val a: MainActivity, private val root: FrameLayout) {
         val designed = th != null || shape != "wide"   // drawn for its shape (IconFit); a wide tile may show a banner as it is
         val d = it.icon ?: if (it.type == "app") appIcon(it.id, !designed) else null
         val iv = ImageView(a)
+        val pack = if (it.type == "app") IconPacks.icon(a, it.id) else null
         when {
+            pack != null -> {   // the Android icon pack's icon: its own shape, as the pack drew it, on a faint plate
+                art.background = if (shape == "round") GradientDrawable().apply { this.shape = GradientDrawable.OVAL; setColor(Color.argb(30, 255, 255, 255)) }
+                                 else round(Color.argb(30, 255, 255, 255), 20f)
+                val side = (Math.min(w, h) * if (shape == "round") .7f else .8f).toInt()   // a square icon's corners stay in a circle
+                iv.scaleType = ImageView.ScaleType.FIT_CENTER; iv.setImageDrawable(pack.constantState?.newDrawable()?.mutate() ?: pack)
+                art.addView(iv, FrameLayout.LayoutParams(side, side, Gravity.CENTER))
+            }
             own.isNotEmpty() && th != null -> {   // the theme's own picture: on its plate, tinted or grey if asked
                 val bg = th.optString("background", "brand")
                 art.background = round(if (bg == "brand") it.color else if (bg == "none") Color.TRANSPARENT else MainActivity.parseColor(bg, it.color), if (shape == "round") w / 2f else 20f)

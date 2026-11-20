@@ -50,6 +50,23 @@ tiles, or your own: [making an icon theme](../addons/README.md#icon-themes)). A 
 plate (round, rounded or square), on the theme's background, grey if it says so. Themes apply to the layouts here,
 not to Classic.
 
+**Android icon packs (Chromecast).** The icon packs made for phone launchers (Nova, Lawnchair, ADW: Arcticons,
+Delta, Lines and thousands more) work on the Chromecast, in every layout and in Classic. Choose one in the phone
+panel: **Chromecast** tab → Home layout → **Icon pack**. It's the one installed pack the panel lists; **None** goes
+back to the apps' own icons. An app the pack has an icon for gets it, as the pack drew it. An app it doesn't cover gets
+the pack's frame (its back, mask and overlay) around its own icon, or keeps its own icon if the pack has no frame. A pack
+wins over the App icons theme.
+
+- **Installing one:** packs are phone apps, so the TV's Play Store doesn't list them. Get the pack's APK (F-Droid
+  has free ones, such as Arcticons) and install it once from a computer, as you installed this app:
+  `adb install arcticons.apk`. It shows in the panel's list after Home's next check (about a minute).
+- **TV apps:** packs draw phone apps, and some TV apps are other packages (Netflix's TV app is `com.netflix.ninja`,
+  the phone app `com.netflix.mediaclient`). For the big ones (Netflix, YouTube, YouTube Music and Kids, Prime
+  Video, Spotify, Settings) the phone app's icon is used; others the pack doesn't have get its frame.
+- **Not on the VIDAA TV:** it can't install Android apps. Use an icon theme there.
+
+<p align="center"><img src="screens/layouts/cc-liquid-icon-pack.jpg" width="70%" alt="Liquid OS on the Chromecast with a test icon pack: STREAMFLIX and TubeTV with the pack's own icons (a green play button, an orange bag), Disco+ and System Tracing in the pack's round frame around their own icons"></p>
+
 ## How it is built
 
 ```mermaid
@@ -233,11 +250,12 @@ has been validated (p.30). Nothing below has been tested with people yet.
 |---|---|
 | The TV engine: all 14 layouts draw, take all six keys with exactly one focus, open things, restore focus after a reload, handle empty data, offline, reduced motion, number keys, inputs without the helper, adaptive icons and icon themes (190 checks) | `tests/experiences_test.py` (headless Chrome; also in CI) |
 | The catalog, both renderers implementing every layout, validation, scene scoping, icon themes | `tests/experiences_test.py` |
-| Both servers: the choice round-trips, a bad one is refused, scenes are scoped, the catalog is served | `tests/api_contract.py`: the helper 40/40, the Chromecast's server 39/39 (on the emulator) |
+| Both servers: the choice round-trips, a bad one is refused, scenes are scoped, the catalog is served | `tests/api_contract.py`: the helper 42/42, the Chromecast's server 41/41 (on the emulator) |
 | The TV page against a real (test) helper with 53 real app entries: the layout loads, switches live after a save, opens an app through the helper | desktop Chrome at 1920 × 1080 |
 | Icons designed for their shape, natively: adaptive icons in circles; banner-only test apps (dark, white, gradient banners) as filled circles and frames; the Monochrome theme | Google TV emulator; three code-free test apps with TV banners (your apps are 32-bit and can't install there) |
 | The native Chromecast layouts: all 14 chosen through the server, a sequence of arrows, OK, Back and Home in each: no crash, no fallback; screenshots | Google TV emulator (arm64) |
 | The panel's picker: choose, save, the screen follows | the emulator's panel in a phone-sized browser |
+| Android icon packs: the pack is found and listed in the panel; chosen, its icons show in Classic and Liquid OS (matched by activity, by package, and the pack's frame for an app it lacks); None brings the apps' own icons back | Google TV emulator; a code-free test pack in the standard `appfilter.xml` format and three test apps (a real pack such as Arcticons wasn't downloaded) |
 | The real Chromecast: the new app installs; its server serves the catalog and the TV's inputs through the helper | adb |
 
 **Not tested:** the layouts on the real Chromecast's screen and on the VIDAA TV's browser (the Chromecast was asleep,
