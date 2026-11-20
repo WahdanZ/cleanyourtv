@@ -43,7 +43,7 @@ def send(name: str, data: bytes):
 
 
 if "--back" in sys.argv:
-    post("/api/hub/mode", {"on": False})
+    post("/api/hub/mode", {"on": False})   # Home uses the helper address it already has
     print("Home uses this computer's helper again (from the next time it opens).")
     sys.exit()
 
@@ -77,7 +77,11 @@ if "--copy" in sys.argv:
     print(f"Try the Chromecast's own panel: {BASE}/admin (the same password). Home still uses this computer's helper.")
     print("When it works for you: run this again without --copy to switch Home over.")
     sys.exit()
-post("/api/hub/mode", {"on": True})
+import socket
+with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as so:   # this computer's address, as the Chromecast sees it
+    so.connect((ip, 9))
+    me = so.getsockname()[0]
+post("/api/hub/mode", {"on": True, "helper": f"http://{me}:{CONFIG.get('port', 8765)}"})
 print("Moved: " + ", ".join(sent) + ".")
 print(f"The Chromecast now runs on its own. Its panel: {BASE}/admin (the same password).")
 print("Home switches over the next time it opens (press Home on the Chromecast's remote).")

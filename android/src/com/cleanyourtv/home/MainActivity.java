@@ -195,8 +195,9 @@ public class MainActivity extends Activity {
     // =====================================================================================================
     @Override
     protected void onCreate(Bundle saved) {
-        if (getSharedPreferences("home", MODE_PRIVATE).getBoolean("hub", false)) BASE = HUB;
+        BASE = Hub.homeBase(this);
         instance = this;
+        Hub.start(this);   // the Chromecast's own server, also when the pointer service (which needs adb to switch on) is off
         super.onCreate(saved);
         prefs = getSharedPreferences("home", MODE_PRIVATE);
         try { cfg = new JSONObject(prefs.getString("cfg", "{}")); } catch (Exception e) { cfg = new JSONObject(); }
@@ -214,8 +215,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         // Moved to the Chromecast's own server (or back) while Home was open: start again, from the right one.
-        boolean wantHub = getSharedPreferences("home", MODE_PRIVATE).getBoolean("hub", false);
-        if (wantHub != BASE.equals(HUB)) { BASE = wantHub ? HUB : BuildConfig.HELPER; recreate(); return; }
+        if (!Hub.homeBase(this).equals(BASE)) { BASE = Hub.homeBase(this); recreate(); return; }
         resumed = true;
         AdbKeeper.watch(this);
         ui.post(tick);

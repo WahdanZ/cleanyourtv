@@ -163,7 +163,9 @@ public class CursorService extends AccessibilityService {
         if (!kept.isEmpty()) return kept;
         // Not seen yet (Home hasn't opened since the app was updated): ask the helper, as Home would.
         try {
-            java.net.HttpURLConnection h = (java.net.HttpURLConnection) new java.net.URL(BuildConfig.HELPER + "/api/cc").openConnection();
+            String helper = Hub.helperUrl(this);
+            if (helper.isEmpty()) return "";
+            java.net.HttpURLConnection h = (java.net.HttpURLConnection) new java.net.URL(helper + "/api/cc").openConnection();
             h.setConnectTimeout(4000); h.setReadTimeout(6000);
             try (java.io.InputStream in = h.getInputStream()) {
                 java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
