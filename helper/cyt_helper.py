@@ -1804,6 +1804,8 @@ def tv_report(data: dict):
     if data.get("kind") != "brightness":
         return
     v = data.get("value")
+    if TV_BRIGHT["supported"] is None or data.get("id"):
+        log(f"brightness: the TV's Home page reports supported={bool(data.get('supported'))} value={v}" + (f" ({data.get('error')})" if data.get("error") else ""))
     TV_BRIGHT.update(value=v if isinstance(v, (int, float)) and 0 <= v <= 100 else None, supported=bool(data.get("supported")),
                      at=time.time(), error=str(data.get("error", ""))[:120])
     if data.get("verified"):
@@ -1822,8 +1824,8 @@ def cc_hub_post(path: str, body: dict) -> dict:
     req = (f"POST {path} HTTP/1.0\r\nContent-Type: application/json\r\nContent-Length: {len(payload.encode())}\r\n\r\n{payload}")
     out = subprocess.run([adb, "-s", serial, "shell", "toybox nc 127.0.0.1 8765"], input=req, capture_output=True, text=True, timeout=10).stdout
     try:
-        return json.loads(out[out.index("\r\n\r\n") + 4:])
-    except ValueError:
+        return json.loads(out.replace("\r\n", "\n").split("\n\n", 1)[1])   # (text mode turns \r\n into \n)
+    except (ValueError, IndexError):
         return {"ok": False, "error": "The Chromecast's app didn't answer (is it 1.6 or newer?)."}
 
 
@@ -2376,6 +2378,12 @@ def quick_action(action: str) -> dict:
     dev, _, rest = action.partition("-")
     if dev == "scene":
         return run_scene(rest)
+    if action in ("tv-brighter", "tv-darker", "cc-brighter", "cc-darker"):   # brightness: the TV's own, or the Chromecast's dimmer
+        try:
+            r = brightness_set({"device": dev, "step": 5 if rest == "brighter" else -5})
+        except (ValueError, ConnectionError, OSError, subprocess.TimeoutExpired) as e:
+            return {"ok": False, "error": str(e)}
+        return r if r.get("ok") is False else {"ok": True, "said": ("Brighter." if rest == "brighter" else "Darker.") + (" (when Home is on the TV)" if r.get("queued") else "")}
     if dev == "sleep":
         st = sleep_set(rest)
         return {"ok": True, "said": "Sleep timer off." if not st["on"] else "Turning off when the video ends."
