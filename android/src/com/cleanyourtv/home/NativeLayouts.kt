@@ -795,14 +795,15 @@ object NativeLayouts {
     class Aurora(h: NativeHome, private val ambient: Boolean) : Layout(h) {
         override val hints = listOf("Any arrow  Show places", "OK Open", "BACK Hide")
         override val calm = true
-        override val photo = ambient
-        override fun background(h: NativeHome): Drawable = if (ambient) h.radial(Color.rgb(30, 40, 60), NativeHome.NIGHT) else GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(NativeHome.NIGHT, Color.rgb(12, 42, 52)))
+        private val light get() = !ambient || opts.optString("background") == "light"   // Ambient's "calm light" is the old Aurora
+        override val photo get() = !light
+        override fun background(h: NativeHome): Drawable = if (!light) h.radial(Color.rgb(30, 40, 60), NativeHome.NIGHT) else GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(NativeHome.NIGHT, Color.rgb(12, 42, 52)))
         private var items = listOf<Item>(); private val els = ArrayList<View>(); private var cels = listOf<View>(); private val ctrl = ArrayList<Pair<String, () -> Unit>>()
         private lateinit var time: TextView; private lateinit var date: TextView; private lateinit var np: TextView; private lateinit var strip: LinearLayout; private lateinit var ctrlRow: LinearLayout
         private var shown = false; private var zone = "strip"
         private val hide = Runnable { shown = false; paint() }
         override fun render() {
-            if (!ambient) c.addView(Waves(h.a), FrameLayout.LayoutParams(1920, 1080))
+            if (light) c.addView(Waves(h.a), FrameLayout.LayoutParams(1920, 1080))
             val col = LinearLayout(h.a); col.orientation = LinearLayout.VERTICAL; col.gravity = if (ambient) Gravity.CENTER_HORIZONTAL else Gravity.START
             time = h.text("", 220f, TEXT, 300); date = h.text("", 34f, Color.rgb(214, 227, 236)); np = h.text("", 28f, Color.rgb(159, 227, 242))
             col.addView(time, LinearLayout.LayoutParams(-2, -2)); col.addView(date, LinearLayout.LayoutParams(-2, -2).apply { topMargin = 10 }); col.addView(np, LinearLayout.LayoutParams(-2, -2).apply { topMargin = 18 })

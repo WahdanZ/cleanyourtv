@@ -419,7 +419,9 @@
      ],
      "def": "5"
     }
-   ]
+   ],
+   "hidden": true,
+   "merged_into": "ambient"
   },
   {
    "id": "deck",
@@ -493,7 +495,9 @@
     "ok": "Open or switch",
     "back": "Back"
    },
-   "options": []
+   "options": [],
+   "hidden": true,
+   "merged_into": "channel"
   },
   {
    "id": "scenes",
@@ -543,6 +547,22 @@
     "back": "Hide"
    },
    "options": [
+    {
+     "key": "background",
+     "label": "Background",
+     "type": "choice",
+     "choices": [
+      [
+       "photo",
+       "Today's photo"
+      ],
+      [
+       "light",
+       "Calm light, no photo (was Aurora)"
+      ]
+     ],
+     "def": "photo"
+    },
     {
      "key": "strip",
      "label": "Places in the strip",
