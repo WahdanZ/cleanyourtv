@@ -117,7 +117,7 @@ body:not([data-tv]) [data-for="other"] { display: none !important; }
 .next .go { font: 600 15px/1 var(--display); color: var(--accent); text-decoration: none; }
 
 /* ---------- the problem: findings ---------- */
-.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 18px; margin-top: 40px; }
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 18px; margin-top: 40px; }
 .finding { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .finding .reading { font: 500 14px/1.5 var(--mono); color: var(--warn); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; overflow-x: auto; white-space: nowrap; }
 .finding p { color: var(--muted); font-size: 16px; }
@@ -230,6 +230,54 @@ footer { padding-block: 40px 56px; border-top: 1px solid var(--line); color: var
   .top nav { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+
+/* ---------- Glass UI: the app's Glass look, for the page itself ----------
+   A soft light behind everything (warm amber, coral and teal, from the photo of the day), and every panel frosted
+   glass over it: blurred, a light tint, a bright rim at the top where the light hits. */
+:root { --pane: rgba(255,255,255,.065); --pane-strong: rgba(255,255,255,.11); --rim: rgba(255,255,255,.18); --rim-top: rgba(255,255,255,.42); --inset: rgba(0,0,0,.32);
+  --glow1: rgba(240,180,76,.42); --glow2: rgba(232,106,74,.34); --glow3: rgba(43,179,163,.32); --shadow: rgba(0,0,0,.35); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --pane: rgba(255,255,255,.55); --pane-strong: rgba(255,255,255,.75); --rim: rgba(18,21,28,.10); --rim-top: rgba(255,255,255,.95); --inset: rgba(18,21,28,.05);
+  --glow1: rgba(240,180,76,.38); --glow2: rgba(232,106,74,.22); --glow3: rgba(43,179,163,.22); --shadow: rgba(18,21,28,.10); } }
+:root[data-theme="light"] { --pane: rgba(255,255,255,.55); --pane-strong: rgba(255,255,255,.75); --rim: rgba(18,21,28,.10); --rim-top: rgba(255,255,255,.95); --inset: rgba(18,21,28,.05);
+  --glow1: rgba(240,180,76,.38); --glow2: rgba(232,106,74,.22); --glow3: rgba(43,179,163,.22); --shadow: rgba(18,21,28,.10); }
+
+body { position: relative; isolation: isolate; }
+body::before { content: ""; position: fixed; inset: -10%; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(46% 40% at 12% 10%, var(--glow1), transparent 72%),
+    radial-gradient(40% 36% at 90% 24%, var(--glow3), transparent 72%),
+    radial-gradient(48% 42% at 72% 82%, var(--glow2), transparent 72%),
+    radial-gradient(36% 34% at 6% 72%, var(--glow3), transparent 72%),
+    radial-gradient(30% 26% at 48% 50%, var(--glow1), transparent 75%);
+  filter: blur(30px); }
+
+/* the frosted panels */
+.finding, .setup, .card, .faq details, .pick, .today, .next, .rules, .diagram, .looks, .ghbtn, .btn:not(.primary), .thumb img, .phone, .bezel {
+  -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); }
+.finding, .setup, .card, .faq details, .pick, .today, .next, .rules, .diagram {
+  background: linear-gradient(160deg, var(--pane-strong), var(--pane) 45%, var(--pane));
+  border: 1px solid var(--rim);
+  box-shadow: inset 0 1px 0 var(--rim-top), 0 18px 44px -24px var(--shadow); }
+.today { border-color: var(--accent); }
+.next { border-style: solid; }
+.rule { border-color: var(--rim) !important; }
+.btn:not(.primary), .ghbtn, .looks { background: var(--pane); border-color: var(--rim); box-shadow: inset 0 1px 0 var(--rim-top); }
+.btn.primary { box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 10px 26px -10px var(--accent); }
+.pick[aria-pressed="true"] { background: linear-gradient(160deg, var(--pane-strong), var(--pane)); }
+.finding .reading, .code { background: var(--inset); border-color: var(--rim); }
+.copy { background: var(--pane-strong); border-color: var(--rim); }
+.shot { border-color: var(--rim); box-shadow: 0 24px 60px -28px var(--shadow); }
+
+/* the top bar floats as a glass strip */
+.top { position: sticky; top: max(10px, env(safe-area-inset-top, 0px)); z-index: 20; margin-top: 10px; padding: 12px 14px 12px 18px; border-radius: 18px;
+  background: var(--pane); border: 1px solid var(--rim); box-shadow: inset 0 1px 0 var(--rim-top), 0 12px 30px -18px var(--shadow);
+  -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%); }
+
+/* sections are separated by space and glass, not by rules */
+section + section { border-top: 0; }
+section { padding-block: clamp(48px, 7vw, 88px); }
+footer { border-top: 1px solid var(--rim); }
+.solved, .solved div, .tested, .tested div { border-color: var(--rim); }
 </style>
 </head>
 <body>
