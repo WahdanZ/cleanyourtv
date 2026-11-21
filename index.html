@@ -10,7 +10,7 @@
 <meta property="og:url" content="https://wahdanz.github.io/cleanyourtv/">
 <meta property="og:image" content="https://wahdanz.github.io/cleanyourtv/img/glass.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='6' width='26' height='17' rx='3' fill='none' stroke='%23F0B44C' stroke-width='3'/%3E%3Cpath d='M11 28h10' stroke='%23F0B44C' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='6' width='26' height='17' rx='3' fill='none' stroke='%238F6BFF' stroke-width='3'/%3E%3Cpath d='M11 28h10' stroke='%238F6BFF' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
 <title>Clean Your TV</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -278,6 +278,30 @@ section + section { border-top: 0; }
 section { padding-block: clamp(48px, 7vw, 88px); }
 footer { border-top: 1px solid var(--rim); }
 .solved, .solved div, .tested, .tested div { border-color: var(--rim); }
+
+/* ---------- AI colours: blue, violet, pink and a touch of orange, the glow of today's assistants ---------- */
+:root { --accent: #B8A4FF; --accent-ink: #FFFFFF; --warn: #FF8FB8;
+  --ai: linear-gradient(100deg, #4F8BFF 0%, #8F6BFF 35%, #E45FC0 68%, #FF9A4D 100%);
+  --glow1: rgba(79,139,255,.42); --glow2: rgba(228,95,192,.34); --glow3: rgba(143,107,255,.40); --glow4: rgba(255,154,77,.22); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --accent: #6A45E0; --warn: #C2307A;
+  --glow1: rgba(79,139,255,.34); --glow2: rgba(228,95,192,.26); --glow3: rgba(143,107,255,.30); --glow4: rgba(255,154,77,.22); } }
+:root[data-theme="light"] { --accent: #6A45E0; --warn: #C2307A;
+  --glow1: rgba(79,139,255,.34); --glow2: rgba(228,95,192,.26); --glow3: rgba(143,107,255,.30); --glow4: rgba(255,154,77,.22); }
+body::before {
+  background:
+    radial-gradient(46% 40% at 10% 8%, var(--glow1), transparent 72%),
+    radial-gradient(42% 38% at 92% 18%, var(--glow3), transparent 72%),
+    radial-gradient(48% 42% at 76% 84%, var(--glow2), transparent 72%),
+    radial-gradient(36% 34% at 4% 74%, var(--glow3), transparent 72%),
+    radial-gradient(28% 24% at 50% 48%, var(--glow4), transparent 75%); }
+/* the gradient where it counts: the main buttons, the promise in the headline, and a glow around the TV */
+.btn.primary { background: var(--ai); color: #fff; border: 0; text-shadow: 0 1px 2px rgba(0,0,0,.25);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 12px 30px -12px rgba(143,107,255,.8); }
+.hero h1 em { background: var(--ai); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tv .bezel::after { content: ""; position: absolute; inset: -3px; border-radius: 21px; background: var(--ai); z-index: -1; filter: blur(22px); opacity: .55; }
+.thumb[aria-pressed="true"] img, .pick[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--accent), 0 0 24px -6px var(--accent); }
+.today { border-color: var(--accent); }
+.mark i { border-color: var(--accent); } .mark i::after { background: var(--accent); }
 </style>
 </head>
 <body>
