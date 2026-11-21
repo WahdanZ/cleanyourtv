@@ -80,7 +80,7 @@ Write your own: a folder with an `addon.json` and a few lines of Python. See [ad
 Bing's photo of the day (pick the country), Wikipedia's or NASA's picture of the day, or your own photos (upload them
 in the panel; one a day, or always the same). *Show another photo* changes today's. 4K when the TV can show it.
 
-**Look** (Chromecast, Classic Home): *Standard* draws the cards, the buttons and the dock dark and calm; *Glass* draws
+**Look** (the TV, and Classic Home on the Chromecast): *Standard* draws the cards, the buttons and the dock dark and calm; *Glass* draws
 them as frosted glass over the photo, with a bright rim. Pick it in the panel (tap the photo, then *Look*) or with the
 remote (Edit Home → *+ Add to Home* → *Look*). The photo is frosted once when it arrives, so Glass costs no more to
 draw than Standard.

@@ -351,7 +351,17 @@ public class MainActivity extends Activity {
         s3.setGradientRadius(620);
         s3.setColors(new int[]{black(.55), black(0)});
         wallShade = new View(this);
-        wallShade.setBackground(new LayerDrawable(new Drawable[]{s1, s2, s3}));
+        // The three gradients drawn once, at half size, into one picture: one cheap texture each frame instead of three
+        // full-screen gradients (a radial one among them), which the Chromecast's GPU would draw again on every frame.
+        LayerDrawable shades = new LayerDrawable(new Drawable[]{s1, s2, s3});
+        Bitmap baked = Bitmap.createBitmap(W / 2, H / 2, Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas bc = new android.graphics.Canvas(baked);
+        bc.scale(.5f, .5f);
+        shades.setBounds(0, 0, W, H);
+        shades.draw(bc);
+        android.graphics.drawable.BitmapDrawable bd = new android.graphics.drawable.BitmapDrawable(getResources(), baked);
+        bd.setFilterBitmap(true);
+        wallShade.setBackground(bd);
         wallShade.setAlpha(0f);
         stage.addView(wallShade, new FrameLayout.LayoutParams(W, H));
         gridShade = new View(this);
@@ -1051,7 +1061,8 @@ public class MainActivity extends Activity {
                 .setUpdateListener(glassLook ? a -> band.invalidate() : null).start();   // glass shows the photo under it: draw it again as it moves
         boolean browsing = shift != 0;
         topShade2.animate().alpha(browsing ? 1f : 0f).setDuration(400).start();
-        blocksLayer.animate().alpha(browsing ? 0f : 1f).setDuration(browsing ? 200 : 400).start();
+        if (blocksLayer.getAlpha() != (browsing ? 0f : 1f))   // fades through a layer: drawn once, not every frame of the fade
+            blocksLayer.animate().alpha(browsing ? 0f : 1f).setDuration(browsing ? 200 : 400).withLayer().start();
         miniClock.animate().alpha(browsing ? 1f : 0f).setDuration(400).start();
         credit.animate().alpha(browsing ? 0f : 1f).setDuration(300).start();
         App app = focused();
@@ -3041,10 +3052,17 @@ public class MainActivity extends Activity {
             dur = npNow.optLong("duration") * 1000;
         } else return;
         if (dur > 0) pos = Math.min(pos, dur);
-        if (npTime != null) npTime.setText(clockOf(pos / 1000));
-        if (npDur != null) npDur.setText(clockOf(dur / 1000));
-        if (npFill != null && dur > 0) npFill.setScaleX(Math.max(0.005f, Math.min(1f, pos / (float) dur)));
+        // Only what changed: the same text set again still lays the card out and draws the whole screen again,
+        // every second, which on the Chromecast's chip is most of what it does while Home sits there.
+        setIfNew(npTime, clockOf(pos / 1000));
+        setIfNew(npDur, clockOf(dur / 1000));
+        if (npFill != null && dur > 0) {
+            float sx = Math.max(0.005f, Math.min(1f, pos / (float) dur));
+            if (Math.abs(npFill.getScaleX() - sx) > 0.001f) npFill.setScaleX(sx);
+        }
     }
+
+    static void setIfNew(TextView t, CharSequence s) { if (t != null && !TextUtils.equals(t.getText(), s)) t.setText(s); }
 
     static String clockOf(long sec) {
         sec = Math.max(0, sec);
@@ -3563,6 +3581,14 @@ public class MainActivity extends Activity {
                 if (image.isEmpty() || image.equals(wallShown)) return;
                 byte[] b = fetch(image, null, 60_000);
                 BitmapFactory.Options o = new BitmapFactory.Options();
+                // A 4K photo on a 1920 x 1080 screen: decoded at half size. A quarter of the memory, and every frame
+                // the GPU draws a picture the size of the screen instead of scaling down one four times as big.
+                o.inJustDecodeBounds = true;
+                BitmapFactory.decodeByteArray(b, 0, b.length, o);
+                int sample = 1;
+                while (o.outWidth / (sample * 2) >= W && o.outHeight / (sample * 2) >= H) sample *= 2;
+                o.inJustDecodeBounds = false;
+                o.inSampleSize = sample;
                 o.inPreferredConfig = Bitmap.Config.RGB_565;
                 final Bitmap bm = BitmapFactory.decodeByteArray(b, 0, b.length, o);
                 final String cr = !w.optString("credit").isEmpty() ? w.optString("credit") : w.optString("title", "");
@@ -3571,7 +3597,8 @@ public class MainActivity extends Activity {
                 ui.post(() -> {
                     wallShown = image;
                     wall.setImageBitmap(bm);
-                    wall.animate().alpha(1f).setDuration(1200).start();
+                    // Once the photo covers the screen, the dark background under it is never seen: not drawn either.
+                    wall.animate().alpha(1f).setDuration(1200).withEndAction(() -> { stage.setBackground(null); getWindow().setBackgroundDrawable(null); }).start();
                     hasWallpaper = true;
                     wallShade.animate().alpha(glassLook ? .6f : 1f).setDuration(600).start();
                     if (glassLook) applyLook();

@@ -1803,7 +1803,7 @@
       s6.appendChild(go); box.appendChild(s6);
     } else if (sel.kind === 'wall') {
       inspectorHead(box, '🖼  Wallpaper');
-      if (SD === 'cc' && spec.looks) {   // how the cards, buttons and dock are drawn over the photo
+      if (spec.looks) {   // how the cards, buttons and dock are drawn over the photo (the TV and the Chromecast)
         var sl = sec('Look'), lz = el('div', 'sizes');
         spec.looks.forEach(function (t) {
           var lb = el('button', 'btn small' + ((lay.look || 'standard') === t[0] ? ' on' : ''), t[1]);
@@ -1811,7 +1811,7 @@
           lz.appendChild(lb);
         });
         sl.appendChild(lz);
-        sl.appendChild(el('p', 'hint', 'Glass: the cards, the buttons and the dock are frosted glass over the photo (Classic Home on the Chromecast).'));
+        sl.appendChild(el('p', 'hint', 'Glass: the cards, the buttons and the dock are frosted glass over the photo (the TV, and Classic Home on the Chromecast).'));
         box.appendChild(sl);
       }
       box.appendChild($('wallBody'));

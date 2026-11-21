@@ -42,6 +42,16 @@
   body.wallpaper #header, body.wallpaper #quote, body.wallpaper #weather, body.wallpaper #wallCredit { text-shadow: 0 1px 6px rgba(0,0,0,.6); }
   body.ingrid #wallCredit { opacity: 0; }
 
+  /* The Glass look (home_layout.look = "glass"): cards, buttons and the dock are frosted glass over the photo. No live
+     blur (too much for the TV): the photo is frosted once into a small picture (makeFrost), and each panel shows the
+     part of it that lies under it (fixed to the screen), under a light tint and a bright rim. */
+  body.glass.wallpaper #wallShade { opacity: .6; }
+  body.glass .wcard, body.glass .pill:not(.focus), body.glass #band {
+    background-color: rgba(255,255,255,.06);
+    background-image: linear-gradient(180deg, rgba(255,255,255,.20) 0%, rgba(255,255,255,.06) 45%, rgba(255,255,255,.10) 100%), var(--frost, none);
+    background-size: auto, 1920px 1080px; background-attachment: scroll, fixed; background-position: 0 0, 0 0; background-repeat: no-repeat;
+    border-color: rgba(255,255,255,.34); box-shadow: inset 0 2px 0 rgba(255,255,255,.5); }
+
   /* Edit Home: the grid, an outline per block (the chosen one lit; red where it can't go), and a bar of keys. */
   #editLayer { position: absolute; left: 0; top: 0; width: 1920px; height: 680px; z-index: 4; pointer-events: none; }
   .ecell { position: absolute; border: 1px dashed rgba(255,255,255,.14); box-sizing: border-box; }
@@ -67,6 +77,7 @@
   .pill.np.live { box-shadow: inset 0 0 0 2px #f5b971; }
   #npBlock { display: flex; }
   .npcard { display: flex; align-items: center; gap: 22px; flex: 1; }
+  .wslot .wcard.npcard { flex-direction: row; }   /* a widget slot's cards are columns; this one is art beside text */
   .np-art { width: 192px; height: 108px; object-fit: cover; border-radius: 14px; flex: none; background: rgba(255,255,255,.08); }
   .np-col { flex: 1; min-width: 0; }
   .np-app { font-size: 24px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -570,6 +581,7 @@
         wallShown = w.image;
         $('wall').style.backgroundImage = 'url(' + w.image + ')';
         $('wall').classList.add('on');
+        makeFrost(img);
         document.body.classList.add('wallpaper');
         $('wallCredit').textContent = w.credit || w.title || '';
         $('wallCredit').style.display = w.credit || w.title ? '' : 'none';
@@ -610,7 +622,40 @@
     el.style.width = (b.w * CW) + 'px';
     if (full) el.style.height = (b.h * RH) + 'px';
   }
+  // The photo, frosted once for the Glass look: an eighth of the screen, richer colours, blurred (three box blurs).
+  function makeFrost(img) {
+    try {
+      var fw = 240, fh = 135, c = document.createElement('canvas'), x;
+      c.width = fw; c.height = fh; x = c.getContext('2d');
+      var k = Math.max(fw / img.width, fh / img.height);
+      x.drawImage(img, (fw - img.width * k) / 2, (fh - img.height * k) / 2, img.width * k, img.height * k);
+      var d = x.getImageData(0, 0, fw, fh), p = d.data, n = fw * fh, ch = [new Float32Array(n), new Float32Array(n), new Float32Array(n)], i, j;
+      for (i = 0; i < n; i++) {
+        var r = p[i * 4], g = p[i * 4 + 1], b = p[i * 4 + 2], l = .2126 * r + .7152 * g + .0722 * b;
+        ch[0][i] = (l + (r - l) * 1.6) * 1.06 + 6; ch[1][i] = (l + (g - l) * 1.6) * 1.06 + 6; ch[2][i] = (l + (b - l) * 1.6) * 1.06 + 6;
+      }
+      var line = function (a, start, step, len, rad, tmp) {
+        var sum = 0, q, div = 2 * rad + 1;
+        for (q = -rad; q <= rad; q++) sum += a[start + Math.max(0, Math.min(len - 1, q)) * step];
+        for (q = 0; q < len; q++) {
+          tmp[q] = sum / div;
+          sum += a[start + Math.min(len - 1, q + rad + 1) * step] - a[start + Math.max(0, q - rad) * step];
+        }
+        for (q = 0; q < len; q++) a[start + q * step] = tmp[q];
+      };
+      var tmp = new Float32Array(Math.max(fw, fh));
+      for (j = 0; j < 3; j++) for (var pass = 0; pass < 3; pass++) {
+        for (i = 0; i < fh; i++) line(ch[j], i * fw, 1, fw, 3, tmp);
+        for (i = 0; i < fw; i++) line(ch[j], i, fw, fh, 3, tmp);
+      }
+      for (i = 0; i < n; i++) { p[i * 4] = ch[0][i]; p[i * 4 + 1] = ch[1][i]; p[i * 4 + 2] = ch[2][i]; p[i * 4 + 3] = 255; }
+      x.putImageData(d, 0, 0);
+      document.body.style.setProperty('--frost', 'url(' + c.toDataURL('image/jpeg', .9) + ')');
+    } catch (e) { }   // no frosted photo: the glass is a light tint only
+  }
+
   function applyLayout(lay) {
+    if (document.body.classList.toggle) document.body.classList.toggle('glass', !!(lay && lay.look === 'glass'));
     var blocks = (lay && lay.blocks) || CLASSIC.blocks;
     var get = function (id) { return blocks[id] || CLASSIC.blocks[id] || null; };
     // Clock: Small (one row) is time and date side by side; Big (three rows) a large time over the date.
@@ -644,7 +689,7 @@
     // Now playing: hidden unless the layout shows it.
     var npb = blocks.nowplaying || null;
     state.npBlock = npb; blockOn.nowplaying = !!npb && npb.on !== false;
-    if (npb) placeBlock($('npBlock'), npb);
+    if (npb) placeBlock($('npBlock'), npb, true);   // its own height: the card inside fills it (else it folds to a thin bar)
     npPaint();
     fitBlocks.blocks = blocks; setTimeout(fitBlocks, 0);
     // Widget blocks: a four-row one shows two cards stacked.
