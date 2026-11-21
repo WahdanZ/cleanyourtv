@@ -112,7 +112,7 @@ body:not([data-tv]) [data-for="other"] { display: none !important; }
 .today { background: var(--panel); border: 1px solid var(--accent); border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
 .today p { color: var(--muted); font-size: 16px; }
 .next { margin-top: 28px; background: var(--panel); border: 1px dashed var(--glass-rim); border-radius: 16px; padding: 24px 26px; display: grid; gap: 12px; }
-.next ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.next ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 16px; }
 .next li { color: var(--muted); font-size: 15px; } .next li b { display: block; color: var(--fg); font-weight: 600; }
 .next .go { font: 600 15px/1 var(--display); color: var(--accent); text-decoration: none; }
 
@@ -171,7 +171,7 @@ body:not([data-tv]) [data-for="other"] { display: none !important; }
 .thtag { margin-top: 18px; font: 500 21px/1.35 var(--display); color: var(--accent); }
 .thabout { margin-top: 10px; color: var(--muted); font-size: 16px; }
 .thkeys { margin-top: 18px; font: 400 13px/1.5 var(--mono); color: var(--muted); }
-.thumbs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin-top: 30px; }
+.thumbs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 30px; }
 .thumbs.looksrow { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 760px; margin-top: 18px; }
 .thumb { display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; text-align: left; font: 500 14px/1.3 var(--display); min-width: 0; }
 .thumb img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; border: 1.5px solid var(--line); transition: transform .2s ease, border-color .2s ease; }
@@ -537,8 +537,8 @@ body::before {
 <section id="themes">
   <div class="wrap">
     <p class="eyebrow">Themes</p>
-    <h2>Fifteen Homes. Pick the one that fits your evening.</h2>
-    <p class="lede">Each layout arranges the same apps in a different way: a channel dial, an evening timeline, a gallery, a quiet clock. Choose one below to see it on the TV. Every picture is from the same real Chromecast.</p>
+    <h2>Four Homes to start with. More are on the way.</h2>
+    <p class="lede">Classic is the full Home: widgets, the Glass look, and editing with the remote. Theater, Command Deck and Ambient arrange the same apps in their own way. Eleven more layouts are being finished and will come in updates. Every picture is from a real Chromecast.</p>
     <div class="gallery">
       <figure class="tv swipe" style="margin:0" id="thSwipe">
         <div class="bezel"><div class="screen"><img id="thShot" src="img/l/theater.jpg" alt="The Theater layout" draggable="false"></div></div>
@@ -548,7 +548,7 @@ body::before {
         <p class="swipehint">Swipe the TV to see the next theme</p>
       </figure>
       <div class="thinfo" aria-live="polite">
-        <p class="thcount" id="thCount">12 of 15</p>
+        <p class="thcount" id="thCount">2 of 4</p>
         <h3 class="thname" id="thName">Theater</h3>
         <p class="thfam" id="thFam">Photo first</p>
         <p class="thtag" id="thTag">Make tonight your own.</p>
@@ -588,7 +588,7 @@ body::before {
         <button type="button" class="pf" aria-pressed="false" data-shot="img/p/ccdim.jpg" data-alt="Dim the Chromecast slider, and a box to type into the Chromecast" data-for="gtv both other"><b>Typing and dimming</b><span>Type a search into YouTube or Netflix from your phone's keyboard. Dim everything the Chromecast shows for late nights.</span></button>
         <button type="button" class="pf" aria-pressed="false" data-shot="img/p/player.jpg" data-alt="The player: YouTube playing, with previous, pause and next, and volume"><b>What's playing</b><span>Play, pause and skip, whatever app it's in, with the controls also in your phone's notifications and on the lock screen.</span></button>
         <button type="button" class="pf" aria-pressed="false" data-shot="img/p/vpn.jpg" data-alt="The VPN page: connected to one country, with buttons for Germany, USA, UK, Canada, Egypt, UAE, France and Japan"><b>Switch the country</b><span>One tap moves the TV and the Chromecast to another country's catalogue. Apps can switch by themselves: open OSN+ and it goes to the UAE.</span></button>
-        <button type="button" class="pf" aria-pressed="false" data-shot="img/p/tv.jpg" data-alt="Home layouts to choose from: Classic, Liquid OS, Channel Zero, Typography First and more"><b>Pick the Home theme</b><span>Choose one of the 15 layouts for the TV and for the Chromecast. It changes on the screen in seconds.</span></button>
+        <button type="button" class="pf" aria-pressed="false" data-shot="img/p/tv.jpg" data-alt="Home themes to choose from in the phone panel"><b>Pick the Home theme</b><span>Choose the Home theme for the TV and for the Chromecast. It changes on the screen in seconds.</span></button>
         <button type="button" class="pf" aria-pressed="false" data-shot="img/p/usage.jpg" data-alt="Usage: 36 hours 57 minutes of screen time in 7 days, a chart per day for the TV and the Chromecast, and the apps used most (example numbers)"><b>Usage</b><span>How long the TV and the Chromecast were on today, this week or this month, which apps took the time (Netflix on both counts as one), and the shows watched longest. It stays on your computer. <i>(Screenshot with example numbers.)</i></span></button>
         <button type="button" class="pf" aria-pressed="false" data-shot="img/p/gear.jpg" data-alt="Settings: your name, update right away, 24-hour clock, Automatic Home"><b>Settings</b><span>Your name for the greeting, the 24-hour clock, and whether your Home opens by itself when the TV turns on.</span></button>
       </div>
@@ -684,6 +684,7 @@ python3 helper/cyt_helper.py<button class="copy" type="button" data-copy="cmdHel
       <h3>Coming next</h3>
       <ul>
         <li><b>Glass and the speed-ups</b> in the next app release.</li>
+        <li><b>Eleven more Home themes</b>, finished one by one.</li>
         <li><b>Amazon Fire TV</b>, tested and supported.</li>
         <li><b>More VIDAA models</b>, with your reports.</li>
         <li><b>Samsung and LG</b>, being looked into.</li>
@@ -756,6 +757,9 @@ python3 helper/cyt_helper.py<button class="copy" type="button" data-copy="cmdHel
     ['scenes','Scene Stage','Routines','Set the mood.','Your scenes as large cards. OK runs one: wake the screen, switch the VPN, open an app. Shown empty here until you make one.','◀ ▶ scenes · OK start the scene'],
     ['ambient','Ambient','Ambient','A clock, today’s photo, and nothing else until you ask.','Aurora’s reveal-on-demand strip over today’s photo, with the clock in the middle.','any arrow show places · OK open · Back hide']
   ];
+  var SHOWN = ['classic', 'theater', 'deck', 'ambient'];   // the finished ones; the other eleven are still being completed
+  L = SHOWN.map(function (id) { return L.filter(function (l) { return l[0] === id; })[0]; });
+  L[0][4] = 'Your widgets (football, news, the quote, what is playing), the clock in six styles, your dock and rows, the Glass or Standard look. Move and resize every block, from the phone or with the remote.';
   var K = [
     ['img/standard.jpg','Standard','Classic in the Standard look: calm dark cards and a dark dock.'],
     ['img/glass.jpg','Glass','Classic in the Glass look: frosted cards, buttons and dock with a bright rim.'],
@@ -783,7 +787,7 @@ python3 helper/cyt_helper.py<button class="copy" type="button" data-copy="cmdHel
     var src = 'img/l/' + l[0] + '.jpg';
     var b = thumb(thumbs, src, l[1]);
     if (l[0] === 'theater') b.setAttribute('aria-pressed', 'true');
-    b.addEventListener('click', function () { pick(b, src, 'The ' + l[1] + ' layout', [(n + 1) + ' of 15', l[1], l[2], l[3], l[4], l[5]]); });
+    b.addEventListener('click', function () { pick(b, src, 'The ' + l[1] + ' layout', [(n + 1) + ' of ' + L.length, l[1], l[2], l[3], l[4], l[5]]); });
   });
   K.forEach(function (k, n) {
     var b = thumb(looks, k[0], k[1]);
