@@ -4,6 +4,8 @@ A calm, ad-free Home screen for the **Chromecast with Google TV** and **Hisense 
 weather, live football scores, a daily photo, and nothing you didn't ask for. Change any of it from your phone, or
 with the TV remote.
 
+**Website: [wahdanz.github.io/cleanyourtv](https://wahdanz.github.io/cleanyourtv/)**, with screenshots, all 15 themes and the downloads.
+
 ## Pick your setup
 
 | You have | You need | Guide |
