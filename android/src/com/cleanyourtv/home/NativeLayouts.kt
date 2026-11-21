@@ -628,6 +628,8 @@ object NativeLayouts {
         private val frames = ArrayList<Frame>()
         private lateinit var spot: View; private lateinit var numV: TextView; private lateinit var nameV: TextView; private lateinit var lineV: TextView
         private var details = false; private var middle = 0
+        private lateinit var okV: TextView; private lateinit var ctlBox: LinearLayout; private val ctls = ArrayList<TextView>()
+        private var zone = "frames"; private var ci = 1   // "ctl": the song's buttons ⏮ ⏯ ⏭ on the placard
         private val serif = android.graphics.Typeface.create(android.graphics.Typeface.SERIF, android.graphics.Typeface.BOLD)
         private val roman = arrayOf("I", "II", "III", "IV", "V", "VI", "VII", "VIII")
         private fun lastUsed(): Map<String, Long> {
@@ -699,7 +701,16 @@ object NativeLayouts {
             val tx = LinearLayout(h.a); tx.orientation = LinearLayout.VERTICAL
             nameV = h.text("", 46f, TEXT, 700).also { it.typeface = serif }; lineV = h.text("", 22f, Color.argb(200, 255, 255, 255), 500, 2)
             tx.addView(nameV); tx.addView(lineV); card.addView(tx, LinearLayout.LayoutParams(0, -2, 1f))
-            card.addView(h.text("OK  OPEN", 24f, Color.rgb(31, 23, 10), 800).also { it.letterSpacing = .08f; it.background = h.round(Color.rgb(243, 239, 230), 16f); it.setPadding(30, 18, 30, 18); it.tag = "ok" })
+            okV = h.text("OK  OPEN", 24f, Color.rgb(31, 23, 10), 800).also { it.letterSpacing = .08f; it.background = h.round(Color.rgb(243, 239, 230), 16f); it.setPadding(30, 18, 30, 18) }
+            card.addView(okV)
+            // on the song's frame: previous, play or pause, next (▲ to reach them)
+            ctlBox = LinearLayout(h.a); ctls.clear()
+            for (g in listOf("⏮", "⏯", "⏭")) {
+                val b = h.text(g, 34f, Color.rgb(31, 23, 10), 700); b.gravity = Gravity.CENTER
+                b.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.rgb(243, 239, 230)) }
+                ctlBox.addView(b, LinearLayout.LayoutParams(84, 84).apply { leftMargin = 16 }); ctls.add(b)
+            }
+            card.addView(ctlBox)
             h.place(c, card, 330, 800, 1260, 170)
             set("i", clamp(idx(frames.map { it.item }, st.optString("id"), middle), 0, Math.max(0, frames.size - 1)))
             paint()
@@ -736,6 +747,13 @@ object NativeLayouts {
             frames.getOrNull(i)?.let { f ->
                 f.view.post { spot.translationX = f.view.left + f.view.width / 2f - 210f }
                 val it = f.item
+                val song = it.type == "np"
+                if (!song && zone == "ctl") zone = "frames"
+                okV.visibility = if (song) View.GONE else View.VISIBLE; ctlBox.visibility = if (song) View.VISIBLE else View.GONE
+                if (song) ctls[1].text = if (it.playing) "❚❚" else "▶"
+                ctls.forEachIndexed { k, b -> val on = zone == "ctl" && k == ci
+                    h.ring(b, on, 42f); h.anim(b).scaleX(if (on) 1.18f else 1f).scaleY(if (on) 1.18f else 1f).start()
+                    b.alpha = if (zone == "ctl") (if (on) 1f else .5f) else if (k == 1) 1f else .7f }
                 numV.text = roman.getOrElse(i) { (i + 1).toString() }
                 nameV.text = it.name
                 val ok = when (it.type) { "photo" -> "OK shows it full-screen"; "np" -> "OK plays or pauses"; "none" -> "OK tells you more"; "source" -> "OK switches the TV to it"; else -> "OK opens it" }
@@ -743,15 +761,25 @@ object NativeLayouts {
                     it.type == "np" -> "What the Chromecast is playing. OK plays or pauses."
                     it.type == "source" -> "One of the TV's own inputs. OK switches the TV to it."
                     else -> "One of your favourite apps. ▼ shows every app." }
-                lineV.text = listOf(f.plateSub, ok).filter { s -> s.isNotEmpty() }.joinToString("  ·  ") + if (details) "\n" + more else "  ·  ▲ about this frame"
+                lineV.text = if (song) (if (zone == "ctl") "◀ ▶ choose  ·  OK press  ·  ▼ back to the frames" else f.plateSub + "  ·  OK plays or pauses  ·  ▲ ⏮ ⏯ ⏭")
+                    else listOf(f.plateSub, ok).filter { s -> s.isNotEmpty() }.joinToString("  ·  ") + if (details) "\n" + more else "  ·  ▲ about this frame"
                 set("id", it.id)
             }
         }
         override fun key(k: String): Boolean {
             val n = frames.size
+            if (zone == "ctl") {
+                when (k) {
+                    "left", "right" -> ci = clamp(ci + if (k == "right") 1 else -1, 0, 2)
+                    "ok" -> { h.media(listOf("prev", "play", "next")[ci]); return true }
+                    "down", "back", "up" -> zone = "frames"
+                    else -> return false
+                }
+                paint(); return true
+            }
             when (k) {
                 "left", "right" -> if (n > 0) { set("i", clamp(int("i") + if (k == "right") 1 else -1, 0, n - 1)); details = false }
-                "up" -> details = !details
+                "up" -> if (frames.getOrNull(int("i"))?.item?.type == "np") { zone = "ctl"; ci = 1 } else details = !details
                 "down" -> { h.openGrid("The full collection", listOfNotNull(h.live()) + h.sources() + h.all()); return true }
                 "ok" -> { h.act(frames.getOrNull(int("i"))?.item, frames.getOrNull(int("i"))?.view); return true }
                 "back" -> if (details) details = false else set("i", middle)
