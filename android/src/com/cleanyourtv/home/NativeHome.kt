@@ -105,6 +105,7 @@ class NativeHome(val a: MainActivity, private val root: FrameLayout) {
         style(toastV, 28f, NIGHT, 600); toastV.background = round(TEXT, 18f); toastV.setPadding(36, 20, 36, 20); toastV.alpha = 0f
         stage.addView(toastV, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = 110 })
         root.addView(stage, FrameLayout.LayoutParams(W, H))
+        Glass.stage2 = stage   // glass panels in the layouts show the frosted photo at their place on this stage
         val dm = a.resources.displayMetrics
         val k = Math.min(dm.widthPixels / W.toFloat(), dm.heightPixels / H.toFloat())
         stage.pivotX = 0f; stage.pivotY = 0f; stage.scaleX = k; stage.scaleY = k

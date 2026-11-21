@@ -119,80 +119,139 @@ object NativeLayouts {
         }
     }
 
-    // =============================================================================== 02 Channel Zero, S Signal
-    // UP/DOWN previous/next source (it wraps, like a dial), RIGHT details, LEFT favourites (Signal: next group),
-    // OK open or switch, BACK back; number keys jump to a channel (Channel Zero).
-    class Channel(h: NativeHome, private val signal: Boolean) : Layout(h) {
-        override val hints = if (signal) listOf("▲ ▼ Change source", "OK Open / switch", "▶ Details", "◀ Next group")
-            else listOf("▲ ▼ Change source", "OK Open / switch", "▶ Details", "◀ Favourites", "0-9 Channel number")
-        private class Row(val item: Item, val group: Int)
-        private val flat = ArrayList<Row>(); private val rows = ArrayList<View>()
-        private lateinit var inner: LinearLayout; private lateinit var big: FrameLayout; private lateinit var type: TextView; private lateinit var go: TextView; private lateinit var info: TextView; private lateinit var stage: FrameLayout
-        private lateinit var jump: TextView
+    // =============================================================================== 02 Channel Zero (Signal merged in)
+    // A dial: your apps numbered like channels, then the TV's own inputs (only when the TV can really switch to them,
+    // i.e. the helper reports them). UP/DOWN previous/next channel (it wraps), number keys jump, LEFT next group,
+    // RIGHT the stage's buttons, OK open or switch, BACK to the top. Over today's photo, in the Glass or plain look,
+    // with what's playing and the next match beside it.
+    class Channel(h: NativeHome, @Suppress("unused") private val signal: Boolean) : Layout(h) {
+        override val hints = listOf("▲ ▼ Change channel", "OK Open", "▶ All apps", "◀ Next group")   // (number keys jump too, where the remote has them)
+        override val photo get() = opts.optString("photo") != "off"
+        private class Row(val item: Item, val group: Int, val view: LinearLayout, val texts: List<TextView>, val badge: TextView?)
+        private val flat = ArrayList<Row>()
+        private lateinit var inner: LinearLayout; private lateinit var stage: FrameLayout; private lateinit var art: FrameLayout
+        private lateinit var name: TextView; private lateinit var what: TextView; private lateinit var num: TextView
+        private lateinit var go: TextView; private lateinit var more: TextView; private lateinit var jump: TextView
         private var zone = "list"; private var typed = ""
+        private val glass get() = h.a.glassLook && photo
+        private fun panel(v: View, r: Float) { v.background = if (glass) Glass.Panel(v, r, 110) else h.round(Color.argb(196, 23, 41, 59), r, 2, Color.argb(46, 121, 214, 233)) }
+        private fun lastUsed(): Map<String, Long> {
+            val out = HashMap<String, Long>()
+            try { val arr = org.json.JSONArray(h.prefs.getString("recent", "[]")); for (i in 0 until arr.length()) arr.optJSONObject(i)?.let { r ->
+                val k = r.optString("type") + ":" + r.optString("id"); if (!out.containsKey(k)) out[k] = r.optLong("at") } } catch (e: Exception) { }
+            return out
+        }
+        private fun ago(at: Long): String {
+            if (at <= 0) return ""
+            val days = ((System.currentTimeMillis() - at) / 86_400_000L).toInt()
+            return when { days <= 0 -> "Opened today"; days == 1 -> "Opened yesterday"; days < 7 -> "Opened $days days ago"; else -> "" }
+        }
         override fun render() {
-            val live = h.live(); val src = h.sources(); val apps = if (opts.optString("apps") == "all") h.all() else h.favorites()
+            val apps = if (opts.optString("apps") == "all") (h.favorites() + h.all()).distinctBy { it.id } else h.favorites()
+            val tv = listOfNotNull(h.live()) + h.sources()   // empty without a TV the helper can switch
             val groups = ArrayList<Pair<String, List<Item>>>()
-            val liveFirst = signal || opts.optString("order") != "apps"
-            if (!liveFirst) groups.add("Apps" to apps)
-            if (live != null) groups.add("Live TV" to listOf(live))
-            if (src.isNotEmpty()) groups.add("Inputs" to src)
-            if (liveFirst) groups.add("Apps" to apps)
-            flat.clear(); rows.clear()
-            groups.forEachIndexed { g, (_, list) -> list.forEach { flat.add(Row(it, g)) } }
-            header(if (signal) "The TV dial · one place for every source" else "The channel dial", "", "", 150)
-            val rail = FrameLayout(h.a); rail.clipChildren = true; h.place(c, rail, 96, 220, 700, 730)
-            inner = LinearLayout(h.a); inner.orientation = LinearLayout.VERTICAL; rail.addView(inner, FrameLayout.LayoutParams(700, -2))
-            var last = -1
-            flat.forEachIndexed { n, r ->
-                if (signal && r.group != last) { last = r.group; inner.addView(h.text(groups[r.group].first.uppercase(), 24f, FOCUS, 500).also { it.letterSpacing = .12f; it.setPadding(8, 22, 0, 10) }) }
-                val row = LinearLayout(h.a); row.orientation = LinearLayout.HORIZONTAL; row.gravity = Gravity.CENTER_VERTICAL
-                row.background = h.round(Color.argb(140, 23, 41, 59), 16f); row.setPadding(22, 14, 22, 14)
-                if (!signal) row.addView(h.text(String.format("%02d", n + 1), 32f, FOCUS, 600), LinearLayout.LayoutParams(80, -2))
-                val t = LinearLayout(h.a); t.orientation = LinearLayout.VERTICAL
-                t.addView(h.text(r.item.name, 38f, TEXT, 600)); t.addView(h.text(r.item.sub.uppercase(), 22f, MUTED, 500).also { it.letterSpacing = .08f })
-                row.addView(t, LinearLayout.LayoutParams(0, -2, 1f))
-                row.addView(h.text(r.item.badge, 20f, Color.rgb(159, 227, 242), 600).also { it.background = h.round(Color.argb(41, 121, 214, 233), 10f); it.setPadding(12, 6, 12, 6) })
-                inner.addView(row, LinearLayout.LayoutParams(700, -2).apply { bottomMargin = 10 }); rows.add(row)
+            if (opts.optString("order") == "live" && tv.isNotEmpty()) groups.add("The TV" to tv)
+            groups.add("Your apps" to apps)
+            if (opts.optString("order") != "live" && tv.isNotEmpty()) groups.add("The TV" to tv)
+            flat.clear()
+            // the dial
+            val dial = FrameLayout(h.a); panel(dial, 30f); dial.clipToOutline = true; h.place(c, dial, 80, 150, 720, 800)
+            val rail = FrameLayout(h.a); rail.clipChildren = true; dial.addView(rail, FrameLayout.LayoutParams(720, 800))
+            inner = LinearLayout(h.a); inner.orientation = LinearLayout.VERTICAL; inner.setPadding(22, 12, 22, 22)
+            rail.addView(inner, FrameLayout.LayoutParams(720, -2))
+            var n = 0
+            groups.forEachIndexed { g, (title, list) ->
+                inner.addView(h.text(title.uppercase(), 22f, Color.argb(235, 255, 255, 255), 700).also { it.letterSpacing = .14f; it.setPadding(10, 18, 0, 10) })
+                for (it in list) {
+                    n++
+                    val row = LinearLayout(h.a); row.orientation = LinearLayout.HORIZONTAL; row.gravity = Gravity.CENTER_VERTICAL; row.setPadding(20, 0, 20, 0)
+                    val numT = h.text(String.format("%02d", n), 30f, FOCUS, 600); row.addView(numT, LinearLayout.LayoutParams(70, -2))
+                    if (it.type == "app") row.addView(h.tile(it, 96, 54, 18f, false, "wide"), LinearLayout.LayoutParams(96, 54).apply { rightMargin = 20 })
+                    val t = LinearLayout(h.a); t.orientation = LinearLayout.VERTICAL
+                    val subText = it.sub.takeUnless { s -> s.equals(it.badge, true) || s.equals("app", true) }.orEmpty()   // no "APP" twice
+                    val nm = h.text(it.name, 32f, TEXT, 600); val sb = h.text(subText.uppercase(), 20f, SUB, 500).also { s -> s.letterSpacing = .08f }
+                    t.addView(nm); if (subText.isNotEmpty()) t.addView(sb)
+                    row.addView(t, LinearLayout.LayoutParams(0, -2, 1f))
+                    val badge = it.badge.takeIf { b -> b.isNotEmpty() }?.let { b -> h.text(if (it.playing) "♪" else b, 18f, FOCUS, 700).also { v ->
+                        v.background = h.round(Color.argb(41, 121, 214, 233), 10f); v.setPadding(12, 6, 12, 6); row.addView(v) } }
+                    inner.addView(row, LinearLayout.LayoutParams(-1, 84).apply { bottomMargin = 8 })
+                    flat.add(Row(it, g, row, listOf(numT, nm, sb), badge))
+                }
             }
-            if (flat.isEmpty()) inner.addView(h.text("No apps or inputs yet.", 30f, SUB))
-            stage = FrameLayout(h.a); stage.background = h.round(Color.argb(184, 23, 41, 59), 32f, 2, Color.argb(46, 121, 214, 233)); h.place(c, stage, 860, 220, 964, 640)
-            if (signal && d.wallUrl.isNotEmpty()) { val iv = android.widget.ImageView(h.a); iv.scaleType = android.widget.ImageView.ScaleType.CENTER_CROP; iv.alpha = .45f
-                stage.addView(iv, FrameLayout.LayoutParams(964, 640)); stage.clipToOutline = true; h.a.loadImage(d.wallUrl, iv, 964) }
-            big = FrameLayout(h.a); h.place(stage, big, 60, 60, 844, 380)
-            type = h.text("", 26f, SUB, 500); type.letterSpacing = .08f; h.place(stage, type, 60, 450, 844)
-            go = button("OK  OPEN"); info = button("Back to the dial", false)
-            val btns = LinearLayout(h.a); btns.addView(go); btns.addView(info, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = 20 }); h.place(stage, btns, 60, 520)
-            jump = h.text("", 40f, NativeHome.NIGHT, 700); jump.background = h.round(TEXT, 16f); jump.setPadding(30, 18, 30, 18); jump.alpha = 0f; h.place(c, jump, 1560, 150)
+            if (flat.isEmpty()) inner.addView(h.text("No apps yet: they appear here once the Chromecast reports them.", 28f, SUB, 400, 3).also { it.setPadding(10, 20, 10, 0) })
+            // the widgets: what's playing and the next match, each only when there is one
+            val cards = ArrayList<View>()
+            d.np?.let { cards.add(nowCard(it)) }
+            h.upcoming().filter { it.kind == "match" }.take(2).takeIf { it.isNotEmpty() }?.let { cards.add(matchCard(it)) }
+            val stageH = if (cards.isEmpty()) 800 else 520
+            // the stage
+            stage = FrameLayout(h.a); panel(stage, 30f); h.place(c, stage, 860, 150, 980, stageH)
+            num = h.text("", 150f, Color.argb(230, 159, 227, 242), 700); num.gravity = Gravity.END; h.place(stage, num, 560, 40, 370)
+            art = FrameLayout(h.a); h.place(stage, art, 60, 56, 420, 190)
+            name = h.text("", 80f, TEXT, 700); h.place(stage, name, 60, 262, 860)
+            what = h.text("", 22f, SUB, 600); what.letterSpacing = .08f; h.place(stage, what, 64, 356, 860)
+            go = button("OK  OPEN"); more = button("▶  ALL APPS", false)
+            val btns = LinearLayout(h.a); btns.addView(go); btns.addView(more, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = 18 }); h.place(stage, btns, 60, stageH - 124)
+            if (cards.size == 1) h.place(c, cards[0], 860, 700, 980, 250)
+            if (cards.size == 2) { h.place(c, cards[0], 860, 700, 520, 250); h.place(c, cards[1], 1404, 700, 436, 250) }
+            jump = h.text("", 40f, NativeHome.NIGHT, 700); jump.background = h.round(TEXT, 16f); jump.setPadding(30, 18, 30, 18); jump.alpha = 0f; h.place(c, jump, 1500, 70)
             set("i", clamp(idx(flat.map { it.item }, st.optString("id"), int("i")), 0, Math.max(0, flat.size - 1)))
             paint()
         }
+        private fun nowCard(np: Item): View {
+            val card = FrameLayout(h.a); panel(card, 26f)
+            val col = LinearLayout(h.a); col.orientation = LinearLayout.VERTICAL; col.setPadding(30, 26, 30, 26)
+            col.addView(h.text(("♪ " + (if (np.playing) "Now playing" else "Paused") + if (np.why.isNotEmpty()) " · " + np.why else "").uppercase(), 18f, SUB, 700).also { it.letterSpacing = .12f })
+            val r = LinearLayout(h.a); r.gravity = Gravity.CENTER_VERTICAL
+            val iv = android.widget.ImageView(h.a); iv.scaleType = android.widget.ImageView.ScaleType.CENTER_CROP; iv.background = h.round(Color.rgb(47, 72, 88), 18f); iv.clipToOutline = true
+            np.icon?.let { iv.setImageDrawable(it) }; r.addView(iv, LinearLayout.LayoutParams(130, 130))
+            val t = LinearLayout(h.a); t.orientation = LinearLayout.VERTICAL; t.setPadding(22, 0, 0, 0)
+            listOf(h.text(np.name, 30f, TEXT, 600), if (np.emoji.isNotEmpty()) h.text(np.emoji, 22f, SUB) else null).filterNotNull().forEach { v ->
+                v.textDirection = View.TEXT_DIRECTION_LTR; v.textAlignment = View.TEXT_ALIGNMENT_VIEW_START; v.gravity = Gravity.LEFT; v.layoutDirection = View.LAYOUT_DIRECTION_LTR; t.addView(v, LinearLayout.LayoutParams(-1, -2)) }   // an Arabic title starts at the left, by its picture
+            r.addView(t, LinearLayout.LayoutParams(0, -2, 1f))
+            col.addView(r, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 16 })
+            card.addView(col, FrameLayout.LayoutParams(-1, -1))
+            return card
+        }
+        private fun matchCard(ms: List<NativeHome.Moment>): View {
+            val card = FrameLayout(h.a); panel(card, 26f)
+            val col = LinearLayout(h.a); col.orientation = LinearLayout.VERTICAL; col.setPadding(30, 26, 30, 26)
+            col.addView(h.text(("⚽ " + ms[0].source + " · " + if (ms[0].live) "Live" else "Next").uppercase(), 18f, SUB, 700).also { it.letterSpacing = .12f })
+            for (m in ms) {
+                val r = LinearLayout(h.a); r.orientation = LinearLayout.VERTICAL; r.setPadding(0, 18, 0, 0)
+                r.addView(h.text(m.name, 26f, TEXT, 600))
+                r.addView(h.text(if (m.live) "LIVE NOW" else h.hhmm(m.at) + "  ·  " + h.until(m.at), 20f, if (m.live) Color.rgb(255, 107, 107) else MUTED, 600))
+                col.addView(r)
+            }
+            card.addView(col, FrameLayout.LayoutParams(-1, -1))
+            return card
+        }
         override fun refresh() { val z = zone; render(); zone = z; paint() }
         private fun paint() {
-            val i = int("i"); val it = flat.getOrNull(i)?.item
-            rows.forEachIndexed { k, r -> h.ring(r, zone == "list" && k == i, 16f); r.alpha = if (zone == "stage" && k != i) .45f else 1f
-                r.background = h.round(if (k == i) Color.argb(46, 121, 214, 233) else Color.argb(140, 23, 41, 59), 16f) }
-            rows.getOrNull(i)?.let { r -> r.post { inner.translationY = -Math.max(0, r.top - 240).toFloat() } }
-            big.removeAllViews()
-            if (it != null) {
-                val m = Regex("^([A-Za-z]+)(\\d+)$").find(it.id)
-                val col = LinearLayout(h.a); col.orientation = LinearLayout.VERTICAL; col.gravity = Gravity.CENTER_VERTICAL
-                if (it.type == "source") {
-                    col.addView(h.text(m?.groupValues?.get(1)?.uppercase() ?: it.name, 96f, TEXT, 700))
-                    if (m != null) col.addView(h.text(String.format("%02d", m.groupValues[2].toInt()), 170f, Color.rgb(159, 227, 242), 700))
-                } else {
-                    col.addView(h.tile(it, 300, 170, 26f, false), LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = 24 })
-                    col.addView(h.text(it.name, 96f, TEXT, 700))
-                }
-                big.addView(col, FrameLayout.LayoutParams(844, 380))
-                type.text = (it.sub + "  /  " + if (it.type == "source") "OK switches the TV to it" else "OK opens it").uppercase()
-                go.text = "OK  " + if (it.type == "source") "SWITCH" else "OPEN"
+            val i = int("i"); val row = flat.getOrNull(i); val it = row?.item
+            flat.forEachIndexed { k, r ->
+                val on = k == i
+                r.view.background = if (on) h.round(Color.argb(if (zone == "list") 236 else 120, 255, 255, 255), 18f) else null
+                r.texts.forEachIndexed { j, t -> t.setTextColor(if (on && zone == "list") (if (j == 0) Color.rgb(11, 79, 95) else if (j == 2) Color.argb(150, 0, 0, 0) else Color.rgb(17, 17, 17)) else (if (j == 0) FOCUS else if (j == 2) SUB else TEXT)) }
+                r.view.alpha = if (zone == "stage" && !on) .5f else 1f
             }
-            h.ring(go, zone == "stage" && int("btn") == 0, 16f); h.ring(info, zone == "stage" && int("btn") == 1, 16f)
-            if (it != null) set("id", it.id)
+            row?.let { r -> r.view.post { inner.translationY = -Math.max(0, r.view.top - 300).toFloat() } }
+            art.removeAllViews()
+            if (it != null) {
+                num.text = String.format("%02d", i + 1)
+                if (it.type == "source") {
+                    val m = Regex("^([A-Za-z]+)(\\d+)$").find(it.id)
+                    art.addView(h.text(if (m != null) m.groupValues[1].uppercase() + " " + m.groupValues[2].toInt() else if (it.live || it.id.equals("TV", true)) "LIVE TV" else it.name.uppercase().take(10), 96f, Color.rgb(159, 227, 242), 700), FrameLayout.LayoutParams(-2, -2, Gravity.CENTER_VERTICAL))
+                } else art.addView(h.tile(it, 300, 168, 26f, false, "wide"), FrameLayout.LayoutParams(300, 168))
+                name.text = it.name
+                val used = ago(lastUsed()[it.type + ":" + it.id] ?: 0L)
+                what.text = listOf(it.sub.takeUnless { s -> s.equals("app", true) }.orEmpty(), if (it.playing) "Playing now" else used, if (it.type == "source") "OK switches the TV to it" else "OK opens it").filter { s -> s.isNotEmpty() }.joinToString("  ·  ").uppercase()
+                go.text = "OK  " + if (it.type == "source") "SWITCH" else "OPEN"
+                set("id", it.id)
+            }
+            h.ring(go, zone == "stage" && int("btn") == 0, 16f); h.ring(more, zone == "stage" && int("btn") == 1, 16f)
         }
         override fun digit(n: Int): Boolean {
-            if (signal) return false
             typed = (typed + n).takeLast(2); val want = typed.toInt()
             jump.text = "Channel $typed"; jump.alpha = 1f
             h.a.ui.removeCallbacks(clear); h.a.ui.postDelayed(clear, 1400)
@@ -202,24 +261,22 @@ object NativeLayouts {
         private val clear = Runnable { typed = ""; jump.alpha = 0f }
         override fun key(k: String): Boolean {
             val n = flat.size
-            if (n == 0) return k != "back"
+            if (n == 0) { if (k == "down" || k == "right") { allGrid(); return true }; return k != "back" }
             if (zone == "stage") {
                 when (k) {
-                    "left", "back" -> zone = "list"
-                    "up", "down" -> set("btn", if (k == "down") 1 else 0)
-                    "ok" -> if (int("btn") == 1) { zone = "list"; set("btn", 0) } else { h.act(flat[int("i")].item, go); return true }
+                    "back" -> zone = "list"
+                    "left" -> if (int("btn") == 1) set("btn", 0) else zone = "list"
+                    "right" -> set("btn", 1)
+                    "ok" -> { if (int("btn") == 1) { allGrid(); return true }; h.act(flat[int("i")].item, go); return true }
+                    else -> return true
                 }
                 paint(); return true
             }
             when (k) {
                 "up", "down" -> set("i", (int("i") + (if (k == "down") 1 else -1) + n) % n)
                 "right" -> { zone = "stage"; set("btn", 0) }
-                "left" -> {
-                    val g = flat[int("i")].group
-                    if (signal) { for (j in 1..n) if (flat[(int("i") + j) % n].group != g) { set("i", (int("i") + j) % n); break } }
-                    else flat.indexOfFirst { it.item.type == "app" }.takeIf { it >= 0 }?.let { set("i", it) }
-                }
-                "ok" -> { h.act(flat[int("i")].item, rows.getOrNull(int("i"))); return true }
+                "left" -> { val g = flat[int("i")].group; for (j in 1..n) if (flat[(int("i") + j) % n].group != g) { set("i", (int("i") + j) % n); break } }
+                "ok" -> { h.act(flat[int("i")].item, flat[int("i")].view); return true }
                 "back" -> set("i", 0)
                 else -> return false
             }

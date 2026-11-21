@@ -32,6 +32,7 @@ final class Glass {
     static final int SCALE = 8;           // the frosted copy is an eighth of the screen
     static Bitmap frost;                  // null: no photo (yet); panels are a plain light tint then
     static View stage;                    // the 1920 x 1080 view the photo fills; panels find their place in it
+    static View stage2;                   // the Home layouts' own 1920 x 1080 stage (NativeHome), same place and size
     static int version;                   // changes with each new photo, so panels make their shader again
 
     /** A new photo of the day (or null when there is none): frost it once, for every panel. */
@@ -86,14 +87,14 @@ final class Glass {
     /** A view's top left corner in the stage, moves (translation) included. False if it isn't on the stage. */
     static boolean place(View v, float[] out) {
         float x = 0, y = 0;
-        while (v != null && v != stage) {
+        while (v != null && v != stage && v != stage2) {
             x += v.getLeft() + v.getTranslationX();
             y += v.getTop() + v.getTranslationY();
             ViewParent p = v.getParent();
             v = p instanceof View ? (View) p : null;
         }
         out[0] = x; out[1] = y;
-        return v == stage;
+        return v != null;
     }
 
     /** A frosted glass panel: the background of a card, a button or the dock. */
@@ -110,10 +111,15 @@ final class Glass {
         private BitmapShader shader;
         private int shaderVersion = -1;
         private int alpha = 255;
+        private final int darken;                 // 0-255: a dark film over the frosted photo, for small text on bright photos
+        private final Paint darkP = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        Panel(View host, float radius) {
+        Panel(View host, float radius) { this(host, radius, 0); }
+        Panel(View host, float radius, int darken) {
             this.host = host;
             this.radius = radius;
+            this.darken = darken;
+            darkP.setColor(0xFF08101A);
             rimP.setStyle(Paint.Style.STROKE);
             rimP.setStrokeWidth(2f);
             plainP.setColor(MainActivity.white(.10));
@@ -145,6 +151,7 @@ final class Glass {
                 shader.setLocalMatrix(m);
                 frostP.setAlpha(a);
                 c.drawRoundRect(r, radius, radius, frostP);
+                if (darken > 0) { darkP.setAlpha(darken * a / 255); c.drawRoundRect(r, radius, radius, darkP); }
             } else {
                 plainP.setAlpha(a * 26 / 255);
                 c.drawRoundRect(r, radius, radius, plainP);

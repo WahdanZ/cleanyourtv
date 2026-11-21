@@ -77,7 +77,7 @@
    "id": "channel",
    "no": "02",
    "name": "Channel Zero",
-   "tagline": "Channel surfing, rebuilt for streaming and HDMI.",
+   "tagline": "Your apps on a dial, numbered like channels.",
    "family": "TV-native",
    "role": "Signature",
    "pdf": [
@@ -100,15 +100,15 @@
      "type": "choice",
      "choices": [
       [
-       "live",
-       "Live TV, inputs, then apps"
+       "apps",
+       "Your apps first, then the TV"
       ],
       [
-       "apps",
-       "Apps first, then inputs"
+       "live",
+       "The TV first, then your apps"
       ]
      ],
-     "def": "live"
+     "def": "apps"
     },
     {
      "key": "apps",
@@ -125,6 +125,22 @@
       ]
      ],
      "def": "favorites"
+    },
+    {
+     "key": "photo",
+     "label": "Background",
+     "type": "choice",
+     "choices": [
+      [
+       "on",
+       "Today's photo (Glass or plain)"
+      ],
+      [
+       "off",
+       "Dark"
+      ]
+     ],
+     "def": "on"
     }
    ]
   },
