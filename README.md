@@ -5,7 +5,7 @@ A calm, ad-free Home screen for **Google TV** (the Chromecast with Google TV and
 weather, live football scores, a daily photo, and nothing you didn't ask for. Change any of it from your phone, or
 with the TV remote.
 
-**Website: [wahdanz.github.io/cleanyourtv](https://wahdanz.github.io/cleanyourtv/)**, with screenshots, all 15 themes and the downloads.
+**Website: [wahdanz.github.io/cleanyourtv](https://wahdanz.github.io/cleanyourtv/)**, with screenshots, the Home themes and the downloads.
 
 ## What's new (November 2026)
 
@@ -21,7 +21,8 @@ with the TV remote.
   no more to draw than Standard.
 - **Faster on the Chromecast.** Janky frames down from 37–70% to 20% while moving around, no redraws while Home sits
   still (17 → 1 every 5 s), and 90 MB less memory: the 4K photo is decoded at screen size and its shading drawn once.
-- **15 Home themes**, each shown below on a real Chromecast.
+- **4 Home themes** (below, on a real Chromecast): Classic, Theater, Command Deck and Ambient. Eleven more layouts
+  are still being finished.
 - **Android icon packs** such as [Arcticons](https://github.com/Arcticons-Team/Arcticons) on any layout; apps a pack
   doesn't cover keep their own icon.
 - **Google TV, not only the Chromecast.** Any Google TV or Android TV box with Android 9 or newer. Tested on a
@@ -33,10 +34,9 @@ with the TV remote.
 Glass and the speed-ups are in the source now (this branch); the app download (v1.5.0) gets them in the next release.
 
 <p align="center">
-  <img src="docs/screens/layouts-all.jpg" alt="All 15 Home themes on a Chromecast, in a grid of three across: Classic, Liquid OS, Channel Zero, Typography First, Floating Worlds, The Fold, Four Directions, The Time River, The Gallery, Aurora, The Command Deck, Theater, Signal, Scene Stage and Ambient">
+  <img src="docs/screens/layouts-4.jpg" alt="Four Home themes on a Chromecast: Classic with its widgets and dock, Theater with today's photo and one row of favourites, The Command Deck with the current source and the TV's state, and Ambient with a clock over the photo">
 </p>
-<p align="center"><sub>Classic, Liquid OS, Channel Zero · Typography First, Floating Worlds, The Fold · Four Directions,
-The Time River, The Gallery · Aurora, The Command Deck, Theater · Signal, Scene Stage, Ambient</sub></p>
+<p align="center"><sub>Classic, Theater · The Command Deck, Ambient</sub></p>
 
 <p align="center">
   <img src="docs/screens/arcticons.jpg" width="70%" alt="The Theater theme with the Arcticons icon pack: Netflix, YouTube and the browser as white line icons">
@@ -68,9 +68,9 @@ report yours.
   prayer times, news), what's playing with ⏮ ⏯ ⏭, and the app's name.
 - A new photo every day: Bing's, Wikipedia's or NASA's picture of the day, or your own.
 - Presets (Classic, Dashboard, Calm, Photo frame…), or move and resize every block. Edit Home with the remote too.
-- Or one of 14 other [Home layouts](docs/experiences.md): a channel dial for apps and HDMI inputs, an ambient clock
-  that shows your places on demand, a four-arrows hub, a timeline of your evening… with icon themes anyone can make,
-  and Android icon packs (Arcticons, Delta…) on the Chromecast.
+- Or Theater, Command Deck or Ambient ([Home layouts](docs/experiences.md)), with icon themes anyone can make and
+  Android icon packs (Arcticons, Delta…) on the Chromecast. Eleven more layouts (a channel dial, a timeline of your
+  evening, a four-arrows hub…) are early versions, still being finished.
 
 **Your phone: the panel and the remote** (a web page; add it to your Home screen)
 - A remote for both devices, every app to open, a trackpad for the Chromecast, and the player with a sleep timer.
@@ -106,7 +106,7 @@ stays on your normal connection; an app can have its own country (OSN+ → UAE) 
 | [The VIDAA TV](docs/vidaa.md) | Everything about the TV: how it works, its set-up steps, Browser, Stremio, YouTube, Live TV, troubleshooting |
 | [Clean your Chromecast](docs/chromecast-clean.md) | Turn off Google's ads, suggestions, screensaver and tracking (all reversible) |
 | [The helper](docs/setup/helper.md) · [The Chromecast](docs/setup/chromecast.md) · [The VPN](docs/setup/vpn.md) | Each part in detail |
-| [Home layouts](docs/experiences.md) | 14 layouts besides Classic (Channel Zero, Theater, Aurora…): what each does with the remote, and the research behind them |
+| [Home layouts](docs/experiences.md) | Theater, Command Deck and Ambient besides Classic, and the eleven still being finished: what each does with the remote, and the research behind them |
 | [Make Home yours](docs/customize.md) · [Add-ons](addons/README.md) | Using the panel; writing your own widget or [icon theme](addons/README.md#icon-themes) |
 | [Open problems](docs/OPEN-PROBLEMS.md) · [Challenges](docs/CHALLENGES.md) · [Findings](docs/FINDINGS.md) | What's not solved, and why things are the way they are |
 
