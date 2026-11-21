@@ -21,8 +21,8 @@ with the TV remote.
   no more to draw than Standard.
 - **Faster on the Chromecast.** Janky frames down from 37–70% to 20% while moving around, no redraws while Home sits
   still (17 → 1 every 5 s), and 90 MB less memory: the 4K photo is decoded at screen size and its shading drawn once.
-- **5 Home themes** (below, on a real Chromecast): Classic, Theater, Channel Zero, Command Deck and Ambient. Nine
-  more layouts are still being finished.
+- **6 Home themes** (below, on a real Chromecast): Classic, Theater, Channel Zero, The Gallery, Command Deck and
+  Ambient. Eight more layouts are still being finished.
 - **Android icon packs** such as [Arcticons](https://github.com/Arcticons-Team/Arcticons) on any layout; apps a pack
   doesn't cover keep their own icon.
 - **Google TV, not only the Chromecast.** Any Google TV or Android TV box with Android 9 or newer. Tested on a
@@ -34,9 +34,9 @@ with the TV remote.
 Glass and the speed-ups are in the source now (this branch); the app download (v1.5.0) gets them in the next release.
 
 <p align="center">
-  <img src="docs/screens/layouts-5.jpg" alt="Five Home themes on a Chromecast: Classic with its widgets and dock, Theater with today's photo and one row of favourites, Channel Zero with your apps numbered like channels, The Command Deck with the current source and the TV's state, and Ambient with a clock over the photo">
+  <img src="docs/screens/layouts-6.jpg" alt="Six Home themes on a Chromecast: Classic with its widgets and dock, Theater with today's photo and one row of favourites, Channel Zero with your apps numbered like channels, The Gallery with framed apps on a lit wall, The Command Deck with the current source and the TV's state, and Ambient with a clock over the photo">
 </p>
-<p align="center"><sub>Classic, Theater, Channel Zero · The Command Deck, Ambient</sub></p>
+<p align="center"><sub>Classic, Theater, Channel Zero · The Gallery, The Command Deck, Ambient</sub></p>
 
 <p align="center">
   <img src="docs/screens/arcticons.jpg" width="70%" alt="The Theater theme with the Arcticons icon pack: Netflix, YouTube and the browser as white line icons">
@@ -68,9 +68,9 @@ report yours.
   prayer times, news), what's playing with ⏮ ⏯ ⏭, and the app's name.
 - A new photo every day: Bing's, Wikipedia's or NASA's picture of the day, or your own.
 - Presets (Classic, Dashboard, Calm, Photo frame…), or move and resize every block. Edit Home with the remote too.
-- Or Theater, Channel Zero, Command Deck or Ambient ([Home layouts](docs/experiences.md)), with icon themes anyone can make and
-  Android icon packs (Arcticons, Delta…) on the Chromecast. Nine more layouts (a timeline of your evening, a
-  four-arrows hub, a gallery…) are early versions, still being finished.
+- Or Theater, Channel Zero, The Gallery, Command Deck or Ambient ([Home layouts](docs/experiences.md)), with icon themes anyone can make and
+  Android icon packs (Arcticons, Delta…) on the Chromecast. Eight more layouts (a timeline of your evening, a
+  four-arrows hub…) are early versions, still being finished.
 
 **Your phone: the panel and the remote** (a web page; add it to your Home screen)
 - A remote for both devices, every app to open, a trackpad for the Chromecast, and the player with a sleep timer.
@@ -106,7 +106,7 @@ stays on your normal connection; an app can have its own country (OSN+ → UAE) 
 | [The VIDAA TV](docs/vidaa.md) | Everything about the TV: how it works, its set-up steps, Browser, Stremio, YouTube, Live TV, troubleshooting |
 | [Clean your Chromecast](docs/chromecast-clean.md) | Turn off Google's ads, suggestions, screensaver and tracking (all reversible) |
 | [The helper](docs/setup/helper.md) · [The Chromecast](docs/setup/chromecast.md) · [The VPN](docs/setup/vpn.md) | Each part in detail |
-| [Home layouts](docs/experiences.md) | Theater, Channel Zero, Command Deck and Ambient besides Classic, and the nine still being finished: what each does with the remote, and the research behind them |
+| [Home layouts](docs/experiences.md) | Theater, Channel Zero, The Gallery, Command Deck and Ambient besides Classic, and the eight still being finished: what each does with the remote, and the research behind them |
 | [Make Home yours](docs/customize.md) · [Add-ons](addons/README.md) | Using the panel; writing your own widget or [icon theme](addons/README.md#icon-themes) |
 | [Open problems](docs/OPEN-PROBLEMS.md) · [Challenges](docs/CHALLENGES.md) · [Findings](docs/FINDINGS.md) | What's not solved, and why things are the way they are |
 
