@@ -1,10 +1,47 @@
 # Clean Your TV
 
-A calm, ad-free Home screen for the **Chromecast with Google TV** and **Hisense VIDAA** TVs. Your apps, a clock, the
+A calm, ad-free Home screen for **Google TV** (the Chromecast with Google TV and other Google TV boxes) and
+**Hisense VIDAA** TVs. Your apps, a clock, the
 weather, live football scores, a daily photo, and nothing you didn't ask for. Change any of it from your phone, or
 with the TV remote.
 
 **Website: [wahdanz.github.io/cleanyourtv](https://wahdanz.github.io/cleanyourtv/)**, with screenshots, all 15 themes and the downloads.
+
+## What's new (November 2026)
+
+<p align="center">
+  <img src="docs/screens/glass.jpg" width="49%" alt="Classic Home in the Glass look on a Chromecast: the clock, a quote, Spotify, a football scores card and a four-app dock, all as frosted glass over a photo of Nice">
+  <img src="docs/screens/standard.jpg" width="49%" alt="The same Home in the Standard look: dark cards and a dark dock over the photo">
+</p>
+<p align="center"><sub>Glass (left) and Standard (right), on a real Chromecast with Google TV.</sub></p>
+
+- **Glass look.** The cards, buttons and dock become frosted glass over today's photo, with a bright rim where the
+  light hits. On the Chromecast's Classic Home and on the VIDAA TV. Pick it in the panel (tap the photo, then *Look*)
+  or with the remote (*Edit Home*, *+ Add to Home*, *Look*). The photo is frosted once when it arrives, so Glass costs
+  no more to draw than Standard.
+- **Faster on the Chromecast.** Janky frames down from 37–70% to 20% while moving around, no redraws while Home sits
+  still (17 → 1 every 5 s), and 90 MB less memory: the 4K photo is decoded at screen size and its shading drawn once.
+- **15 Home themes**, each shown below on a real Chromecast.
+- **Android icon packs** such as [Arcticons](https://github.com/Arcticons-Team/Arcticons) on any layout; apps a pack
+  doesn't cover keep their own icon.
+- **Google TV, not only the Chromecast.** Any Google TV or Android TV box with Android 9 or newer. Tested on a
+  Chromecast with Google TV 4K.
+- **[A website](https://wahdanz.github.io/cleanyourtv/)** that first asks which TV you have, then shows only what
+  works on it.
+- **Fixed:** the TV's Now Playing card folded into a thin bar.
+
+Glass and the speed-ups are in the source now (the [custom-ui branch](https://github.com/WahdanZ/cleanyourtv/tree/custom-ui)); the app download (v1.5.0) gets them in the next release.
+
+<p align="center">
+  <img src="docs/screens/layouts-all.jpg" alt="All 15 Home themes on a Chromecast, in a grid of three across: Classic, Liquid OS, Channel Zero, Typography First, Floating Worlds, The Fold, Four Directions, The Time River, The Gallery, Aurora, The Command Deck, Theater, Signal, Scene Stage and Ambient">
+</p>
+<p align="center"><sub>Classic, Liquid OS, Channel Zero · Typography First, Floating Worlds, The Fold · Four Directions,
+The Time River, The Gallery · Aurora, The Command Deck, Theater · Signal, Scene Stage, Ambient</sub></p>
+
+<p align="center">
+  <img src="docs/screens/arcticons.jpg" width="70%" alt="The Theater theme with the Arcticons icon pack: Netflix, YouTube and the browser as white line icons">
+</p>
+<p align="center"><sub>Theater with the Arcticons icon pack.</sub></p>
 
 ## Pick your setup
 
