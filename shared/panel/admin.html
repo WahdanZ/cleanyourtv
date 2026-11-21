@@ -95,6 +95,8 @@
   .wt-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
   .wt-legend i.tv { background: var(--s-tv); } .wt-legend i.cc { background: var(--s-cc); }
   .wt-app .bar.tv { background: var(--s-tv); } .wt-app .bar.cc { background: var(--s-cc); }
+  .wt-app .bar.mix { display: flex; background: none; overflow: hidden; }   /* one app on both: its TV part, then its Chromecast part */
+  .wt-app .bar.mix i { display: block; height: 100%; } .wt-app .bar.mix i.tv { background: var(--s-tv); } .wt-app .bar.mix i.cc { background: var(--s-cc); }
   .wt-app .dev { font-size: 11px; color: var(--muted); margin-left: 6px; }
   .wt-days .d:hover i, .wt-days .d.hl i { opacity: .75; }
   .wt-days .d.zero i { background: var(--line); height: 2px !important; }
@@ -3142,7 +3144,7 @@
     // one shape for the three views: total, days [{segments}], rows, titles
     var r;
     if (view === 'all') r = { total: raw.all.total, days: raw.all.per_day.map(function (d) { return { day: d.day, seg: [['tv', d.tv], ['cc', d.cc]] }; }),
-                              rows: raw.all.items.map(function (x) { return { name: x.name, secs: x.secs, icon: x.icon, ph: ph(x), dev: x.dev }; }), titles: raw.titles };
+                              rows: mergeApps(raw.all.items.map(function (x) { return { name: x.name, secs: x.secs, icon: x.icon, ph: ph(x), dev: x.dev, key: x.key }; })), titles: raw.titles };
     else if (view === 'tv') r = { total: raw.tv.total, days: raw.tv.per_day.map(function (d) { return { day: d.day, seg: [['tv', d.secs]] }; }),
                                   rows: raw.tv.screens.map(function (x) { return { name: x.name, secs: x.secs, icon: x.icon, ph: ph(x), dev: 'tv' }; }), titles: [] };
     else r = { total: raw.total, days: raw.per_day.map(function (d) { return { day: d.day, seg: [['cc', d.secs]] }; }),
@@ -3188,9 +3190,12 @@
       if (a.icon) { img = new Image(); img.alt = ''; img.src = a.icon; img.onerror = function () { img.style.visibility = 'hidden'; }; }
       else img = el('div', 'ph', a.ph || '▶');
       var mid = el('div'), nm = el('div', 'nm', a.name);
-      if (view === 'all') nm.appendChild(el('span', 'dev', a.dev === 'tv' ? 'TV' : 'Chromecast'));
+      if (view === 'all') nm.appendChild(el('span', 'dev', a.parts ? 'TV + Chromecast' : a.dev === 'tv' ? 'TV' : 'Chromecast'));
       mid.appendChild(nm);
-      var b = el('div', 'bar ' + a.dev); b.style.width = Math.max(2, 100 * a.secs / amx).toFixed(1) + '%'; mid.appendChild(b);
+      var b = el('div', 'bar ' + (a.parts ? 'mix' : a.dev)); b.style.width = Math.max(2, 100 * a.secs / amx).toFixed(1) + '%';
+      if (a.parts) ['tv', 'cc'].forEach(function (d) { var seg = el('i', d); seg.style.width = (100 * a.parts[d] / a.secs).toFixed(1) + '%'; b.appendChild(seg); });
+      if (a.parts) row.title = a.name + ': TV ' + fmtDur(a.parts.tv) + ', Chromecast ' + fmtDur(a.parts.cc);
+      mid.appendChild(b);
       row.appendChild(img); row.appendChild(mid); row.appendChild(el('div', 'v', fmtDur(a.secs))); apps.appendChild(row);
     });
     var tl = $('wtTitles'); tl.innerHTML = '';
@@ -3199,6 +3204,28 @@
       var row = el('div', 'wt-t'), tt = el('div', 'tt'); tt.appendChild(el('b', '', t.title)); tt.appendChild(el('small', '', [t.name, t.sub].filter(Boolean).join(' · ')));
       row.appendChild(tt); row.appendChild(el('div', 'v', fmtDur(t.secs))); tl.appendChild(row);
     });
+  }
+  // All: the same app watched on the TV and on the Chromecast (Netflix on both) is one row, its time added up.
+  // Matched by name ("MBC Shahid" and "Shahid", "Disney+" and "Disney Plus" too); screens that aren't apps (Home,
+  // Live TV, an input, the Chromecast's menus) keep their own rows.
+  function appKey(n) {
+    return String(n || '').toLowerCase().replace(/\+/g, ' plus').replace(/[^a-z0-9]+/g, ' ').replace(/\b(mbc|app)\b/g, ' ').replace(/\s+/g, '');
+  }
+  function mergeApps(rows) {
+    var out = [], byKey = {};
+    rows.forEach(function (x) {
+      var k = (x.icon && x.ph !== '⌂' && x.ph !== '🔌' && x.ph !== '📺') || x.dev === 'cc' ? appKey(x.name) : '';
+      var m = k && byKey[k];
+      if (m && m.dev !== x.dev && !m.parts) {
+        m.parts = {}; m.parts[m.dev] = m.secs; m.parts[x.dev] = x.secs;
+        m.secs += x.secs; if (!m.icon) m.icon = x.icon;
+        if (x.name.length < m.name.length) m.name = x.name;   // "Shahid" rather than "MBC Shahid"
+        return;
+      }
+      var y = { name: x.name, secs: x.secs, icon: x.icon, ph: x.ph, dev: x.dev };
+      out.push(y); if (k && !byKey[k]) byKey[k] = y;
+    });
+    return out.sort(function (a, b) { return b.secs - a.secs; });
   }
   Array.prototype.forEach.call(document.querySelectorAll('#wtRange button'), function (b) {
     b.onclick = function () { wtDaysN = +b.getAttribute('data-d'); loadStats(); };
