@@ -75,6 +75,40 @@ public class CursorService extends AccessibilityService {
 
     final Runnable hide = () -> { if (pointer != null) { pointer.setVisibility(View.GONE); shown = false; } };
 
+    // ---------- the dimmer: a see-through black layer over everything the Chromecast shows ----------
+    // The Chromecast can't change the TV's brightness (HDMI has no such command), so this darkens its own picture,
+    // in every app. 0 = off, up to MAX_DIM. Kept in the app's settings, put back when the service starts.
+    static final int MAX_DIM = 80;
+    View dimView;
+    static int dimLevel() { CursorService s = instance; return s == null ? 0 : s.getSharedPreferences("home", MODE_PRIVATE).getInt("dim", 0); }
+    /** Sets the dimmer (0 to MAX_DIM percent); false if the service isn't running. */
+    static boolean setDim(int level) {
+        CursorService s = instance;
+        if (s == null) return false;
+        int v = Math.max(0, Math.min(MAX_DIM, level));
+        s.getSharedPreferences("home", MODE_PRIVATE).edit().putInt("dim", v).apply();
+        s.ui.post(() -> s.applyDim(v));
+        L("dimmer: " + v + "%");
+        return true;
+    }
+    void applyDim(int v) {
+        if (v <= 0) { if (dimView != null) { try { wm.removeView(dimView); } catch (Exception ignored) { } dimView = null; } return; }
+        if (dimView == null) {
+            dimView = new View(this);
+            dimView.setBackgroundColor(0xFF000000);
+            WindowManager.LayoutParams dl = new WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                            | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                    PixelFormat.TRANSLUCENT);
+            try {
+                wm.addView(dimView, dl);
+                if (pointer != null) { wm.removeView(pointer); wm.addView(pointer, lp); }   // the pointer stays on top of the dimmer
+            } catch (Exception e) { L("dimmer: " + e); }
+        }
+        dimView.setAlpha(v / 100f);
+    }
+
     /** The last 400 things this service did, in memory only (the panel's Logs > Chromecast). */
     static final java.util.ArrayDeque<String> LOG = new java.util.ArrayDeque<>();
     static final java.text.SimpleDateFormat HMS = new java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US);
@@ -103,6 +137,7 @@ public class CursorService extends AccessibilityService {
         lp.gravity = Gravity.TOP | Gravity.START;
         pointer.setVisibility(View.GONE);
         try { wm.addView(pointer, lp); } catch (Exception ignored) { }
+        applyDim(getSharedPreferences("home", MODE_PRIVATE).getInt("dim", 0));   // the dimmer as it was
         running = true;
         new Thread(this::serve, "trackpad").start();
         instance = this;
@@ -146,6 +181,7 @@ public class CursorService extends AccessibilityService {
         running = false;
         try { if (server != null) server.close(); } catch (Exception ignored) { }
         try { if (pointer != null) wm.removeView(pointer); } catch (Exception ignored) { }
+        try { if (dimView != null) wm.removeView(dimView); } catch (Exception ignored) { }
         super.onDestroy();
     }
 

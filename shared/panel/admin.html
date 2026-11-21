@@ -527,6 +527,12 @@
            font-weight: 600; font-size: 18px; }
   .dk svg { width: 34px; height: 34px; }
   .rm-type { display: flex; gap: 8px; }
+  .rm-bright { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 16px; background: rgba(255,255,255,.05); }
+  .rm-bright .bl { grid-column: 1 / -1; display: flex; justify-content: space-between; font-size: 14px; color: var(--muted, #9aa2b2); }
+  .rm-bright .bl b { color: inherit; font-weight: 600; }
+  .rm-bright input[type=range] { width: 100%; accent-color: #f2f2f2; }
+  .rm-bright .rm-btn { width: 52px; height: 52px; font-size: 24px; }
+  .rm-bright input[hidden] { display: none; }
   .rm-row.media { gap: 8px; }
   .rm-row.media .rm-btn { min-width: 52px; height: 56px; padding: 0 10px; }
   .rm-row.media .rm-btn.big { min-width: 72px; height: 64px; background: var(--accent); color: var(--accent-text); border-color: transparent; }
@@ -893,6 +899,13 @@
           <button class="rm-btn" data-k="voldown" data-repeat aria-label="Volume down"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
           <button class="rm-btn" data-k="mute" aria-label="Mute"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM17 9l4 6M21 9l-4 6"/></svg></button>
           <button class="rm-btn" data-k="volup" data-repeat aria-label="Volume up"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+        </div>
+        <div class="rm-bright" id="rmBright">
+          <div class="bl"><b id="brLabel">Brightness</b><span id="brValue"></span></div>
+          <button class="rm-btn" id="brDown" aria-label="Darker">−</button>
+          <input type="range" id="brRange" min="0" max="100" step="1" aria-label="Brightness">
+          <button class="rm-btn" id="brUp" aria-label="Brighter">+</button>
+          <p class="hint" id="brNote" style="grid-column:1/-1;margin:0"></p>
         </div>
         <div class="rm-type" data-only="cc">
           <input type="text" id="rmText" placeholder="Type into the Chromecast" autocomplete="off" enterkeyhint="send">
@@ -2861,6 +2874,7 @@
         : st.cc.awake ? 'The Chromecast is on.' : 'The Chromecast is asleep: Wake turns it on (the TV may switch to it).';
       $('rmStatus').textContent = t;
       if (st.sleep) paintSleep(st.sleep);
+      paintBright(st);
       if (st.cc && st.cc.front) padFollow(st.cc.front);
       if (rmDev === 'cc' && !st.cc.linked && st.cc.why) snack(st.cc.why);
     }, function () { $('rmStatus').textContent = ''; });
@@ -3317,6 +3331,48 @@
     head.addEventListener('pointerup', end);
     head.addEventListener('pointercancel', end);
   });
+  // ---------- brightness ----------
+  // The TV: an exact slider through VIDAA's own setting (while Home is on the TV's screen), or − / + through recorded
+  // remote buttons (in any app). The Chromecast: its dimmer, a see-through layer over its picture (it can't change
+  // the TV's own brightness).
+  var br = { tv: null, cc: null, busy: false };
+  function paintBright(st) {
+    if (st) { br.tv = st.tv && st.tv.brightness || null; br.cc = st.cc || null; }
+    var r = $('brRange'), lab = $('brLabel'), val = $('brValue'), note = $('brNote'), box = $('rmBright');
+    if (rmDev === 'cc') {
+      var max = (br.cc && br.cc.dim_max) || 80, dim = (br.cc && typeof br.cc.dim === 'number') ? br.cc.dim : null;
+      box.hidden = false; lab.textContent = 'Dim the Chromecast'; r.hidden = false; r.min = 100 - max; r.max = 100;
+      if (!br.busy && dim !== null) r.value = 100 - dim;
+      val.textContent = dim === null ? '' : dim ? 'dimmed ' + dim + '%' : 'off';
+      note.textContent = 'Darkens everything the Chromecast shows. It can\'t change the TV\'s own brightness.';
+      return;
+    }
+    var b = br.tv || {}, exact = b.supported === true, keys = (b.keys || []).length > 0;
+    box.hidden = !exact && !keys && b.supported === false;
+    lab.textContent = 'TV brightness'; r.hidden = !exact; r.min = 0; r.max = 100;
+    if (exact && !br.busy && typeof b.value === 'number') r.value = b.value;
+    val.textContent = typeof b.value === 'number' ? b.value + ' of 100' : '';
+    note.textContent = b.pending ? 'Waiting for the TV: Home has to be on its screen.'
+      : exact ? 'The slider works while Home is on the TV\'s screen.' + (keys ? ' − and + work in any app.' : '')
+      : keys ? '− and + press the TV\'s own buttons for you, in any app.'
+      : b.supported === null || b.supported === undefined ? 'Open Home on the TV once so it can check for a brightness control.' : '';
+  }
+  function sendBright(body, msg) {
+    body.device = rmDev;
+    api('/api/admin/brightness', body).then(function (r) {
+      if (rmDev === 'cc' && typeof r.dim === 'number') { br.cc = br.cc || {}; br.cc.dim = r.dim; paintBright(); }
+      if (r.note) toast(r.verify ? 'Checking the TV\'s brightness control first. ' + r.note : r.note); else if (msg) toast(msg);
+      setTimeout(rmShowStatus, 4000);
+    }, function (e) { snack(e.message); });
+  }
+  $('brRange').addEventListener('input', function () { br.busy = true; $('brValue').textContent = rmDev === 'cc' ? (100 - this.value ? 'dimmed ' + (100 - this.value) + '%' : 'off') : this.value + ' of 100'; });
+  $('brRange').addEventListener('change', function () {
+    br.busy = false;
+    if (rmDev === 'cc') sendBright({ dim: 100 - Number(this.value) }); else sendBright({ value: Number(this.value), way: 'exact' });
+  });
+  $('brUp').onclick = function () { sendBright({ step: 5 }); };
+  $('brDown').onclick = function () { sendBright({ step: -5 }); };
+
   // ---------- sleep timer ----------
   var sl = { until: 0, end: false, on: false };
   function paintSleep(st) {

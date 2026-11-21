@@ -2070,11 +2070,50 @@
   }
 
   // ---------- changes from the admin panel: a save restarts the helper, a new photo changes its address ----------
+  // ---------- the TV's brightness, through VIDAA's own vowOS.tvinfo (what VIDAA's home uses) ----------
+  // Only this page can reach it, so the phone panel's requests come with /api/rev ("cmd") and the result goes back
+  // to the helper. The first change writes the value it just read back, and checks it, before any real change.
+  var tvb = { reported: false, done: {} };
+  function tvbRead() {
+    try {
+      var t = window.vowOS && window.vowOS.tvinfo;
+      if (!t || typeof t.getBrightness !== 'function') return { supported: false, error: 'no vowOS.tvinfo.getBrightness' };
+      var v = Number(t.getBrightness());
+      if (!isFinite(v) || v < 0 || v > 100) return { supported: false, error: 'getBrightness gave ' + String(v).slice(0, 30) };
+      return { supported: typeof t.setBrightness === 'function', value: v, error: typeof t.setBrightness === 'function' ? '' : 'no setBrightness' };
+    } catch (e) { return { supported: false, error: String(e).slice(0, 80) }; }
+  }
+  function tvbReport(extra) {
+    var r = tvbRead(), body = { kind: 'brightness', supported: r.supported, value: r.value, error: r.error };
+    for (var k in extra) body[k] = extra[k];
+    post('/api/tv-report', body).then(function () {}, function () {});
+  }
+  function tvbRun(cmd) {
+    if (tvb.done[cmd.id]) return;
+    tvb.done[cmd.id] = true;
+    var now = tvbRead(), t = window.vowOS && window.vowOS.tvinfo;
+    if (!now.supported) { tvbReport({ id: cmd.id, ok: false }); return; }
+    try {
+      if (cmd.verify) {   // the safety check: write back exactly what was read, and read it again
+        t.setBrightness(now.value);
+        var back = tvbRead();
+        if (back.value !== now.value) { tvbReport({ id: cmd.id, ok: false, error: 'writing the same value back changed it to ' + back.value }); return; }
+      }
+      var target = cmd.value != null ? cmd.value : now.value + (cmd.step || 0);
+      target = Math.max(0, Math.min(100, Math.round(target)));
+      if (target !== now.value) t.setBrightness(target);
+      var after = tvbRead();
+      tvbReport({ id: cmd.id, ok: after.value === target, verified: true, error: after.value === target ? '' : 'asked ' + target + ', the TV says ' + after.value });
+    } catch (e) { tvbReport({ id: cmd.id, ok: false, error: String(e).slice(0, 80) }); }
+  }
+
   var rev = { started: 0, wall: '' }, revTimer = 0;
   function checkRev() {
     if (state.static) return;
     load('/api/rev').then(function (r) {
       var first = !rev.started;
+      if (!tvb.reported) { tvb.reported = true; tvbReport({}); }   // read-only: is there a brightness control, and where is it
+      if (r.cmd && r.cmd.kind === 'brightness') tvbRun(r.cmd);
       var calm = focus.area !== 'menu' && focus.area !== 'move' && focus.area !== 'browser' && focus.area !== 'admin' && focus.area !== 'edit';
       if (rev.code && r.code && r.code !== rev.code && calm) { location.reload(); return; }   // the launcher itself was updated
       if (!first && (r.started !== rev.started || r.saved !== rev.saved) && focus.area !== 'menu' && focus.area !== 'move' && focus.area !== 'browser' && focus.area !== 'admin') {

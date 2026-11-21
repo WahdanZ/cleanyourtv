@@ -1747,8 +1747,89 @@ def remote_open(device: str, app_id: str = "", url: str = "") -> dict:
     return {"ok": ok, "error": "" if ok else "The Chromecast couldn't open it."}
 
 
+# ---------- brightness ----------
+# The TV: two ways. "exact" asks the TV's Home page to use VIDAA's own vowOS.tvinfo.get/setBrightness (what VIDAA's
+# own home uses); it only works while this Home is on screen, and the first change writes the value it just read
+# back (no visible change) before any real change is allowed. "keys" presses the remote buttons recorded in
+# config.json "tv_brightness_keys" {"up": [...], "down": [...]} (VIDAA key names), so it works in any app.
+# The Chromecast: its own dimmer (the app's see-through layer), through its server on the device.
+TV_BRIGHT = {"value": None, "supported": None, "verified": False, "at": 0, "error": ""}
+TV_CMD: dict = {}
+_tv_cmd_id = [0]
+
+
+def tv_brightness_keys() -> dict:
+    k = CONFIG.get("tv_brightness_keys") or {}
+    ok = lambda a: isinstance(a, list) and 0 < len(a) <= 20 and all(isinstance(x, str) and re.match(r"^KEY_[A-Z0-9_]{1,30}$", x) for x in a)
+    return {d: k[d] for d in ("up", "down") if ok(k.get(d))}
+
+
+def brightness_set(data: dict) -> dict:
+    device = str(data.get("device", "tv"))
+    if device == "cc":
+        body = {k: data[k] for k in ("dim", "step") if k in data}
+        return cc_hub_post("/api/admin/brightness", dict(body, device="cc"))
+    if device != "tv" or not VIDAA:
+        raise ValueError("no TV here")
+    step = int(data.get("step", 0) or 0)
+    if str(data.get("way", "")) == "keys" or (step and data.get("way") != "exact" and TV_BRIGHT["supported"] is not True):
+        keys = tv_brightness_keys().get("up" if step > 0 else "down")
+        if not keys:
+            raise ValueError("The remote-button shortcut isn't recorded yet (config.json: tv_brightness_keys).")
+        for k in keys:
+            TV.send_key(k)
+            time.sleep(0.35)
+        return {"ok": True, "way": "keys"}
+    if TV_BRIGHT["supported"] is False:
+        raise ValueError("This TV's Home page has no brightness control (" + (TV_BRIGHT["error"] or "vowOS.tvinfo") + ").")
+    if "value" in data:
+        v = int(data["value"])
+        if not 0 <= v <= 100:
+            raise ValueError("brightness is 0 to 100")
+        want = {"value": v}
+    elif step:
+        want = {"step": max(-20, min(20, step))}
+    else:
+        raise ValueError("value or step")
+    _tv_cmd_id[0] += 1
+    TV_CMD.clear()
+    TV_CMD.update(id=_tv_cmd_id[0], kind="brightness", at=time.time(), verify=not TV_BRIGHT["verified"], **want)
+    log(f"brightness: asked the TV's Home page for {want}" + (" (first: write back what it reads)" if TV_CMD["verify"] else ""))
+    return {"ok": True, "way": "exact", "queued": TV_CMD["id"], "verify": TV_CMD["verify"],
+            "note": "Home must be on the TV's screen: it picks this up within 3 seconds."}
+
+
+def tv_report(data: dict):
+    """What the TV's Home page found or did (it alone can reach vowOS.tvinfo)."""
+    if data.get("kind") != "brightness":
+        return
+    v = data.get("value")
+    TV_BRIGHT.update(value=v if isinstance(v, (int, float)) and 0 <= v <= 100 else None, supported=bool(data.get("supported")),
+                     at=time.time(), error=str(data.get("error", ""))[:120])
+    if data.get("verified"):
+        TV_BRIGHT["verified"] = True
+    if TV_CMD and data.get("id") == TV_CMD.get("id"):
+        log(f"brightness: the TV says {'done' if data.get('ok') else 'failed'}, now {TV_BRIGHT['value']}" + (f" ({TV_BRIGHT['error']})" if TV_BRIGHT["error"] else ""))
+        TV_CMD.clear()
+
+
+def cc_hub_post(path: str, body: dict) -> dict:
+    """A POST to the Chromecast's own server, made from the Chromecast itself (adb): it trusts only itself."""
+    adb, serial, why = _cc_serial()
+    if not serial:
+        return {"ok": False, "error": why}
+    payload = json.dumps(body)
+    req = (f"POST {path} HTTP/1.0\r\nContent-Type: application/json\r\nContent-Length: {len(payload.encode())}\r\n\r\n{payload}")
+    out = subprocess.run([adb, "-s", serial, "shell", "toybox nc 127.0.0.1 8765"], input=req, capture_output=True, text=True, timeout=10).stdout
+    try:
+        return json.loads(out[out.index("\r\n\r\n") + 4:])
+    except ValueError:
+        return {"ok": False, "error": "The Chromecast's app didn't answer (is it 1.6 or newer?)."}
+
+
 def remote_status() -> dict:
     out = {"tv": {"on": HOME_WATCH.up}, "cc": {"linked": False, "awake": None, "why": ""}}
+    out["tv"]["brightness"] = dict(TV_BRIGHT, keys=sorted(tv_brightness_keys()), pending=bool(TV_CMD))
     try:
         adb, serial, why = _cc_serial()
         out["cc"]["why"] = why
@@ -2783,7 +2864,13 @@ class Handler(SimpleHTTPRequestHandler):
                 wall = json.loads(WALLPAPER_META.read_text(encoding="utf-8")).get("image", "") if WALLPAPER_ON else ""
             except (OSError, ValueError):
                 wall = ""
-            self._json(200, {"started": STARTED, "wall": wall, "saved": SAVED["at"], "code": page_code("index.html")})
+            rev = {"started": STARTED, "wall": wall, "saved": SAVED["at"], "code": page_code("index.html")}
+            if TV_CMD and VIDAA and self.client_address[0] == tv_host():
+                if time.time() - TV_CMD.get("at", 0) > 60:
+                    TV_CMD.clear()   # Home wasn't on screen to pick it up
+                else:
+                    rev["cmd"] = {k: v for k, v in TV_CMD.items() if k != "at"}
+            self._json(200, rev)
             return
         if path == "/admin":
             self._send((PANEL / "admin.html").read_bytes(), "text/html; charset=utf-8")
@@ -3194,6 +3281,13 @@ class Handler(SimpleHTTPRequestHandler):
             else:
                 self._json(200, {"ok": True})
                 restart_soon()
+        elif path == "/api/admin/brightness":
+            try:
+                self._json(200, brightness_set(data))
+            except (ValueError, TypeError) as e:
+                self._json(400, {"ok": False, "error": str(e)})
+            except (ConnectionError, OSError, subprocess.TimeoutExpired) as e:
+                self._json(502, {"ok": False, "error": "Couldn't reach it: " + str(e)})
         elif path == "/api/admin/remote":
             try:
                 self._json(200, remote_press(str(data.get("device", "")), str(data.get("key", "")), str(data.get("text", ""))))
@@ -3471,6 +3565,13 @@ setTimeout(function () {{ if (document.visibilityState === 'visible') location.r
                 return
             if path.startswith("/api/admin/"):
                 self._admin_post(path, data)
+                return
+            if path == "/api/tv-report":   # the TV's Home page: what it read or did with the TV's own settings
+                if not (VIDAA and self.client_address[0] == tv_host()):
+                    self._json(403, {"ok": False})
+                    return
+                tv_report(data)
+                self._json(200, {"ok": True})
                 return
             if path.startswith("/api/addons/") and path.endswith("/run"):
                 self._json(200, addon_run(path.split("/")[3]))

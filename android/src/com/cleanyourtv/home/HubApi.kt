@@ -252,7 +252,7 @@ class HubApi(private val hub: Hub) {
             p == "/api/admin/np-art" -> svc()?.art()?.takeIf { it != "-" }?.let { Hub.Res(200, "image/jpeg", Base64.decode(it, Base64.DEFAULT)) } ?: Hub.Res.err(404)
             p == "/api/admin/remote-status" -> Hub.Res.json(JSONObject().put("tv", JSONObject().put("on", JSONObject.NULL))
                 .put("cc", JSONObject().put("linked", svc() != null).put("awake", true).put("why", if (svc() == null) "The launcher's service isn't running." else "")
-                    .put("front", CursorService.front)).put("sleep", sleepState()))
+                    .put("front", CursorService.front).put("dim", CursorService.dimLevel()).put("dim_max", CursorService.MAX_DIM)).put("sleep", sleepState()))
             p == "/api/admin/stats" -> Hub.Res.json(statsReport(r.query["days"]?.toIntOrNull() ?: 7))
             p == "/api/admin/logs" -> Hub.Res.json(JSONObject().put("ok", true).put("lines", JSONArray(CursorService.logLines())))
             p.startsWith("/api/admin/icon/cc/") -> icon(p.substringAfterLast('/'))
@@ -275,6 +275,7 @@ class HubApi(private val hub: Hub) {
             "/api/admin/launch" -> launch(d)
             "/api/admin/pointer" -> pointer(d.optJSONArray("ops") ?: JSONArray())
             "/api/admin/np-seek" -> { svc()?.cmd("seek ${maxOf(0, d.optInt("sec")) * 1000L}"); ok() }
+            "/api/admin/brightness" -> brightness(d)
             "/api/admin/sleep" -> try { ok(JSONObject().put("sleep", sleepSet(d.optString("set", "off")))) } catch (e: Exception) { Hub.Res.err(400, e.message ?: "") }
             "/api/admin/scenes" -> try { ok(JSONObject().put("scenes", saveList("scenes.json", d.optJSONArray("scenes"), ::cleanScene, 20))) } catch (e: Exception) { Hub.Res.err(400, e.message ?: "") }
             "/api/admin/scene-run" -> Hub.Res.json(runScene(d.optString("id")))
@@ -474,6 +475,15 @@ class HubApi(private val hub: Hub) {
     // Remote, apps, pointer, Now playing (CursorService does them on this Chromecast)
     // =========================================================================================================
     private val ccKeys = setOf("up", "down", "left", "right", "ok", "back", "home", "menu", "volup", "voldown", "mute", "play", "pause", "power", "wake", "prev", "next", "rew", "ff", "stop", "settings")
+
+    /** Brightness from the phone panel. The Chromecast: its dimmer (it can't change the TV's own brightness). */
+    private fun brightness(d: JSONObject): Hub.Res {
+        if (d.optString("device", "cc") != "cc") return Hub.Res.err(400, "This Chromecast has no TV to control: the TV's brightness needs the helper.")
+        val now = CursorService.dimLevel()
+        val dim = if (d.has("dim")) d.getInt("dim") else now + (if (d.optInt("step") > 0) -10 else if (d.optInt("step") < 0) 10 else 0)
+        if (!CursorService.setDim(dim)) return Hub.Res.err(409, "The launcher's service isn't running (it needs adb once to switch on).")
+        return ok(JSONObject().put("dim", Math.max(0, Math.min(CursorService.MAX_DIM, dim))).put("dim_max", CursorService.MAX_DIM))
+    }
 
     private fun remote(d: JSONObject): Hub.Res {
         if (d.optString("device") == "tv") return Hub.Res.err(400, "The TV is controlled by the laptop's helper.")

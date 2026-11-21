@@ -85,6 +85,19 @@ them as frosted glass over the photo, with a bright rim. Pick it in the panel (t
 remote (Edit Home → *+ Add to Home* → *Look*). The photo is frosted once when it arrives, so Glass costs no more to
 draw than Standard.
 
+## Brightness
+
+In the phone panel's remote, under the volume:
+
+- **Chromecast: Dim the Chromecast.** A see-through black layer over everything it shows, in every app (0 to 80%).
+  The Chromecast can't change the TV's own brightness: HDMI has no such command.
+- **VIDAA TV, the slider:** the TV's real brightness, through VIDAA's own `vowOS.tvinfo.getBrightness` /
+  `setBrightness` (what VIDAA's home uses). Only the TV's Home page can reach it, so it works while Home is on the
+  TV's screen. The first change writes back the value it just read and checks it before changing anything.
+- **VIDAA TV, − and +:** the remote buttons that open the TV's picture settings and step the brightness, pressed for
+  you, so they work in any app. Record them once in config.json (VIDAA key names):
+  `"tv_brightness_keys": {"up": ["KEY_MENU", "…"], "down": ["KEY_MENU", "…"]}`.
+
 ## Edit Home with the remote
 
 On the TV or the Chromecast, open the **✎** pill at the top right:
