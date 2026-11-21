@@ -178,7 +178,7 @@ body:not([data-tv]) [data-for="other"] { display: none !important; }
 .thumb:hover img { transform: translateY(-2px); }
 .thumb[aria-pressed="true"] { color: var(--fg); }
 .thumb[aria-pressed="true"] img { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-#thShot { transition: opacity .25s ease; }
+#thShot { will-change: transform, opacity; }
 
 /* ---------- phone ---------- */
 .phones { display: flex; gap: 18px; justify-content: center; }
@@ -236,7 +236,8 @@ footer { padding-block: 40px 56px; border-top: 1px solid var(--line); color: var
 .ptour { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: clamp(24px, 5vw, 64px); align-items: start; margin-top: 40px; }
 .pframe { position: sticky; top: 96px; }
 .phone.big { width: 100%; max-width: 340px; margin: 0 auto; border-radius: 44px; padding: 10px; }
-.phone.big img { border-radius: 35px; aspect-ratio: 780 / 1688; object-fit: cover; transition: opacity .2s ease; }
+.pscreen { overflow: hidden; border-radius: 35px; background: #000; }
+.phone.big img { border-radius: 35px; aspect-ratio: 780 / 1688; object-fit: cover; will-change: transform, opacity; }
 .pfeatures { display: grid; gap: 10px; min-width: 0; }
 .pf { display: grid; gap: 4px; text-align: left; padding: 16px 18px; border-radius: 14px; border: 1px solid var(--rim, var(--line)); background: var(--pane, var(--panel)); color: var(--fg); cursor: pointer; font: inherit;
   -webkit-backdrop-filter: blur(18px) saturate(150%); backdrop-filter: blur(18px) saturate(150%); transition: border-color .2s ease, transform .2s ease; }
@@ -543,7 +544,7 @@ body::before {
     <p class="lede">One web page controls both screens. Open it from the QR code on the TV, add it to your phone's Home screen, and it opens full-screen like an app. No app store, no account. Tap a feature to see it.</p>
     <div class="ptour">
       <figure class="pframe" style="margin:0">
-        <div class="phone big"><img id="ptShot" src="img/p/remote.jpg" alt="The phone remote for the TV: power, input, menu, arrows, OK, back, home and volume"></div>
+        <div class="phone big"><div class="pscreen"><img id="ptShot" src="img/p/remote.jpg" alt="The phone remote for the TV: power, input, menu, arrows, OK, back, home and volume"></div></div>
       </figure>
       <div class="pfeatures" role="group" aria-label="Phone features">
         <button type="button" class="pf" aria-pressed="true" data-shot="img/p/remote.jpg" data-alt="The phone remote for the TV: power, input, menu, arrows, OK, back, home and volume" data-for="vidaa both other"><b>A remote for the TV</b><span>Power, input, menu, arrows, OK, Back, Home and volume. The dots at the top show whether the TV, the VPN and the Chromecast are on.</span></button>
@@ -678,6 +679,27 @@ python3 helper/cyt_helper.py<button class="copy" type="button" data-copy="cmdHel
   }
   bs.addEventListener('click', function () { show(false); });
   bg.addEventListener('click', function () { show(true); });
+  // A screen changes by sliding in from the side as it fades in (from the right when moving forward, the left when
+  // moving back). The new picture is loaded first, so it never slides in empty. Calm motion, none if asked for none.
+  var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function slideTo(img, src, alt, dir) {
+    if (img.getAttribute('src') === src) return;
+    var pre = new Image();
+    pre.onload = pre.onerror = function () {
+      if (still || !img.animate) { img.src = src; img.alt = alt; return; }
+      var d = dir < 0 ? -1 : 1;
+      img.getAnimations().forEach(function (x) { x.cancel(); });   // a quick second tap starts from where it is
+      img.animate([{ opacity: 1, transform: 'translateX(0)' }, { opacity: 0, transform: 'translateX(' + (-28 * d) + 'px)' }],
+        { duration: 160, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).onfinish = function () {
+        img.src = src; img.alt = alt;
+        img.animate([{ opacity: 0, transform: 'translateX(' + (36 * d) + 'px)' }, { opacity: 1, transform: 'translateX(0)' }],
+          { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }).onfinish = function () {
+          img.getAnimations().forEach(function (x) { x.cancel(); });   // done: back to its plain style
+        };
+      };
+    };
+    pre.src = src;
+  }
   var L = [
     ['classic','Classic','Your widgets','The Home you have now.','Clock, weather, quote, football and news cards, what is playing, then your dock and rows. Every block can be moved and resized.','▲▼◀▶ move · OK open · hold OK for options'],
     ['liquid','Liquid OS','Expressive','Apps behave like a calm, responsive material.','Your favourites as soft bubbles. The one in focus grows and the rest make room, always in the same order.','◀ ▶ flow · OK open · ▲ sources · ▼ all apps'],
@@ -703,9 +725,9 @@ python3 helper/cyt_helper.py<button class="copy" type="button" data-copy="cmdHel
   var shot = document.getElementById('thShot'), thumbs = document.getElementById('thThumbs'), looks = document.getElementById('lkThumbs');
   var all = [];
   function pick(btn, src, alt, info) {
+    var was = all.filter(function (b) { return b.getAttribute('aria-pressed') === 'true'; })[0];
     all.forEach(function (b) { b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); });
-    shot.style.opacity = '0';
-    setTimeout(function () { shot.src = src; shot.alt = alt; shot.style.opacity = '1'; }, 150);
+    slideTo(shot, src, alt, all.indexOf(btn) < all.indexOf(was) ? -1 : 1);
     document.getElementById('thCount').textContent = info[0];
     document.getElementById('thName').textContent = info[1];
     document.getElementById('thFam').textContent = info[2];
@@ -761,9 +783,9 @@ python3 helper/cyt_helper.py<button class="copy" type="button" data-copy="cmdHel
   var ptShot = document.getElementById('ptShot');
   document.querySelectorAll('.pf').forEach(function (b) {
     b.addEventListener('click', function () {
-      document.querySelectorAll('.pf').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
-      ptShot.style.opacity = '0';
-      setTimeout(function () { ptShot.src = b.getAttribute('data-shot'); ptShot.alt = b.getAttribute('data-alt'); ptShot.style.opacity = '1'; }, 120);
+      var list = Array.prototype.slice.call(document.querySelectorAll('.pf')), was = document.querySelector('.pf[aria-pressed="true"]');
+      list.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      slideTo(ptShot, b.getAttribute('data-shot'), b.getAttribute('data-alt'), list.indexOf(b) < list.indexOf(was) ? -1 : 1);
     });
   });
   document.querySelectorAll('.copy').forEach(function (b) {
