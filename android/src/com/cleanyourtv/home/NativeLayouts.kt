@@ -36,6 +36,7 @@ object NativeLayouts {
     abstract class Layout(val h: NativeHome) {
         open val photo = false
         open val calm = false
+        open val evenShade = false   // the photo dimmed evenly (text everywhere), not just on the left
         abstract val hints: List<String>
         open fun background(h: NativeHome): Drawable = h.radial(Color.rgb(18, 48, 74), NativeHome.NIGHT)
         abstract fun render()
@@ -70,6 +71,8 @@ object NativeLayouts {
     // LEFT/RIGHT previous/next favourite, UP sources, DOWN all apps, OK open. Fixed order; the one in focus grows.
     class Liquid(h: NativeHome) : Layout(h) {
         override val hints = listOf("◀ ▶ Flow between favourites", "OK Open", "▲ Sources", "▼ All apps")
+        override val photo get() = opts.optString("photo") != "off"
+        override val evenShade = true
         override fun background(h: NativeHome) = h.radial(Color.rgb(35, 58, 122), NativeHome.NIGHT, .5f, .4f)
         private var items = listOf<Item>(); private val els = ArrayList<FrameLayout>()
         override fun render() {
@@ -288,6 +291,8 @@ object NativeLayouts {
     // UP/DOWN previous/next word, RIGHT (or OK) enter, LEFT back to the words, OK open, BACK back.
     class Typography(h: NativeHome) : Layout(h) {
         override val hints = listOf("▲ ▼ Mode", "▶ / OK Enter", "◀ Words", "OK Open")
+        override val photo get() = opts.optString("photo") != "off"
+        override val evenShade = true
         override fun background(h: NativeHome) = h.radial(Color.rgb(43, 34, 25), Color.rgb(18, 16, 20), .2f, .4f)
         private class Mode(val id: String, val verb: String, val ing: String, val items: List<Item>)
         private val modes = ArrayList<Mode>(); private val mels = ArrayList<TextView>(); private var iels = listOf<TextView>()
@@ -324,7 +329,7 @@ object NativeLayouts {
                 h.ring(t, on && zone == "menu", 10f, color = accent) }
             menu.alpha = if (zone == "items") .55f else 1f
             rowBox.removeAllViews()
-            iels = m.items.take(6).map { it -> h.text(it.name, 40f, TEXT, 600).also { t -> t.setPadding(22, 10, 22, 10); rowBox.addView(t, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = 20 }) } }
+            iels = m.items.take(5).map { it -> h.text(it.name, 36f, TEXT, 600).also { t -> t.setPadding(22, 10, 22, 10); rowBox.addView(t, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = 20 }) } }
             if (m.items.isEmpty()) rowBox.addView(h.text("Nothing here yet: choose apps for ${m.verb} in the phone panel.", 30f, Color.rgb(201, 187, 169)))
             set("j", clamp(int("j"), 0, Math.max(0, iels.size - 1)))
             iels.forEachIndexed { k, t -> val on = zone == "items" && k == int("j"); t.background = if (on) h.round(TEXT, 12f) else null; t.setTextColor(if (on) Color.rgb(18, 16, 20) else TEXT) }
@@ -355,13 +360,15 @@ object NativeLayouts {
     // LEFT/RIGHT world, UP TV controls, DOWN favourites, OK enter the world, BACK back to the worlds.
     class Worlds(h: NativeHome) : Layout(h) {
         override val hints = listOf("◀ ▶ Between worlds", "OK Enter", "▼ Favourites", "▲ TV controls")
+        override val photo get() = opts.optString("photo") != "off"
+        override val evenShade = true
         override fun background(h: NativeHome) = h.radial(Color.rgb(30, 47, 102), NativeHome.NIGHT, .5f, .3f)
         private val worlds = ArrayList<Triple<String, String, List<Item>>>(); private val wels = ArrayList<View>(); private var cels = listOf<View>(); private var fels = listOf<View>()
         private var favs = listOf<Item>(); private val controls = ArrayList<Pair<String, () -> Unit>>(); private var zone = "worlds"
         private lateinit var panel: FrameLayout; private var pels = listOf<View>(); private var pitems = listOf<Item>()
         override fun render() {
             val g = h.groups(); worlds.clear(); wels.clear(); controls.clear()
-            worlds.add(Triple("Watch", "▶", g.watch)); worlds.add(Triple("Play", "◆", g.play)); worlds.add(Triple("Listen", "♪", g.listen)); worlds.add(Triple("Sources", "⇄", g.sources))
+            worlds.add(Triple("Watch", "▶", g.watch)); worlds.add(Triple("Play", "◆", g.play)); worlds.add(Triple("Listen", "♪", g.listen)); if (g.sources.isNotEmpty()) worlds.add(Triple("Sources", "⇄", g.sources))   // a Chromecast alone: no empty world
             d.np?.let { np -> controls.add(((if (np.playing) "❚❚  " else "▶  ") + np.name) to { h.act(np) }) }
             controls.add("Sources" to { h.openSources() }); controls.add("All apps" to { allGrid() }); controls.add("Menu" to { h.openMenu() })
             val bar = LinearLayout(h.a); h.place(c, bar, 96, 150)
@@ -422,6 +429,8 @@ object NativeLayouts {
     // parallelograms (2D only); the focused one widens, the others stay where they are.
     class Fold(h: NativeHome) : Layout(h) {
         override val hints = listOf("◀ ▶ Fold panels", "OK Open the list", "▲ Shortcuts", "▼ All apps", "BACK Fold")
+        override val photo get() = opts.optString("photo") != "off"
+        override val evenShade = true
         private class Panel(val name: String, val items: List<Item>, val empty: String, val color: Int) { var els = listOf<TextView>(); lateinit var view: FrameLayout; lateinit var shape: Slant; var emptyView: View? = null }
         private val panels = ArrayList<Panel>(); private var sels = listOf<View>(); private var zone = "panels"
         override fun render() {
@@ -429,7 +438,8 @@ object NativeLayouts {
             panels.add(Panel("Live TV", listOfNotNull(live), "No Live TV source here.", Color.rgb(45, 74, 99)))
             panels.add(Panel("Watch", g.watch.take(5), "No apps yet.", Color.rgb(47, 122, 133)))
             panels.add(Panel("Play", g.play.take(5), "Choose apps for Play in the phone panel.", Color.rgb(106, 90, 140)))
-            panels.add(Panel("Inputs", h.sources().take(5), if (d.sources.isNotEmpty()) "The TV reported no inputs." else "Inputs need the helper.", Color.rgb(44, 76, 107)))
+            if (h.sources().isNotEmpty()) panels.add(Panel("Inputs", h.sources().take(5), "The TV reported no inputs.", Color.rgb(44, 76, 107)))
+            else panels.add(Panel("Listen", g.listen.take(5), "Choose apps for Listen in the phone panel.", Color.rgb(44, 76, 107)))   // no TV to switch: music instead
             val bar = LinearLayout(h.a); h.place(c, bar, 96, 150)
             val shorts = listOf<Pair<String, () -> Unit>>("Sources" to { h.openSources() }, "All apps" to { allGrid() }, "Menu" to { h.openMenu() })
             sels = shorts.map { x -> chip(x.first).also { bar.addView(it, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = 18 }) } }
@@ -499,6 +509,8 @@ object NativeLayouts {
     // the arrows move normally and BACK returns to the hub. Number keys 1-4: the favourites in the corner.
     class Four(h: NativeHome) : Layout(h) {
         override val hints = listOf("▲ Discover", "▼ All apps", "◀ Resume", "▶ Sources", "OK Last used", "1-4 Favourites")
+        override val photo get() = opts.optString("photo") != "off"
+        override val evenShade = true
         private val boxes = HashMap<String, View>(); private lateinit var ok: LinearLayout; private lateinit var okSub: TextView; private lateinit var sub: FrameLayout
         private var favs = listOf<Item>(); private var zone = "hub"; private var dest = ""; private var items = listOf<Item>(); private var sels = listOf<View>()
         private fun center(): Item? = (if (opts.optString("center") != "first") h.recent().firstOrNull() else null) ?: h.favorites().firstOrNull()
@@ -535,7 +547,7 @@ object NativeLayouts {
             when (dir) {
                 "down" -> { h.openGrid("All apps", h.all()); return }
                 "right" -> { title = "Sources"; items = listOfNotNull(h.live()) + h.sources(); empty = if (d.sources.isNotEmpty()) "The TV reported no inputs." else "Inputs need the helper (a VIDAA TV)." }
-                "left" -> { title = "Resume"; items = listOfNotNull(d.np) + h.recent(); empty = "Nothing opened from this Home yet. Apps you open appear here." }
+                "left" -> { title = "Resume"; items = (listOfNotNull(d.np) + h.recent()).ifEmpty { h.favorites() }; empty = "Nothing opened from this Home yet. Apps you open appear here." }
                 else -> { title = "Discover"; items = d.rows.flatMap { r -> r.second.mapNotNull { d.app(it) } }.ifEmpty { h.all() }; empty = "Nothing to discover yet." }
             }
             zone = "dest"; dest = dir; sub.removeAllViews()
@@ -565,6 +577,8 @@ object NativeLayouts {
     // LEFT/RIGHT earlier/later, UP sources, DOWN all apps, OK do it, BACK back to Now. Only real moments.
     class River(h: NativeHome) : Layout(h) {
         override val hints = listOf("◀ ▶ Moments", "OK Do it", "▲ Sources", "▼ Apps")
+        override val photo get() = opts.optString("photo") != "off"
+        override val evenShade = true
         private class M(val whenTxt: String, val what: String, val note: String, val item: Item, val now: Boolean = false)
         private val ms = ArrayList<M>(); private val els = ArrayList<FrameLayout>(); private lateinit var btn: TextView; private var nowAt = 0
         override fun render() {
@@ -795,14 +809,15 @@ object NativeLayouts {
     class Aurora(h: NativeHome, private val ambient: Boolean) : Layout(h) {
         override val hints = listOf("Any arrow  Show places", "OK Open", "BACK Hide")
         override val calm = true
-        override val photo = ambient
-        override fun background(h: NativeHome): Drawable = if (ambient) h.radial(Color.rgb(30, 40, 60), NativeHome.NIGHT) else GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(NativeHome.NIGHT, Color.rgb(12, 42, 52)))
+        private val light get() = !ambient || opts.optString("background") == "light"   // Ambient's "calm light" is the old Aurora
+        override val photo get() = !light
+        override fun background(h: NativeHome): Drawable = if (!light) h.radial(Color.rgb(30, 40, 60), NativeHome.NIGHT) else GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(NativeHome.NIGHT, Color.rgb(12, 42, 52)))
         private var items = listOf<Item>(); private val els = ArrayList<View>(); private var cels = listOf<View>(); private val ctrl = ArrayList<Pair<String, () -> Unit>>()
         private lateinit var time: TextView; private lateinit var date: TextView; private lateinit var np: TextView; private lateinit var strip: LinearLayout; private lateinit var ctrlRow: LinearLayout
         private var shown = false; private var zone = "strip"
         private val hide = Runnable { shown = false; paint() }
         override fun render() {
-            if (!ambient) c.addView(Waves(h.a), FrameLayout.LayoutParams(1920, 1080))
+            if (light) c.addView(Waves(h.a), FrameLayout.LayoutParams(1920, 1080))
             val col = LinearLayout(h.a); col.orientation = LinearLayout.VERTICAL; col.gravity = if (ambient) Gravity.CENTER_HORIZONTAL else Gravity.START
             time = h.text("", 220f, TEXT, 300); date = h.text("", 34f, Color.rgb(214, 227, 236)); np = h.text("", 28f, Color.rgb(159, 227, 242))
             col.addView(time, LinearLayout.LayoutParams(-2, -2)); col.addView(date, LinearLayout.LayoutParams(-2, -2).apply { topMargin = 10 }); col.addView(np, LinearLayout.LayoutParams(-2, -2).apply { topMargin = 18 })
@@ -968,13 +983,15 @@ object NativeLayouts {
     // The scenes the household allowed on Home, as cards: OK starts one, its result is said on screen.
     class Scenes(h: NativeHome) : Layout(h) {
         override val hints = listOf("◀ ▶ Scenes", "OK Start the scene", "▼ Favourites", "▲ Sources")
+        override val photo get() = opts.optString("photo") != "off"
+        override val evenShade = true
         override fun background(h: NativeHome) = h.radial(Color.rgb(58, 42, 74), Color.rgb(18, 15, 28), .5f, .2f)
         private var sc = listOf<Item>(); private val els = ArrayList<View>(); private var favs = listOf<Item>(); private var fels = listOf<View>(); private lateinit var btn: TextView; private var zone = "cards"
         override fun render() {
             h.place(c, h.text("ONE PRESS. A WHOLE EVENING.", 26f, FOCUS, 500).also { it.letterSpacing = .12f }, 96, 168)
             h.place(c, h.text("Set the mood.", 72f, TEXT, 600).also { it.typeface = android.graphics.Typeface.SERIF }, 96, 210)
             h.place(c, h.text("Your scenes, made in the phone panel.", 30f, SUB), 96, 304)
-            sc = d.scenes; els.clear()
+            sc = d.scenes.ifEmpty { starters() }; els.clear()
             sc.forEachIndexed { n, s ->
                 val card = LinearLayout(h.a); card.orientation = LinearLayout.VERTICAL; card.setPadding(30, 30, 30, 30)
                 card.background = GradientDrawable().apply { gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = 330f; setGradientCenter(.5f, .35f); colors = intArrayOf(s.color, Color.rgb(16, 27, 40)); cornerRadius = 26f }
@@ -982,6 +999,7 @@ object NativeLayouts {
                 card.addView(h.text(s.name, 36f, TEXT, 700)); card.addView(h.text(s.sub, 22f, Color.rgb(216, 207, 227), 400, 2))
                 h.place(c, card, 96 + n * 360, 400, 330, 380); els.add(card)
             }
+            if (d.scenes.isEmpty() && sc.isNotEmpty()) h.place(c, h.text("Starter scenes: make your own in the phone panel (Scenes).", 24f, SUB, 500), 96, 352)
             if (sc.isEmpty()) h.place(c, h.text("No scenes on Home yet.\nIn the phone panel: Layout, Scene Stage, then choose which scenes may start from the TV.", 30f, SUB, 500, 3), 96, 430, 1100)
             btn = button(""); h.place(c, btn, 1300, 300)
             favs = h.favorites().take(7); fels = row(favs, 96, 830, 170, 90, 18)
@@ -989,6 +1007,17 @@ object NativeLayouts {
             set("i", clamp(idx(sc, st.optString("id"), int("i")), 0, Math.max(0, sc.size - 1))); paint()
         }
         override fun refresh() { val z = zone; render(); if (sc.isNotEmpty()) zone = z; paint() }
+        /** Before you make any: three that open your own apps, so the stage is never empty. */
+        private fun starters(): List<Item> {
+            fun pick(re: Regex) = h.all().firstOrNull { re.containsMatchIn(it.name) }
+            val out = ArrayList<Item>()
+            fun add(name: String, emoji: String, app: Item?, sub: String) { if (app != null) out.add(Item(app.type, app.id, name).also { it.emoji = emoji; it.sub = sub; it.color = NativeHome.colorFor(name); it.verb = "Start" }) }
+            add("Movie night", "🎬", pick(Regex("netflix|prime|disney|osn", RegexOption.IGNORE_CASE)) ?: h.favorites().firstOrNull(), "Opens " + (pick(Regex("netflix|prime|disney|osn", RegexOption.IGNORE_CASE)) ?: h.favorites().firstOrNull())?.name)
+            val music = pick(Regex("spotify", RegexOption.IGNORE_CASE)) ?: pick(Regex("anghami|deezer|music", RegexOption.IGNORE_CASE))   // Spotify first, if it's there
+            add("Music", "🎧", music, "Opens " + music?.name)
+            add("Watch", "📺", pick(Regex("youtube", RegexOption.IGNORE_CASE)) ?: h.favorites().getOrNull(1), "Opens " + (pick(Regex("youtube", RegexOption.IGNORE_CASE)) ?: h.favorites().getOrNull(1))?.name)
+            return out
+        }
         private fun paint() {
             els.forEachIndexed { k, v -> h.ring(v, zone == "cards" && k == int("i"), 26f, color = TEXT); v.translationY = if (zone == "cards" && k == int("i")) -8f else 0f }
             fels.forEachIndexed { k, v -> h.ringTile(v, zone == "favs" && k == int("f")) }

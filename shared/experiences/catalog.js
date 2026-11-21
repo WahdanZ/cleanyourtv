@@ -70,6 +70,22 @@
       ]
      ],
      "def": "5"
+    },
+    {
+     "key": "photo",
+     "label": "Background",
+     "type": "choice",
+     "choices": [
+      [
+       "on",
+       "Today's photo, dimmed"
+      ],
+      [
+       "off",
+       "The layout's own colours"
+      ]
+     ],
+     "def": "on"
     }
    ]
   },
@@ -192,6 +208,22 @@
      "key": "groups",
      "label": "What goes in Watch, Play and Listen",
      "type": "groups"
+    },
+    {
+     "key": "photo",
+     "label": "Background",
+     "type": "choice",
+     "choices": [
+      [
+       "on",
+       "Today's photo, dimmed"
+      ],
+      [
+       "off",
+       "The layout's own colours"
+      ]
+     ],
+     "def": "on"
     }
    ]
   },
@@ -220,6 +252,22 @@
      "key": "groups",
      "label": "What goes in Watch, Play and Listen",
      "type": "groups"
+    },
+    {
+     "key": "photo",
+     "label": "Background",
+     "type": "choice",
+     "choices": [
+      [
+       "on",
+       "Today's photo, dimmed"
+      ],
+      [
+       "off",
+       "The layout's own colours"
+      ]
+     ],
+     "def": "on"
     }
    ]
   },
@@ -248,6 +296,22 @@
      "key": "groups",
      "label": "What goes in Watch, Play and Listen",
      "type": "groups"
+    },
+    {
+     "key": "photo",
+     "label": "Background",
+     "type": "choice",
+     "choices": [
+      [
+       "on",
+       "Today's photo, dimmed"
+      ],
+      [
+       "off",
+       "The layout's own colours"
+      ]
+     ],
+     "def": "on"
     }
    ]
   },
@@ -287,6 +351,22 @@
       ]
      ],
      "def": "last"
+    },
+    {
+     "key": "photo",
+     "label": "Background",
+     "type": "choice",
+     "choices": [
+      [
+       "on",
+       "Today's photo, dimmed"
+      ],
+      [
+       "off",
+       "The layout's own colours"
+      ]
+     ],
+     "def": "on"
     }
    ]
   },
@@ -316,6 +396,22 @@
      "label": "A match opens",
      "type": "app",
      "def": ""
+    },
+    {
+     "key": "photo",
+     "label": "Background",
+     "type": "choice",
+     "choices": [
+      [
+       "on",
+       "Today's photo, dimmed"
+      ],
+      [
+       "off",
+       "The layout's own colours"
+      ]
+     ],
+     "def": "on"
     }
    ]
   },
@@ -419,7 +515,9 @@
      ],
      "def": "5"
     }
-   ]
+   ],
+   "hidden": true,
+   "merged_into": "ambient"
   },
   {
    "id": "deck",
@@ -493,7 +591,9 @@
     "ok": "Open or switch",
     "back": "Back"
    },
-   "options": []
+   "options": [],
+   "hidden": true,
+   "merged_into": "channel"
   },
   {
    "id": "scenes",
@@ -519,6 +619,22 @@
      "key": "scenes",
      "label": "Scenes allowed on Home",
      "type": "scenes"
+    },
+    {
+     "key": "photo",
+     "label": "Background",
+     "type": "choice",
+     "choices": [
+      [
+       "on",
+       "Today's photo, dimmed"
+      ],
+      [
+       "off",
+       "The layout's own colours"
+      ]
+     ],
+     "def": "on"
     }
    ]
   },
@@ -543,6 +659,22 @@
     "back": "Hide"
    },
    "options": [
+    {
+     "key": "background",
+     "label": "Background",
+     "type": "choice",
+     "choices": [
+      [
+       "photo",
+       "Today's photo"
+      ],
+      [
+       "light",
+       "Calm light, no photo (was Aurora)"
+      ]
+     ],
+     "def": "photo"
+    },
     {
      "key": "strip",
      "label": "Places in the strip",

@@ -3609,7 +3609,7 @@
     p.textContent = 'How Home looks and how the remote moves around it. Your apps, inputs, widgets and scenes stay the same in every layout; switching loses nothing. Classic is the one arranged below.';
     card.appendChild(p);
     var grid = document.createElement('div'); grid.className = 'xp-grid'; card.appendChild(grid);
-    C.experiences.forEach(function (x) {
+    C.experiences.filter(function (x) { return !x.hidden || (S && S.settings && S.settings.home_experience && (S.settings.home_experience.tv === x.id || S.settings.home_experience.cc === x.id)); }).forEach(function (x) {   // merged ones (Signal, Aurora) stay hidden unless in use
       var b = document.createElement('button'); b.type = 'button'; b.className = 'xp-card' + (x.id === cur ? ' on' : '');
       b.setAttribute('aria-pressed', x.id === cur ? 'true' : 'false');
       var pv = document.createElement('div'); pv.className = 'pv';

@@ -375,7 +375,8 @@ class NativeHome(val a: MainActivity, private val root: FrameLayout) {
         bg.setImageDrawable(null); shade.background = null
         if (l.photo && data.wallUrl.isNotEmpty()) {
             a.loadImage(data.wallUrl, bg, 1920)
-            shade.background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.argb(224, 11, 21, 33), Color.argb(115, 11, 21, 33), Color.argb(64, 11, 21, 33)))
+            shade.background = if (l.evenShade) android.graphics.drawable.ColorDrawable(Color.argb(170, 8, 14, 22))
+                else GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.argb(224, 11, 21, 33), Color.argb(115, 11, 21, 33), Color.argb(64, 11, 21, 33)))
         }
         clock.visibility = if (l.calm) View.GONE else View.VISIBLE
         val (t, ap) = clockText(); clock.text = if (ap.isEmpty()) t else "$t $ap"
