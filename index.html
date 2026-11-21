@@ -231,6 +231,27 @@ footer { padding-block: 40px 56px; border-top: 1px solid var(--line); color: var
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important } }
 
+
+/* ---------- phone tour ---------- */
+.ptour { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: clamp(24px, 5vw, 64px); align-items: start; margin-top: 40px; }
+.pframe { position: sticky; top: 96px; }
+.phone.big { width: 100%; max-width: 340px; margin: 0 auto; border-radius: 44px; padding: 10px; }
+.phone.big img { border-radius: 35px; aspect-ratio: 780 / 1688; object-fit: cover; transition: opacity .2s ease; }
+.pfeatures { display: grid; gap: 10px; min-width: 0; }
+.pf { display: grid; gap: 4px; text-align: left; padding: 16px 18px; border-radius: 14px; border: 1px solid var(--rim, var(--line)); background: var(--pane, var(--panel)); color: var(--fg); cursor: pointer; font: inherit;
+  -webkit-backdrop-filter: blur(18px) saturate(150%); backdrop-filter: blur(18px) saturate(150%); transition: border-color .2s ease, transform .2s ease; }
+.pf b { font: 600 18px/1.3 var(--display); }
+.pf span { color: var(--muted); font-size: 15px; line-height: 1.5; }
+.pf:hover { transform: translateX(3px); }
+.pf[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent), 0 0 26px -8px var(--accent); }
+.peditor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: clamp(24px, 4vw, 48px); align-items: center; margin-top: 64px; }
+.peditor p { color: var(--muted); margin-top: 10px; }
+@media (max-width: 900px) {
+  .ptour, .peditor { grid-template-columns: minmax(0, 1fr); }
+  .pframe { position: static; }
+  .phone.big { max-width: 280px; }
+}
+
 /* ---------- Glass UI: the app's Glass look, for the page itself ----------
    A soft light behind everything (warm amber, coral and teal, from the photo of the day), and every panel frosted
    glass over it: blurred, a light tint, a bright rim at the top where the light hits. */
@@ -516,21 +537,36 @@ body::before {
 </section>
 
 <section id="phone">
-  <div class="wrap split">
-    <div>
-      <p class="eyebrow">Your phone</p>
-      <h2>Change the TV from the sofa.</h2>
-      <ul class="list">
-        <li><b>A remote and trackpad</b> for the TV and the Chromecast, and every app one tap away.</li>
-        <li><b>A sleep timer</b> that waits for the episode to end.</li>
-        <li><b>A live picture of each Home.</b> Tap a block, drag an app, save. It shows on the TV in seconds.</li>
-        <li><b>Scenes</b> like "Movie night": wake the screen, switch the VPN country, open Netflix.</li>
-      </ul>
-      <p class="note" style="margin-top:18px">It's a web page: add it to your phone's Home screen and it opens full-screen. No app store.</p>
+  <div class="wrap">
+    <p class="eyebrow">Your phone</p>
+    <h2>Everything on the TV, from your phone.</h2>
+    <p class="lede">One web page controls both screens. Open it from the QR code on the TV, add it to your phone's Home screen, and it opens full-screen like an app. No app store, no account. Tap a feature to see it.</p>
+    <div class="ptour">
+      <figure class="pframe" style="margin:0">
+        <div class="phone big"><img id="ptShot" src="img/p/remote.jpg" alt="The phone remote for the TV: power, input, menu, arrows, OK, back, home and volume"></div>
+      </figure>
+      <div class="pfeatures" role="group" aria-label="Phone features">
+        <button type="button" class="pf" aria-pressed="true" data-shot="img/p/remote.jpg" data-alt="The phone remote for the TV: power, input, menu, arrows, OK, back, home and volume" data-for="vidaa both other"><b>A remote for the TV</b><span>Power, input, menu, arrows, OK, Back, Home and volume. The dots at the top show whether the TV, the VPN and the Chromecast are on.</span></button>
+        <button type="button" class="pf" aria-pressed="false" data-shot="img/p/bright.jpg" data-alt="TV brightness slider at 50 of 100, with the TV's apps below" data-for="vidaa both other"><b>TV brightness and every app</b><span>A real brightness slider for the TV. Below it, every app on the TV, a search, and a box to open any web address in the TV's browser.</span></button>
+        <button type="button" class="pf" aria-pressed="false" data-shot="img/p/ccremote.jpg" data-alt="The Chromecast remote: live screen, power, wake, menu and trackpad buttons, and the arrows" data-for="gtv both other"><b>A remote for the Chromecast</b><span>Wake it, steer it, and see its <i>live screen</i> on your phone. The trackpad moves a pointer on the TV for apps that need one.</span></button>
+        <button type="button" class="pf" aria-pressed="false" data-shot="img/p/ccdim.jpg" data-alt="Dim the Chromecast slider, and a box to type into the Chromecast" data-for="gtv both other"><b>Typing and dimming</b><span>Type a search into YouTube or Netflix from your phone's keyboard. Dim everything the Chromecast shows for late nights.</span></button>
+        <button type="button" class="pf" aria-pressed="false" data-shot="img/p/player.jpg" data-alt="The player: YouTube playing, with previous, pause and next, and volume"><b>What's playing</b><span>Play, pause and skip, whatever app it's in. A sleep timer turns everything off after the episode ends, and the controls also show in your phone's notifications.</span></button>
+        <button type="button" class="pf" aria-pressed="false" data-shot="img/p/vpn.jpg" data-alt="The VPN page: connected to one country, with buttons for Germany, USA, UK, Canada, Egypt, UAE, France and Japan"><b>Switch the country</b><span>One tap moves the TV and the Chromecast to another country's catalogue. Apps can switch by themselves: open OSN+ and it goes to the UAE.</span></button>
+        <button type="button" class="pf" aria-pressed="false" data-shot="img/p/tv.jpg" data-alt="Home layouts to choose from: Classic, Liquid OS, Channel Zero, Typography First and more"><b>Pick the Home theme</b><span>Choose one of the 15 layouts for the TV and for the Chromecast. It changes on the screen in seconds.</span></button>
+        <button type="button" class="pf" aria-pressed="false" data-shot="img/p/gear.jpg" data-alt="Settings: your name, update right away, 24-hour clock, Automatic Home"><b>Settings</b><span>Your name for the greeting, the 24-hour clock, and whether your Home opens by itself when the TV turns on.</span></button>
+      </div>
     </div>
-    <div class="phones">
-      <div class="phone"><img src="img/phone-remote.jpg" alt="The phone remote: arrows, OK, back, home and volume" loading="lazy"></div>
-      <div class="phone" style="margin-top:48px"><img src="img/phone-player.jpg" alt="The phone player: album art, the song, controls and a sleep timer" loading="lazy"></div>
+    <div class="peditor">
+      <div>
+        <h3>Rearrange Home on a bigger screen</h3>
+        <p>On a computer or tablet, the same page shows a live picture of each Home. Tap a block to resize it, drag apps into the dock, add widgets like football scores and news, pick the photo of the day. Undo anything, then save: it shows on the TV in seconds.</p>
+        <ul class="list">
+          <li><b>Scenes:</b> one tap for "Movie night": wake the screen, switch the VPN, open Netflix.</li>
+          <li><b>Lock-screen shortcuts:</b> TV off, volume, brighter or darker, as phone shortcuts.</li>
+          <li><b>Usage:</b> how long the TV and the Chromecast were on, and which apps.</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="img/p/editor.jpg" alt="The Home editor on a computer: a live picture of the TV's Home with blocks to tap and drag, and settings on the side" loading="lazy"></div>
     </div>
   </div>
 </section>
@@ -713,12 +749,23 @@ python3 helper/cyt_helper.py<button class="copy" type="button" data-copy="cmdHel
       note.textContent = 'Pick one and this page shows only what works on your TV.'; try { localStorage.removeItem('cyt-tv'); } catch (e) { } });
     note.appendChild(ch);
     try { localStorage.setItem('cyt-tv', k); } catch (e) { }
+    var firstPf = Array.prototype.filter.call(document.querySelectorAll('.pf'), function (b) { return b.offsetParent !== null; })[0];   // the phone shows a feature this TV has
+    if (firstPf && firstPf.getAttribute('aria-pressed') !== 'true' || (firstPf && document.querySelector('.pf[aria-pressed="true"]').offsetParent === null)) firstPf.click();
     if (scroll && k === 'other') document.getElementById('coming').scrollIntoView({ behavior: 'smooth' });
     if (scroll && k !== 'other' && window.scrollY > 600) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   document.querySelectorAll('[data-pick]').forEach(function (b) { b.addEventListener('click', function () { choose(b.getAttribute('data-pick'), true); }); });
   try { var saved = localStorage.getItem('cyt-tv'); if (saved) choose(saved, false); } catch (e) { }
 
+  // the phone tour: a feature shows its screen on the phone
+  var ptShot = document.getElementById('ptShot');
+  document.querySelectorAll('.pf').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.pf').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      ptShot.style.opacity = '0';
+      setTimeout(function () { ptShot.src = b.getAttribute('data-shot'); ptShot.alt = b.getAttribute('data-alt'); ptShot.style.opacity = '1'; }, 120);
+    });
+  });
   document.querySelectorAll('.copy').forEach(function (b) {
     b.addEventListener('click', function () {
       var box = document.getElementById(b.getAttribute('data-copy'));
