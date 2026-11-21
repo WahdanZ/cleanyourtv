@@ -617,42 +617,146 @@ object NativeLayouts {
     }
 
     // ===================================================================================== 08 The Gallery
-    // LEFT/RIGHT frame, UP about this frame, DOWN the whole collection, OK open, BACK back.
+    // A gallery wall: today's photo, blurred and dimmed like a lit wall; your apps, today's photo, what's playing
+    // and the next match hang in frames with brass name plates. The frame in focus lifts into a spotlight; a glass
+    // placard says what it is and what OK does. LEFT/RIGHT walk the wall, UP more about this frame, DOWN the full
+    // collection, OK open, BACK to the first frame.
     class Gallery(h: NativeHome) : Layout(h) {
-        override val hints = listOf("◀ ▶ Frames", "OK Open", "▲ About this frame", "▼ The full collection")
-        override fun background(h: NativeHome) = h.radial(Color.rgb(58, 44, 34), Color.rgb(26, 20, 17), .4f, .3f)
-        private var items = listOf<Item>(); private val els = ArrayList<View>(); private lateinit var info: TextView; private var details = false
+        override val hints = listOf("◀ ▶ Walk the collection", "OK Open", "▲ About this frame", "▼ The full collection")
+        override fun background(h: NativeHome) = h.radial(Color.rgb(58, 44, 34), Color.rgb(20, 16, 13), .5f, .2f)
+        private class Frame(val item: Item, val plateSub: String, val view: LinearLayout)
+        private val frames = ArrayList<Frame>()
+        private lateinit var spot: View; private lateinit var numV: TextView; private lateinit var nameV: TextView; private lateinit var lineV: TextView
+        private var details = false; private var middle = 0
+        private val serif = android.graphics.Typeface.create(android.graphics.Typeface.SERIF, android.graphics.Typeface.BOLD)
+        private val roman = arrayOf("I", "II", "III", "IV", "V", "VI", "VII", "VIII")
+        private fun lastUsed(): Map<String, Long> {
+            val out = HashMap<String, Long>()
+            try { val arr = org.json.JSONArray(h.prefs.getString("recent", "[]")); for (i in 0 until arr.length()) arr.optJSONObject(i)?.let { r ->
+                val k = r.optString("type") + ":" + r.optString("id"); if (!out.containsKey(k)) out[k] = r.optLong("at") } } catch (e: Exception) { }
+            return out
+        }
+        private fun ago(at: Long): String {
+            if (at <= 0) return ""
+            val days = ((System.currentTimeMillis() - at) / 86_400_000L).toInt()
+            return when { days <= 0 -> "Opened today"; days == 1 -> "Opened yesterday"; days < 7 -> "Opened $days days ago"; else -> "" }
+        }
         override fun render() {
-            val n = opts.optString("frames", "4").toIntOrNull() ?: 4; val photo = if (opts.optString("photo") != "off") h.photo() else null
-            val out = ArrayList<Item>(); h.live()?.let { out.add(it) }; out.addAll(h.favorites()); h.sources().firstOrNull()?.let { out.add(Math.min(2, out.size), it) }
-            items = out.take(if (photo != null) n - 1 else n) + listOfNotNull(photo)
-            h.place(c, h.text("THE COLLECTION", 60f, Color.rgb(244, 232, 218), 700).also { it.letterSpacing = .04f }, 96, 168)
-            h.place(c, h.text("Curated by you, not an algorithm.", 30f, SUB), 96, 252)
-            els.clear()
-            val left = (1920 - (items.size * 304 - 34)) / 2
-            items.forEachIndexed { k, it ->
-                val f = LinearLayout(h.a); f.orientation = LinearLayout.VERTICAL; f.setPadding(14, 14, 14, 14)
-                f.background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(184, 148, 104), Color.rgb(125, 93, 59))).apply { cornerRadius = 8f }
-                val mat = FrameLayout(h.a); mat.setBackgroundColor(Color.rgb(20, 22, 26)); mat.setPadding(16, 16, 16, 16)
-                mat.addView(h.tile(it, 210, 300, 24f, false, "tall")); f.addView(mat)
-                f.addView(h.text(it.name.uppercase(), 24f, Color.rgb(26, 20, 17), 700).also { t -> t.gravity = Gravity.CENTER; t.background = h.round(Color.rgb(233, 220, 198), 4f); t.setPadding(6, 6, 6, 6) },
-                    LinearLayout.LayoutParams(-1, -2).apply { topMargin = 12 })
-                h.place(c, f, left + k * 304, 360, 270); els.add(f)
+            // the wall: the frosted photo (already made once for the Glass look), dimmed, lit from above
+            Glass.frost?.let { fb ->
+                val wall = android.widget.ImageView(h.a); wall.scaleType = android.widget.ImageView.ScaleType.CENTER_CROP; wall.setImageBitmap(fb)
+                h.place(c, wall, 0, 0, 1920, 1080)
+                h.place(c, View(h.a).also { it.setBackgroundColor(Color.argb(190, 12, 9, 6)) }, 0, 0, 1920, 1080)
             }
-            info = h.text("", 30f, Color.rgb(233, 220, 198), 500); info.gravity = Gravity.CENTER; h.place(c, info, 0, 900, 1920)
-            set("i", clamp(idx(items, st.optString("id"), int("i")), 0, Math.max(0, items.size - 1))); paint()
+            h.place(c, View(h.a).also { it.background = GradientDrawable().apply { gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = 900f; setGradientCenter(.5f, .1f)
+                colors = intArrayOf(Color.argb(46, 255, 236, 200), Color.argb(0, 255, 236, 200)) } }, 0, 0, 1920, 1080)
+            h.place(c, h.text("The Collection", 60f, Color.rgb(246, 238, 224), 700).also { it.typeface = serif }, 96, 140)
+            val count = opts.optString("frames", "5").toIntOrNull() ?: 5
+            // what hangs: favourites, then the live frames (what's playing, today's photo, the next match), the TV's
+            // inputs only when it can really switch to them
+            val used = lastUsed(); val out = ArrayList<Pair<Item, String>>()
+            val live = ArrayList<Pair<Item, String>>()
+            d.np?.let { live.add(it to (if (it.playing) "Now playing" else "Paused") + (if (it.why.isNotEmpty()) " · " + it.why else "")) }
+            if (opts.optString("photo") != "off") h.photo()?.let { live.add(it to d.wallTitle.ifEmpty { "Picture of the day" }) }
+            val match = h.upcoming().firstOrNull { it.kind == "match" }
+            match?.let { m -> live.add(h.none("Tonight", m.source + ": " + m.name + (if (m.live) " is live now" else " at " + h.hhmm(m.at))).also { it.sub = "match" } to (if (m.live) "Live now" else "Next match")) }
+            val apps = (h.favorites() + listOfNotNull(h.live()) + h.sources()).map { it to ago(used[it.type + ":" + it.id] ?: 0L).ifEmpty { it.sub.takeUnless { s -> s.equals("app", true) }.orEmpty() } }
+            val roomForApps = Math.max(2, count - live.size)
+            val a = apps.take(roomForApps); val l = live.take(count - a.size)
+            // hung like a show, not a list: your first app in the middle, the live frames between the others
+            val hang = ArrayList<Pair<Item, String>>(); var ai = 1; var li = 0
+            while (hang.size < a.size + l.size - 1) { if (hang.size % 2 == 0 && ai < a.size) hang.add(a[ai++]) else if (li < l.size) hang.add(l[li++]) else if (ai < a.size) hang.add(a[ai++]) else break }
+            val ordered = ArrayList(hang); if (a.isNotEmpty()) ordered.add(ordered.size / 2, a[0])
+            middle = if (a.isNotEmpty()) ordered.indexOf(a[0]) else 0
+            h.place(c, h.text("CURATED BY YOU  ·  ${ordered.size} FRAMES", 22f, Color.argb(170, 255, 255, 255), 600).also { it.letterSpacing = .14f }, 98, 222)
+            frames.clear()
+            spot = View(h.a); spot.background = GradientDrawable().apply { gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = 220f
+                colors = intArrayOf(Color.argb(90, 255, 240, 210), Color.argb(0, 255, 240, 210)) }
+            h.place(c, spot, 0, 120, 420, 260)
+            val w = 250; val gap = 46; val left = (1920 - (ordered.size * w + (ordered.size - 1) * gap)) / 2
+            ordered.forEachIndexed { k, (it, sub) ->
+                val col = LinearLayout(h.a); col.orientation = LinearLayout.VERTICAL; col.gravity = Gravity.CENTER_HORIZONTAL; col.pivotY = 360f
+                val frame = FrameLayout(h.a); frame.setPadding(14, 14, 14, 14)
+                frame.background = android.graphics.drawable.LayerDrawable(arrayOf(h.round(Color.rgb(21, 19, 16), 6f), h.round(Color.TRANSPARENT, 6f, 3, Color.rgb(58, 51, 40))))
+                frame.elevation = 18f
+                val mat = FrameLayout(h.a); mat.setBackgroundColor(Color.rgb(243, 239, 230)); mat.setPadding(20, 20, 20, 20)
+                mat.addView(art(it), FrameLayout.LayoutParams(182, 290))
+                frame.addView(mat, FrameLayout.LayoutParams(222, 330))
+                col.addView(frame, LinearLayout.LayoutParams(w, 358))
+                val plate = LinearLayout(h.a); plate.orientation = LinearLayout.VERTICAL; plate.gravity = Gravity.CENTER; plate.setPadding(10, 8, 10, 8)
+                plate.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Color.rgb(201, 168, 106), Color.rgb(157, 127, 69))).apply { cornerRadius = 4f }
+                plate.addView(h.text(if (it.type == "none") it.name else it.name, 22f, Color.rgb(31, 23, 10), 700).also { t -> t.gravity = Gravity.CENTER })
+                if (sub.isNotEmpty()) plate.addView(h.text(sub, 16f, Color.argb(200, 31, 23, 10), 600).also { t -> t.gravity = Gravity.CENTER })
+                col.addView(plate, LinearLayout.LayoutParams(196, -2).apply { topMargin = 22 })
+                h.place(c, col, left + k * (w + gap), 310, w, 470)
+                frames.add(Frame(it, sub, col))
+            }
+            if (frames.isEmpty()) h.place(c, h.text("Nothing to hang yet: your apps appear here once the Chromecast reports them.", 30f, SUB, 400, 2), 96, 420, 1728)
+            // the placard
+            val card = LinearLayout(h.a); card.gravity = Gravity.CENTER_VERTICAL; card.setPadding(40, 0, 40, 0)
+            card.background = if (h.a.glassLook) Glass.Panel(card, 26f, 80) else h.round(Color.argb(210, 40, 30, 22), 26f, 2, Color.argb(60, 255, 230, 190))
+            numV = h.text("", 64f, Color.rgb(230, 201, 143), 700).also { it.typeface = serif }; card.addView(numV, LinearLayout.LayoutParams(150, -2))
+            val tx = LinearLayout(h.a); tx.orientation = LinearLayout.VERTICAL
+            nameV = h.text("", 46f, TEXT, 700).also { it.typeface = serif }; lineV = h.text("", 22f, Color.argb(200, 255, 255, 255), 500, 2)
+            tx.addView(nameV); tx.addView(lineV); card.addView(tx, LinearLayout.LayoutParams(0, -2, 1f))
+            card.addView(h.text("OK  OPEN", 24f, Color.rgb(31, 23, 10), 800).also { it.letterSpacing = .08f; it.background = h.round(Color.rgb(243, 239, 230), 16f); it.setPadding(30, 18, 30, 18); it.tag = "ok" })
+            h.place(c, card, 330, 800, 1260, 170)
+            set("i", clamp(idx(frames.map { it.item }, st.optString("id"), middle), 0, Math.max(0, frames.size - 1)))
+            paint()
+        }
+        private fun art(it: Item): View = when (it.type) {
+            "photo" -> android.widget.ImageView(h.a).also { iv -> iv.scaleType = android.widget.ImageView.ScaleType.CENTER_CROP; h.a.loadImage(d.wallUrl, iv, 400) }
+            "np" -> FrameLayout(h.a).also { f ->
+                val iv = android.widget.ImageView(h.a); iv.scaleType = android.widget.ImageView.ScaleType.CENTER_CROP; it.icon?.let { d0 -> iv.setImageDrawable(d0) }; iv.setBackgroundColor(Color.rgb(30, 30, 34))
+                f.addView(iv, FrameLayout.LayoutParams(-1, -1))
+                val shade = LinearLayout(h.a); shade.orientation = LinearLayout.VERTICAL; shade.gravity = Gravity.BOTTOM; shade.setPadding(14, 0, 14, 14)
+                shade.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Color.TRANSPARENT, Color.argb(200, 0, 0, 0)))
+                shade.addView(h.text(it.name, 20f, Color.WHITE, 700).also { t -> t.textDirection = View.TEXT_DIRECTION_LTR; t.gravity = Gravity.LEFT })
+                if (it.emoji.isNotEmpty()) shade.addView(h.text(it.emoji, 15f, Color.argb(210, 255, 255, 255), 500))
+                f.addView(shade, FrameLayout.LayoutParams(-1, -1)) }
+            "none" -> LinearLayout(h.a).also { l -> l.orientation = LinearLayout.VERTICAL; l.gravity = Gravity.CENTER; l.setBackgroundColor(Color.rgb(15, 28, 20))
+                val m = h.upcoming().firstOrNull { x -> x.kind == "match" }
+                l.addView(h.text((m?.source ?: "Football").uppercase(), 13f, Color.argb(180, 255, 255, 255), 700).also { t -> t.letterSpacing = .14f; t.gravity = Gravity.CENTER })
+                val parts = (m?.name ?: "").split(" – ")
+                l.addView(h.text(parts.getOrElse(0) { "" }, 20f, Color.WHITE, 600).also { t -> t.gravity = Gravity.CENTER }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 14 })
+                l.addView(h.text(if (m?.live == true) "LIVE" else m?.let { x -> h.hhmm(x.at) } ?: "", 38f, if (m?.live == true) Color.rgb(255, 107, 107) else Color.WHITE, 700).also { t -> t.gravity = Gravity.CENTER })
+                l.addView(h.text(parts.getOrElse(1) { "" }, 20f, Color.WHITE, 600).also { t -> t.gravity = Gravity.CENTER })
+                if (m != null && !m.live) l.addView(h.text(h.until(m.at), 14f, Color.argb(190, 255, 255, 255), 500).also { t -> t.gravity = Gravity.CENTER }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 10 }) }
+            "source" -> FrameLayout(h.a).also { f -> f.setBackgroundColor(Color.rgb(23, 41, 59))
+                f.addView(h.text(it.name.uppercase(), 30f, Color.rgb(159, 227, 242), 700).also { t -> t.gravity = Gravity.CENTER }, FrameLayout.LayoutParams(-1, -1)) }
+            else -> h.tile(it, 182, 290, 22f, false, "tall")
         }
         private fun paint() {
-            els.forEachIndexed { k, f -> h.ring(f, k == int("i"), 8f, color = WARM); f.translationY = if (k == int("i")) -8f else 0f }
-            val it = items.getOrNull(int("i"))
-            info.text = if (details && it != null) "${it.name}   ·   ${it.sub}   ·   OK ${it.verb.lowercase()}" else ""
-            it?.let { set("id", it.id) }
+            val i = int("i")
+            frames.forEachIndexed { k, f ->
+                val on = k == i
+                h.anim(f.view).translationY(if (on) -18f else 0f).scaleX(if (on) 1.12f else .94f).scaleY(if (on) 1.12f else .94f).alpha(if (on) 1f else .58f).start()
+                (f.view.getChildAt(0) as? FrameLayout)?.foreground = if (on) h.round(Color.TRANSPARENT, 6f, 5, Color.argb(230, 255, 255, 255)) else null
+            }
+            frames.getOrNull(i)?.let { f ->
+                f.view.post { spot.translationX = f.view.left + f.view.width / 2f - 210f }
+                val it = f.item
+                numV.text = roman.getOrElse(i) { (i + 1).toString() }
+                nameV.text = it.name
+                val ok = when (it.type) { "photo" -> "OK shows it full-screen"; "np" -> "OK plays or pauses"; "none" -> "OK tells you more"; "source" -> "OK switches the TV to it"; else -> "OK opens it" }
+                val more = when { it.why.isNotEmpty() -> it.why; it.type == "photo" -> "Today's photo, also the wall behind the frames."
+                    it.type == "np" -> "What the Chromecast is playing. OK plays or pauses."
+                    it.type == "source" -> "One of the TV's own inputs. OK switches the TV to it."
+                    else -> "One of your favourite apps. ▼ shows every app." }
+                lineV.text = listOf(f.plateSub, ok).filter { s -> s.isNotEmpty() }.joinToString("  ·  ") + if (details) "\n" + more else "  ·  ▲ about this frame"
+                set("id", it.id)
+            }
         }
         override fun key(k: String): Boolean {
-            when (k) { "left", "right" -> set("i", clamp(int("i") + if (k == "right") 1 else -1, 0, items.size - 1)); "up" -> details = !details
+            val n = frames.size
+            when (k) {
+                "left", "right" -> if (n > 0) { set("i", clamp(int("i") + if (k == "right") 1 else -1, 0, n - 1)); details = false }
+                "up" -> details = !details
                 "down" -> { h.openGrid("The full collection", listOfNotNull(h.live()) + h.sources() + h.all()); return true }
-                "ok" -> { h.act(items.getOrNull(int("i")), els.getOrNull(int("i"))); return true }
-                "back" -> if (details) details = false else set("i", 0); else -> return false }
+                "ok" -> { h.act(frames.getOrNull(int("i"))?.item, frames.getOrNull(int("i"))?.view); return true }
+                "back" -> if (details) details = false else set("i", middle)
+                else -> return false
+            }
             paint(); return true
         }
     }

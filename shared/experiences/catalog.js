@@ -323,7 +323,7 @@
    "id": "gallery",
    "no": "08",
    "name": "The Gallery",
-   "tagline": "Your screen becomes a personal collection.",
+   "tagline": "Your apps and today's moments, framed on a lit wall.",
    "family": "Curated",
    "role": "Personal preset",
    "pdf": [
@@ -358,7 +358,7 @@
        "Six"
       ]
      ],
-     "def": "4"
+     "def": "5"
     },
     {
      "key": "photo",
