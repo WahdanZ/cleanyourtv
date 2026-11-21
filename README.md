@@ -21,8 +21,8 @@ with the TV remote.
   no more to draw than Standard.
 - **Faster on the Chromecast.** Janky frames down from 37–70% to 20% while moving around, no redraws while Home sits
   still (17 → 1 every 5 s), and 90 MB less memory: the 4K photo is decoded at screen size and its shading drawn once.
-- **5 Home themes** (below, on a real Chromecast): Classic, Theater, Channel Zero, Command Deck and Ambient. Nine
-  more layouts are still being finished.
+- **6 Home themes** (below, on a real Chromecast): Classic, Theater, Channel Zero, The Gallery, Command Deck and
+  Ambient. Eight more layouts are still being finished.
 - **Android icon packs** such as [Arcticons](https://github.com/Arcticons-Team/Arcticons) on any layout; apps a pack
   doesn't cover keep their own icon.
 - **Google TV, not only the Chromecast.** Any Google TV or Android TV box with Android 9 or newer. Tested on a
@@ -34,9 +34,9 @@ with the TV remote.
 Glass and the speed-ups are in the source now (the [custom-ui branch](https://github.com/WahdanZ/cleanyourtv/tree/custom-ui)); the app download (v1.5.0) gets them in the next release.
 
 <p align="center">
-  <img src="docs/screens/layouts-5.jpg" alt="Five Home themes on a Chromecast: Classic with its widgets and dock, Theater with today's photo and one row of favourites, Channel Zero with your apps numbered like channels, The Command Deck with the current source and the TV's state, and Ambient with a clock over the photo">
+  <img src="docs/screens/layouts-6.jpg" alt="Six Home themes on a Chromecast: Classic with its widgets and dock, Theater with today's photo and one row of favourites, Channel Zero with your apps numbered like channels, The Gallery with framed apps on a lit wall, The Command Deck with the current source and the TV's state, and Ambient with a clock over the photo">
 </p>
-<p align="center"><sub>Classic, Theater, Channel Zero · The Command Deck, Ambient</sub></p>
+<p align="center"><sub>Classic, Theater, Channel Zero · The Gallery, The Command Deck, Ambient</sub></p>
 
 <p align="center">
   <img src="docs/screens/arcticons.jpg" width="70%" alt="The Theater theme with the Arcticons icon pack: Netflix, YouTube and the browser as white line icons">
