@@ -260,8 +260,8 @@ footer { padding-block: 40px 56px; border-top: 1px solid var(--line); color: var
   font: 400 28px/1 var(--display); color: var(--fg); cursor: pointer; border: 1px solid var(--rim, var(--line)); background: var(--pane, var(--panel));
   -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%); box-shadow: inset 0 1px 0 var(--rim-top, transparent); z-index: 2; padding: 0 0 3px; }
 .snav:hover { border-color: var(--accent); }
-.tv.swipe .snav { top: 46%; } .tv.swipe .snav.prev { left: -22px; } .tv.swipe .snav.next { right: -22px; }
-.pframe.swipe .snav { top: 44%; } .pframe.swipe .snav.prev { left: -6px; } .pframe.swipe .snav.next { right: -6px; }
+.tv.swipe .snav { top: 46%; } .tv.swipe .snav-prev { left: -22px; } .tv.swipe .snav-next { right: -22px; }
+.pframe.swipe .snav { top: 44%; } .pframe.swipe .snav-prev { left: -6px; } .pframe.swipe .snav-next { right: -6px; }
 .pdots { display: flex; justify-content: center; gap: 6px; margin-top: 14px; }
 .pdots i { width: 6px; height: 6px; border-radius: 3px; background: var(--rim, var(--line)); transition: width .25s ease, background .25s ease; }
 .pdots i.on { width: 18px; background: var(--accent); }
@@ -272,8 +272,8 @@ footer { padding-block: 40px 56px; border-top: 1px solid var(--line); color: var
 @media (hover: none) { .swipehint { display: block; } }
 @media (max-width: 900px) {
   .pcap { display: block; }
-  .tv.swipe .snav.prev { left: 4px; } .tv.swipe .snav.next { right: 4px; }
-  .tv.swipe .snav, .pframe.swipe .snav { width: 38px; height: 38px; font-size: 24px; }
+  .tv.swipe .snav-prev { left: 4px; } .tv.swipe .snav-next { right: 4px; }
+  .tv.swipe .snav, .pframe.swipe .snav { width: 36px; height: 36px; font-size: 22px; opacity: .85; }
 }
 
 /* ---------- Glass UI: the app's Glass look, for the page itself ----------
@@ -542,8 +542,8 @@ body::before {
       <figure class="tv swipe" style="margin:0" id="thSwipe">
         <div class="bezel"><div class="screen"><img id="thShot" src="img/l/theater.jpg" alt="The Theater layout" draggable="false"></div></div>
         <div class="stand"></div>
-        <button type="button" class="snav prev" id="thPrev" aria-label="Previous theme">‹</button>
-        <button type="button" class="snav next" id="thNext" aria-label="Next theme">›</button>
+        <button type="button" class="snav snav-prev" id="thPrev" aria-label="Previous theme">‹</button>
+        <button type="button" class="snav snav-next" id="thNext" aria-label="Next theme">›</button>
         <p class="swipehint">Swipe the TV to see the next theme</p>
       </figure>
       <div class="thinfo" aria-live="polite">
@@ -571,8 +571,8 @@ body::before {
     <div class="ptour">
       <figure class="pframe swipe" style="margin:0" id="ptSwipe">
         <div class="phone big"><div class="pscreen"><img id="ptShot" src="img/p/remote.jpg" alt="The phone remote for the TV: power, input, menu, arrows, OK, back, home and volume" draggable="false"></div></div>
-        <button type="button" class="snav prev" id="ptPrev" aria-label="Previous feature">‹</button>
-        <button type="button" class="snav next" id="ptNext" aria-label="Next feature">›</button>
+        <button type="button" class="snav snav-prev" id="ptPrev" aria-label="Previous feature">‹</button>
+        <button type="button" class="snav snav-next" id="ptNext" aria-label="Next feature">›</button>
         <div class="pdots" id="ptDots" aria-hidden="true"></div>
         <figcaption class="pcap" id="ptCap" aria-live="polite"><b>A remote for the TV</b><span>Power, input, menu, arrows, OK, Back, Home and volume.</span></figcaption>
         <p class="swipehint">Swipe the phone to see the next feature</p>
@@ -782,9 +782,9 @@ python3 helper/cyt_helper.py<button class="copy" type="button" data-copy="cmdHel
     if (l[0] === 'theater') b.setAttribute('aria-pressed', 'true');
     b.addEventListener('click', function () { pick(b, src, 'The ' + l[1] + ' layout', [(n + 1) + ' of 15', l[1], l[2], l[3], l[4], l[5]]); });
   });
-  K.forEach(function (k) {
+  K.forEach(function (k, n) {
     var b = thumb(looks, k[0], k[1]);
-    b.addEventListener('click', function () { pick(b, k[0], k[2], ['Look', k[1], k[1] === 'Arcticons icon pack' ? 'Icon pack' : 'Look', k[1] === 'Glass' ? 'Frosted glass over the photo.' : k[1] === 'Standard' ? 'Calm and dark.' : 'Any Android icon pack.', k[2], 'Panel: tap the photo, then Look · Remote: Edit Home, then Look']); });
+    b.addEventListener('click', function () { pick(b, k[0], k[2], ['Look ' + (n + 1) + ' of ' + K.length, k[1], k[1] === 'Arcticons icon pack' ? 'Android icon pack' : 'Classic Home', k[1] === 'Glass' ? 'Frosted glass over the photo.' : k[1] === 'Standard' ? 'Calm and dark.' : 'Any Android icon pack.', k[2], 'Panel: tap the photo, then Look · Remote: Edit Home, then Look']); });
   });
 
   // "What TV do you have?": the page shows what fits it, and remembers the answer on this device.
