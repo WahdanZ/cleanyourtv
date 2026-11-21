@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="A calm, ad-free Home screen for Chromecast with Google TV and Hisense VIDAA TVs. Your apps, the clock, the weather, football, prayer times and today's photo. Free and open source.">
+<meta property="og:title" content="Clean Your TV">
+<meta property="og:description" content="A calm, ad-free Home screen for Chromecast with Google TV and Hisense VIDAA TVs. Your apps, the clock, the weather, football, prayer times and today's photo. Free and open source.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://wahdanz.github.io/cleanyourtv/">
+<meta property="og:image" content="https://wahdanz.github.io/cleanyourtv/img/glass.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='6' width='26' height='17' rx='3' fill='none' stroke='%23F0B44C' stroke-width='3'/%3E%3Cpath d='M11 28h10' stroke='%23F0B44C' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<title>Clean Your TV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+html { scroll-behavior: smooth; }
+body { margin: 0; }
+/* Layout: a living room at night. The story runs top to bottom: the problem, what we found, the fix, how it works, then the download. */
+:root {
+  --bg: #0D0F14;        /* the room with the lights off */
+  --panel: #161A22;     /* a shelf */
+  --line: #262C38;
+  --fg: #EEF0F4;
+  --muted: #9AA2B2;
+  --accent: #F0B44C;    /* the clock's date line, amber */
+  --accent-ink: #1A1206;
+  --warn: #FF8A7A;      /* what the stock screens do */
+  --glass: rgba(255,255,255,.08);
+  --glass-rim: rgba(255,255,255,.22);
+  --display: "Outfit", "Avenir Next", system-ui, sans-serif;
+  --body: "Inter", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #F2F3F6; --panel: #FFFFFF; --line: #DDE1E8; --fg: #12151C; --muted: #5B6475; --warn: #C2412F;
+  --accent: #B5761A; --accent-ink: #FFFFFF; --glass: rgba(18,21,28,.04); --glass-rim: rgba(18,21,28,.14); color-scheme: light } }
+:root[data-theme="light"] {
+  --bg: #F2F3F6; --panel: #FFFFFF; --line: #DDE1E8; --fg: #12151C; --muted: #5B6475; --warn: #C2412F;
+  --accent: #B5761A; --accent-ink: #FFFFFF; --glass: rgba(18,21,28,.04); --glass-rim: rgba(18,21,28,.14); color-scheme: light }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 400 17px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 0; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+a { color: inherit }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.1; }
+h2 { font-size: clamp(30px, 4.2vw, 46px); font-weight: 600; letter-spacing: -.02em; max-width: 22ch; }
+h3 { font-size: 21px; font-weight: 600; }
+p { margin: 0; max-width: 64ch; }
+.eyebrow { font: 500 13px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
+section { padding-block: clamp(56px, 8vw, 100px); }
+section + section { border-top: 1px solid var(--line); }
+.lede { color: var(--muted); font-size: 19px; margin-top: 16px; }
+img { display: block; max-width: 100%; height: auto; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
+code { font: 400 .86em var(--mono); }
+
+/* ---------- top bar ---------- */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 22px; }
+.mark { display: flex; align-items: center; gap: 12px; font: 600 19px/1 var(--display); text-decoration: none; }
+.mark i { width: 30px; height: 20px; border: 2.5px solid var(--fg); border-radius: 5px; position: relative; display: inline-block; }
+.mark i::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 12px; height: 2.5px; margin-left: -6px; background: var(--fg); border-radius: 2px; }
+.top nav { display: flex; gap: 22px; font-size: 15px; color: var(--muted); flex-wrap: wrap; justify-content: flex-end; }
+.top nav a { text-decoration: none } .top nav a:hover { color: var(--fg) }
+
+/* ---------- hero ---------- */
+.hero { padding-block: 28px 80px; display: grid; gap: 44px; }
+.hero h1 { font-size: clamp(40px, 6.6vw, 80px); font-weight: 600; letter-spacing: -.035em; max-width: 16ch; }
+.hero h1 em { font-style: normal; color: var(--accent); font-weight: 300; }
+.cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; align-items: center; }
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 999px; font: 600 16px/1 var(--display); text-decoration: none; border: 1.5px solid var(--glass-rim); background: var(--glass); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.btn small { font: 500 12px/1 var(--mono); opacity: .75; }
+.btn:hover { transform: translateY(-1px); }
+
+/* The TV on the wall, with a switch for the two looks. */
+.tv { position: relative; max-width: 1080px; margin: 0 auto; width: 100%; }
+.bezel { position: relative; border-radius: 18px; padding: 10px; background: #050608; box-shadow: 0 0 0 1px #2a2f3a, 0 40px 90px -30px rgba(0,0,0,.7); }
+.screen { position: relative; aspect-ratio: 16 / 9; border-radius: 9px; overflow: hidden; background: #000; }
+.screen img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity .5s ease; }
+.screen img.off { opacity: 0 }
+.stand { width: 26%; height: 14px; margin: 0 auto; background: linear-gradient(#20242c, #0b0c10); border-radius: 0 0 10px 10px; }
+.looks { display: flex; gap: 6px; margin-top: 22px; padding: 5px; border-radius: 999px; border: 1px solid var(--glass-rim); background: var(--glass); width: max-content; max-width: 100%; margin-inline: auto; }
+.looks button { font: 500 15px/1 var(--display); color: var(--muted); background: none; border: 0; padding: 10px 18px; border-radius: 999px; cursor: pointer; }
+.looks button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.caption { text-align: center; margin-top: 12px; font-size: 14px; color: var(--muted); }
+
+/* ---------- the problem: findings ---------- */
+.findings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 40px; }
+.finding { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.finding .reading { font: 500 14px/1.5 var(--mono); color: var(--warn); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; overflow-x: auto; white-space: nowrap; }
+.finding p { color: var(--muted); font-size: 16px; }
+.source { font: 400 13px/1.5 var(--mono); color: var(--muted); margin-top: 22px; }
+
+/* ---------- the answer ---------- */
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: clamp(28px, 5vw, 64px); align-items: center; }
+.split.flip { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+.split.flip > :first-child { order: 2 }
+.list { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 14px; }
+.list li { padding-left: 22px; position: relative; color: var(--muted); }
+.list li b { color: var(--fg); font-weight: 600; }
+.list li::before { content: ""; position: absolute; left: 0; top: .62em; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--accent); }
+.shot { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #000; }
+.badge { display: inline-block; font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--accent); color: var(--accent); margin-left: 10px; vertical-align: middle; }
+
+/* ---------- how it works: the diagram ---------- */
+.diagram { margin-top: 40px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: clamp(16px, 3vw, 32px); overflow-x: auto; }
+.diagram svg { display: block; width: 100%; min-width: 640px; height: auto; }
+.diagram .box { fill: var(--bg); stroke: var(--line); stroke-width: 1.5; }
+.diagram .box.hub { stroke: var(--accent); }
+.diagram .t { fill: var(--fg); font: 600 17px var(--display); }
+.diagram .s { fill: var(--muted); font: 400 13px var(--body); }
+.diagram .k { fill: var(--accent); font: 500 12px var(--mono); letter-spacing: .04em; }
+.diagram .wire { stroke: var(--accent); stroke-width: 2; fill: none; }
+.diagram .wire.dash { stroke-dasharray: 5 6; stroke: var(--muted); }
+.diagram .head { fill: var(--accent); }
+.diagram .zone { fill: none; stroke: var(--line); stroke-dasharray: 3 5; }
+.pieces { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px; margin-top: 34px; }
+.piece { min-width: 0; } .piece p { color: var(--muted); font-size: 16px; margin-top: 8px; }
+
+/* ---------- research → design ---------- */
+.rules { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 40px; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.rule { padding: 24px; border-right: 1px solid var(--line); min-width: 0; }
+.rule:last-child { border-right: 0 }
+.rule b { display: block; font: 600 34px/1 var(--display); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.rule b small { font-size: 16px; font-weight: 500; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+.rule span { display: block; margin-top: 10px; color: var(--muted); font-size: 15px; }
+.solved { display: grid; gap: 0; margin-top: 44px; border-top: 1px solid var(--line); }
+.solved div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding-block: 20px; border-bottom: 1px solid var(--line); }
+.solved dt { font-weight: 600; } .solved dt small { display: block; font-weight: 400; color: var(--muted); font-size: 15px; margin-top: 4px; }
+.solved dd { margin: 0; color: var(--muted); font-size: 16px; }
+
+/* ---------- themes gallery ---------- */
+.gallery { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 48px); align-items: center; margin-top: 40px; }
+.gallery .tv { max-width: none; }
+.thinfo { min-width: 0; }
+.thcount { font: 500 13px/1 var(--mono); color: var(--muted); letter-spacing: .08em; }
+.thname { font-size: clamp(30px, 3.4vw, 42px); margin-top: 12px; letter-spacing: -.02em; }
+.thfam { display: inline-block; margin-top: 12px; font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--glass-rim); color: var(--muted); }
+.thtag { margin-top: 18px; font: 500 21px/1.35 var(--display); color: var(--accent); }
+.thabout { margin-top: 10px; color: var(--muted); font-size: 16px; }
+.thkeys { margin-top: 18px; font: 400 13px/1.5 var(--mono); color: var(--muted); }
+.thumbs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin-top: 30px; }
+.thumbs.looksrow { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 760px; margin-top: 18px; }
+.thumb { display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; text-align: left; font: 500 14px/1.3 var(--display); min-width: 0; }
+.thumb img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; border: 1.5px solid var(--line); transition: transform .2s ease, border-color .2s ease; }
+.thumb:hover img { transform: translateY(-2px); }
+.thumb[aria-pressed="true"] { color: var(--fg); }
+.thumb[aria-pressed="true"] img { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+#thShot { transition: opacity .25s ease; }
+
+/* ---------- phone ---------- */
+.phones { display: flex; gap: 18px; justify-content: center; }
+.phone { width: min(46%, 230px); border-radius: 30px; padding: 8px; background: #050608; box-shadow: 0 0 0 1px #2a2f3a; }
+.phone img { border-radius: 23px; }
+
+/* ---------- FAQ ---------- */
+.faq { margin-top: 36px; display: grid; gap: 12px; }
+.faq details { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; }
+.faq summary { cursor: pointer; font: 600 18px/1.35 var(--display); list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::-webkit-details-marker { display: none }
+.faq summary::after { content: "+"; color: var(--accent); font-weight: 400; font-size: 24px; line-height: 1; }
+.faq details[open] summary::after { content: "–"; }
+.faq details p { color: var(--muted); margin-top: 12px; font-size: 16px; }
+
+/* ---------- setups + download ---------- */
+.setups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 36px; }
+.setup { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.setup .need { font-size: 15px; color: var(--muted); flex: 1; }
+.setup a.go { font: 600 15px/1 var(--display); color: var(--accent); text-decoration: none; }
+.setup a.go:hover { text-decoration: underline }
+.dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; margin-top: 36px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 28px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.card .row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.card .ver { font: 500 14px/1 var(--mono); color: var(--muted); }
+.steps { margin: 0; padding-left: 20px; display: grid; gap: 12px; color: var(--muted); font-size: 15px; }
+.steps b { color: var(--fg); font-weight: 600 }
+.code { position: relative; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 84px 12px 14px; font: 400 13px/1.55 var(--mono); overflow-x: auto; white-space: pre; color: var(--fg); }
+.copy { position: absolute; top: 8px; right: 8px; font: 500 12px/1 var(--mono); padding: 7px 10px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
+.sha { font: 400 12px/1.5 var(--mono); color: var(--muted); word-break: break-all; }
+.note { font-size: 14px; color: var(--muted); }
+.tested { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 30px; border-top: 1px solid var(--line); }
+.tested div { padding: 18px 18px 18px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.tested dt { font: 500 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.tested dd { margin: 8px 0 0; font-weight: 500; }
+.tested dd code { color: var(--muted); }
+footer { padding-block: 40px 56px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .findings, .split, .split.flip, .setups, .dl, .tested, .pieces { grid-template-columns: minmax(0, 1fr); }
+  .split.flip > :first-child { order: 0 }
+  .rules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rule:nth-child(2) { border-right: 0 } .rule:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+  .solved div { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .gallery { grid-template-columns: minmax(0, 1fr); }
+  .thumbs { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .top nav { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="#top" aria-label="Clean Your TV"><i></i>Clean Your TV</a>
+    <nav aria-label="Sections">
+      <a href="#problem">The problem</a><a href="#how">How it works</a><a href="#themes">Themes</a><a href="#safe">Is it safe?</a><a href="#download">Download</a>
+    </nav>
+  </header>
+
+  <div class="hero" id="top">
+    <div>
+      <p class="eyebrow">For Chromecast with Google TV and Hisense VIDAA TVs</p>
+      <h1>Your TV's Home screen works for advertisers. <em>This one works for you.</em></h1>
+      <p class="lede">Clean Your TV replaces the Home screen with a calm one you design: your own apps, the clock, the weather, live football, prayer times, today's photo and what's playing. Free, open source, and nothing leaves your home.</p>
+      <div class="cta">
+        <a class="btn primary" href="#download">Get it free</a>
+        <a class="btn" href="#problem">Why it exists</a>
+      </div>
+    </div>
+
+    <figure class="tv" style="margin:0">
+      <div class="bezel"><div class="screen">
+        <img id="shotStandard" class="off" src="img/standard.jpg" alt="Clean Your TV's Home in the Standard look: clock, quote, football and prayer-time cards, Spotify, and four apps over a photo of Nice">
+        <img id="shotGlass" src="img/glass.jpg" alt="The same Home in the Glass look: cards, buttons and dock as frosted glass over the photo">
+      </div></div>
+      <div class="stand"></div>
+      <div class="looks" role="group" aria-label="Look">
+        <button type="button" id="lookStandard" aria-pressed="false">Standard</button>
+        <button type="button" id="lookGlass" aria-pressed="true">Glass</button>
+      </div>
+      <figcaption class="caption">Not a mock-up: a real Chromecast on 21 November 2026. Switch between the two looks.</figcaption>
+    </figure>
+  </div>
+</div>
+
+<section id="problem">
+  <div class="wrap">
+    <p class="eyebrow">The problem</p>
+    <h2>We opened up a smart TV to see what its Home screen is doing.</h2>
+    <p class="lede">Before writing any code we measured a Hisense VIDAA TV and read the code of its own Home screen. Here is what we found.</p>
+    <div class="findings">
+      <div class="finding">
+        <h3>Ads are switched on from the start</h3>
+        <div class="reading">Hisense_GetAdTargetEnable() → 1</div>
+        <p>Interest-based advertising was on, with an advertising ID, until we switched it off by hand in the TV's privacy settings.</p>
+      </div>
+      <div class="finding">
+        <h3>The Home screen reports back</h3>
+        <div class="reading">evt · abtest-tv · recommend-ui .vidaahub.com</div>
+        <p>VIDAA's own Home screen talks to servers for event logging, A/B tests and recommendations, and to a third-party ad network for its free channels.</p>
+      </div>
+      <div class="finding">
+        <h3>You can't change it</h3>
+        <div class="reading">ADB :5555 closed · store closed</div>
+        <p>VIDAA isn't Android. There's no way to install apps, and the Home button always goes to VIDAA's Home. Tools that clean Android TVs can't help.</p>
+      </div>
+      <div class="finding">
+        <h3>Google TV isn't much better</h3>
+        <div class="reading">"Recommended for you" · Ambient · ads</div>
+        <p>On a Chromecast, Home is mostly rows of promoted shows, sponsored picks and a screensaver that advertises, with your own apps pushed down.</p>
+      </div>
+    </div>
+    <p class="source">Measured on a Hisense 50A5FE, VIDAA U9, firmware V0000.09.09A.P0930, October 2026. Full notes in the project's FINDINGS.md.</p>
+  </div>
+</section>
+
+<section id="answer">
+  <div class="wrap split">
+    <div>
+      <p class="eyebrow">The answer</p>
+      <h2>A Home screen with only what you put on it.</h2>
+      <ul class="list">
+        <li><b>Your apps first.</b> A dock for the four you use most, then rows you name yourself: "Streaming", "Free TV", "Arabic".</li>
+        <li><b>Useful at a glance.</b> The time in six styles, the weather, the next match with a countdown, the next prayer, a quote of the day.</li>
+        <li><b>Today's photo.</b> Bing, Wikipedia or NASA's picture of the day, or your own photos.</li>
+        <li><b>What's playing,</b> with play, pause and skip, whichever app it's in.</li>
+        <li><b>No ads, no promoted rows.</b> Nothing appears that you didn't add.</li>
+      </ul>
+    </div>
+    <div class="shot"><img src="img/rows.jpg" alt="Scrolled down: the dock, then a Streaming row with OSN+, WATCH IT, Apple TV and Tubi, then YouTube TV, Prime Video and Disney+" loading="lazy"></div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <p class="eyebrow">How it works</p>
+    <h2>Three small pieces, all inside your home.</h2>
+    <p class="lede">No accounts, no cloud server. On a VIDAA TV it uses the TV's own remote-control channel, the same one the official phone remote app uses. Nothing is hacked or flashed.</p>
+    <div class="diagram">
+      <svg viewBox="0 0 960 330" role="img" aria-labelledby="dgT">
+        <title id="dgT">Your phone talks to the helper on a home computer, which opens apps on the VIDAA TV. The Chromecast runs the app itself and can also talk to the phone directly.</title>
+        <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+        <rect class="zone" x="8" y="8" width="944" height="314" rx="18"/>
+        <text class="k" x="28" y="36">YOUR HOME NETWORK</text>
+        <rect class="box" x="40" y="120" width="200" height="104" rx="14"/>
+        <text class="t" x="62" y="158">Your phone</text>
+        <text class="s" x="62" y="182">The panel and remote</text>
+        <text class="s" x="62" y="202">a web page, no app store</text>
+        <rect class="box hub" x="380" y="120" width="200" height="104" rx="14"/>
+        <text class="t" x="402" y="158">The helper</text>
+        <text class="s" x="402" y="182">on a computer that's on</text>
+        <text class="s" x="402" y="202">Mac, PC or Raspberry Pi</text>
+        <rect class="box" x="720" y="56" width="200" height="104" rx="14"/>
+        <text class="t" x="742" y="94">VIDAA TV</text>
+        <text class="s" x="742" y="118">Home is a web page</text>
+        <text class="s" x="742" y="138">on a tile</text>
+        <rect class="box" x="720" y="190" width="200" height="104" rx="14"/>
+        <text class="t" x="742" y="228">Chromecast</text>
+        <text class="s" x="742" y="252">Home is a real app</text>
+        <text class="s" x="742" y="272">with its own server</text>
+        <path class="wire" d="M240 172 H372" marker-end="url(#ah)"/>
+        <text class="k" x="262" y="162">CHANGES, KEYS</text>
+        <path class="wire" d="M580 158 C650 158 650 108 712 108" marker-end="url(#ah)"/>
+        <text class="k" x="598" y="120">OPEN APP</text>
+        <path class="wire dash" d="M580 186 C650 186 650 242 712 242" marker-end="url(#ah)"/>
+        <text class="k" x="598" y="230" style="fill:var(--muted)">OPTIONAL</text>
+        <path class="wire dash" d="M140 224 C140 300 560 300 712 268" marker-end="url(#ah)"/>
+        <text class="k" x="250" y="314" style="fill:var(--muted)">CHROMECAST ONLY: NO COMPUTER NEEDED</text>
+      </svg>
+    </div>
+    <div class="pieces">
+      <div class="piece"><h3>On the TV</h3><p>VIDAA can't run apps, so Home is a web page on a tile of its own. When the TV turns on, or Netflix closes, the helper brings it back.</p></div>
+      <div class="piece"><h3>On the Chromecast</h3><p>A real Android app that becomes the Home screen. It carries its own small server, so a Chromecast needs no computer at all.</p></div>
+      <div class="piece"><h3>On your phone</h3><p>One page for both screens: a remote, a trackpad, the player, and a live picture of each Home to rearrange by dragging.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="research">
+  <div class="wrap">
+    <p class="eyebrow">Built from research</p>
+    <h2>Designed for a sofa, three metres away.</h2>
+    <p class="lede">We followed the TV design guidance from Android TV, Apple's tvOS and Fire TV, then tested every screen with a real remote.</p>
+    <div class="rules">
+      <div class="rule"><b>24<small>px</small></b><span>smallest text on screen, readable from the sofa</span></div>
+      <div class="rule"><b>3<small>keys</small></b><span>arrows, OK and Back reach everything. No pointer needed</span></div>
+      <div class="rule"><b>0.25<small>s</small></b><span>motion: quick, calm, no bounce</span></div>
+      <div class="rule"><b>5<small>%</small></b><span>safe edge, so nothing hides under the TV's frame</span></div>
+    </div>
+    <dl class="solved">
+      <div><dt>A web page can't open Netflix<small>VIDAA ignores every way a page could start a native app.</small></dt><dd>The helper sends the TV's own "launch app" command over its remote-control channel, the way the phone remote does.</dd></div>
+      <div><dt>The Home button can't be changed<small>It always goes to VIDAA's Home, and nothing reports the press.</small></dt><dd>The helper notices when the TV comes on and when Netflix, YouTube or Prime close, and puts your Home back in front.</dd></div>
+      <div><dt>The Chromecast's chip is slow<small>Live blur and 4K photos made it stutter.</small></dt><dd>The photo is loaded at screen size and frosted once a day, so the Glass look costs no more to draw than the plain one.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section id="themes">
+  <div class="wrap">
+    <p class="eyebrow">Themes</p>
+    <h2>Fifteen Homes. Pick the one that fits your evening.</h2>
+    <p class="lede">Each layout arranges the same apps in a different way: a channel dial, an evening timeline, a gallery, a quiet clock. Choose one below to see it on the TV. Every picture is from the same real Chromecast.</p>
+    <div class="gallery">
+      <figure class="tv" style="margin:0">
+        <div class="bezel"><div class="screen"><img id="thShot" src="img/l/theater.jpg" alt="The Theater layout"></div></div>
+        <div class="stand"></div>
+      </figure>
+      <div class="thinfo" aria-live="polite">
+        <p class="thcount" id="thCount">12 of 15</p>
+        <h3 class="thname" id="thName">Theater</h3>
+        <p class="thfam" id="thFam">Photo first</p>
+        <p class="thtag" id="thTag">Make tonight your own.</p>
+        <p class="thabout" id="thAbout">Today's photo, a headline, what is playing, and one row: your favourites, Live TV, an input and all apps.</p>
+        <p class="thkeys" id="thKeys">◀ ▶ choose · OK open · ▲ now playing · ▼ all apps</p>
+      </div>
+    </div>
+    <div class="thumbs" id="thThumbs" role="group" aria-label="Layouts"></div>
+
+    <h3 style="margin-top:56px">Looks and icon packs</h3>
+    <p class="note" style="margin-top:8px;max-width:64ch">On top of any layout: draw Classic in Standard or Glass, and swap the app icons for an Android icon pack such as Arcticons. Apps a pack doesn't cover keep their own icon.</p>
+    <div class="thumbs looksrow" id="lkThumbs" role="group" aria-label="Looks and icon packs"></div>
+  </div>
+</section>
+
+<section id="phone">
+  <div class="wrap split">
+    <div>
+      <p class="eyebrow">Your phone</p>
+      <h2>Change the TV from the sofa.</h2>
+      <ul class="list">
+        <li><b>A remote and trackpad</b> for the TV and the Chromecast, and every app one tap away.</li>
+        <li><b>A sleep timer</b> that waits for the episode to end.</li>
+        <li><b>A live picture of each Home.</b> Tap a block, drag an app, save. It shows on the TV in seconds.</li>
+        <li><b>Scenes</b> like "Movie night": wake the screen, switch the VPN country, open Netflix.</li>
+      </ul>
+      <p class="note" style="margin-top:18px">It's a web page: add it to your phone's Home screen and it opens full-screen. No app store.</p>
+    </div>
+    <div class="phones">
+      <div class="phone"><img src="img/phone-remote.jpg" alt="The phone remote: arrows, OK, back, home and volume" loading="lazy"></div>
+      <div class="phone" style="margin-top:48px"><img src="img/phone-player.jpg" alt="The phone player: album art, the song, controls and a sleep timer" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<section id="safe">
+  <div class="wrap split flip">
+    <div>
+      <p class="eyebrow">Is it safe?</p>
+      <h2>Built so you can always go back.</h2>
+      <p class="lede">The project's first rule is "never risk the TV". No firmware is flashed, no TV settings are written, and the TV's network traffic isn't touched.</p>
+      <div class="faq">
+        <details><summary>Can it break my TV?</summary><p>No. It only uses what the TV already offers to its own phone remote: opening apps, sending keys, adding a tile. A factory reset removes everything.</p></details>
+        <details><summary>How do I get VIDAA's own Home back?</summary><p>Press the VIDAA button on the Home screen and choose "Switch to VIDAA Home". On a Chromecast, one command sets Google TV back as Home.</p></details>
+        <details><summary>Does anything leave my home?</summary><p>No account and no cloud server. Settings stay on your computer or the Chromecast. It only fetches the weather, the photo of the day and the scores you turn on.</p></details>
+        <details><summary>What can't it do?</summary><p>On VIDAA the remote's Home button still opens VIDAA's Home first; your Home comes back when the TV turns on or an app closes. A VIDAA TV needs a computer that stays on. It doesn't block ads inside apps like YouTube.</p></details>
+        <details><summary>What does it cost?</summary><p>Nothing. It's open source under the MIT licence.</p></details>
+      </div>
+    </div>
+    <div class="shot"><img src="img/vidaa-menu.jpg" alt="On the TV: a menu that says Automatic Home is on, with Switch to VIDAA Home and Cancel" loading="lazy"></div>
+  </div>
+</section>
+
+<section id="setup">
+  <div class="wrap">
+    <p class="eyebrow">Pick your setup</p>
+    <h2>Which one is yours?</h2>
+    <div class="setups">
+      <div class="setup">
+        <h3>Chromecast only</h3>
+        <p class="need">The app, and a computer once to install it (about 10 minutes). After that it runs on its own.</p>
+        <a class="go" href="https://github.com/WahdanZ/cleanyourtv/blob/custom-ui/docs/chromecast-only.md" rel="noopener">Chromecast guide →</a>
+      </div>
+      <div class="setup">
+        <h3>Chromecast and a VIDAA TV</h3>
+        <p class="need">The app, plus the helper on a computer that stays on. One phone page for both screens.</p>
+        <a class="go" href="https://github.com/WahdanZ/cleanyourtv/blob/custom-ui/docs/chromecast-vidaa.md" rel="noopener">Both screens guide →</a>
+      </div>
+      <div class="setup">
+        <h3>VIDAA TV only</h3>
+        <p class="need">The helper on a computer that stays on: a Mac, a Windows PC or a Raspberry Pi.</p>
+        <a class="go" href="https://github.com/WahdanZ/cleanyourtv/blob/custom-ui/docs/vidaa-only.md" rel="noopener">VIDAA guide →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <p class="eyebrow">Download</p>
+    <h2>Free, and yours to keep.</h2>
+    <div class="dl">
+      <div class="card">
+        <div class="row"><h3>Chromecast app</h3><span class="ver">v1.5.0 · 20 Nov 2026</span></div>
+        <a class="btn primary" style="align-self:flex-start" href="https://github.com/WahdanZ/cleanyourtv/releases/download/chromecast-v1.5.0/cleanyourtv-chromecast-1.5.0.apk" rel="noopener">Download APK <small>3.9 MB</small></a>
+        <ol class="steps">
+          <li>On the Chromecast: <b>Settings → System → Developer options → Wireless debugging</b>. Note the address it shows.</li>
+          <li>On a computer with adb, install it and make it your Home:</li>
+        </ol>
+        <div class="code" id="cmdInstall">adb connect 192.168.1.60:37000
+adb install cleanyourtv-chromecast-1.5.0.apk
+adb shell cmd package set-home-activity com.cleanyourtv.home/.MainActivity<button class="copy" type="button" data-copy="cmdInstall">Copy</button></div>
+        <p class="sha">SHA-256 a233cbd137ae22bfd779a9190186c749dc29893e902f5dcf9e1b8dd7b66d389b</p>
+        <p class="note">Glass and the newest speed-ups come in the next release.</p>
+      </div>
+      <div class="card">
+        <div class="row"><h3>Helper, for VIDAA TVs</h3><span class="ver">Python 3 · macOS, Windows, Linux</span></div>
+        <a class="btn" style="align-self:flex-start" href="https://github.com/WahdanZ/cleanyourtv/archive/refs/heads/custom-ui.zip" rel="noopener">Download source <small>ZIP</small></a>
+        <ol class="steps"><li>Unzip it on a computer that stays on, or clone it, and try it once:</li></ol>
+        <div class="code" id="cmdHelper">git clone -b custom-ui https://github.com/WahdanZ/cleanyourtv.git
+cd cleanyourtv
+python3 helper/cyt_helper.py<button class="copy" type="button" data-copy="cmdHelper">Copy</button></div>
+        <ol class="steps" start="2"><li>Pair it with the TV (a 4-digit PIN on screen), then start it at login with <b>setup/macos/install.sh</b>, <b>setup/windows/install.ps1</b> or <b>setup/linux/install.sh</b>.</li></ol>
+        <p class="note">Step by step in the <a href="https://github.com/WahdanZ/cleanyourtv/blob/custom-ui/docs/setup/helper.md" rel="noopener">helper guide</a>.</p>
+      </div>
+    </div>
+    <dl class="tested">
+      <div><dt>Tested on</dt><dd>Chromecast with Google TV 4K <code>Android 14</code></dd></div>
+      <div><dt>Tested on</dt><dd>Hisense 55U8Q <code>VIDAA U9 · V0000.09.60I</code></dd></div>
+      <div><dt>Tested on</dt><dd>Hisense 50A5FE <code>VIDAA U9 · V0000.09.09A</code></dd></div>
+    </dl>
+  </div>
+</section>
+
+<div class="wrap">
+  <footer>
+    <span>Based on <a href="https://github.com/gilbertmsipha/cleanyourtv-vidaa" rel="noopener">cleanyourtv-vidaa</a> by Gilbert, inspired by <a href="https://github.com/Gathin23/cleanyourtv" rel="noopener">CleanYourTV</a> for Android TV, paired with <a href="https://github.com/Empi9245/Sidee" rel="noopener">Sidee</a>. MIT licence.</span>
+    <a href="https://github.com/WahdanZ/cleanyourtv" rel="noopener">Source on GitHub</a>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var std = document.getElementById('shotStandard'), gl = document.getElementById('shotGlass');
+  var bs = document.getElementById('lookStandard'), bg = document.getElementById('lookGlass');
+  function show(glass) {
+    gl.classList.toggle('off', !glass); std.classList.toggle('off', glass);
+    bg.setAttribute('aria-pressed', glass ? 'true' : 'false'); bs.setAttribute('aria-pressed', glass ? 'false' : 'true');
+  }
+  bs.addEventListener('click', function () { show(false); });
+  bg.addEventListener('click', function () { show(true); });
+  var L = [
+    ['classic','Classic','Your widgets','The Home you have now.','Clock, weather, quote, football and prayer cards, what is playing, then your dock and rows. Every block can be moved and resized.','▲▼◀▶ move · OK open · hold OK for options'],
+    ['liquid','Liquid OS','Expressive','Apps behave like a calm, responsive material.','Your favourites as soft bubbles. The one in focus grows and the rest make room, always in the same order.','◀ ▶ flow · OK open · ▲ sources · ▼ all apps'],
+    ['channel','Channel Zero','TV-native','Channel surfing, rebuilt for streaming and HDMI.','A numbered dial of Live TV, inputs and apps. Up and Down surf; number keys jump straight to a channel.','▲ ▼ surf · 0–9 channel number · OK switch'],
+    ['typography','Typography First','Editorial','A television home that speaks in verbs, not icons.','Huge words: WATCH, PLAY, LISTEN, SOURCES. Right shows the apps inside the chosen word, by name.','▲ ▼ word · ▶ apps · OK open'],
+    ['worlds','Floating Worlds','Spatial','A small world for each type of evening.','Four islands: Watch, Play, Listen, Sources. OK enters one, and your favourites stay one key away.','◀ ▶ worlds · OK enter · ▼ favourites'],
+    ['fold','The Fold','Geometric','Unfold context instead of scrolling endless rows.','Four panels: Live TV, Watch, Play, Inputs. The one in focus unfolds its short list; the others stay put.','◀ ▶ panels · OK open the list · Back fold'],
+    ['four','Four Directions','Remote-native','Make four arrows the main way in.','One key, one place: Up discover, Right sources, Down all apps, Left resume. OK opens what you used last.','▲ discover · ▶ sources · ▼ apps · ◀ resume'],
+    ['river','The Time River','Context','From last watched to what matters next.','Now, resume, what is next (a match, a prayer time) and your scenes, in time order. Each says what OK will do.','◀ ▶ moments · OK do it'],
+    ['gallery','The Gallery','Curated','Your screen becomes a personal collection.','Four to six framed places, such as apps, an input and today’s photo, each with a large caption.','◀ ▶ frames · OK open · ▲ about this frame'],
+    ['aurora','Aurora','Ambient','Beautiful by default. Functional on demand.','A quiet clock and light. Any arrow shows a short strip of places; Back hides it again.','any arrow show places · OK open · Back hide'],
+    ['deck','The Command Deck','Utility','The television as an understandable system.','The current source large, the real state beside it (input, playback, VPN), favourites below. Nothing it can’t verify.','◀ ▶ favourites · ▲ TV controls · OK do it'],
+    ['theater','Theater','Photo first','Make tonight your own.','Today’s photo, a headline, what is playing, and one row: your favourites, Live TV, an input and all apps.','◀ ▶ choose · OK open · ▲ now playing · ▼ all apps'],
+    ['signal','Signal','TV-native','One place for every source.','Channel Zero’s dial, grouped: inputs, Live TV and apps under their own headings, today’s photo on the stage.','▲ ▼ source · OK switch · ◀ next group'],
+    ['scenes','Scene Stage','Routines','Set the mood.','Your scenes as large cards. OK runs one: wake the screen, switch the VPN, open an app. Shown empty here until you make one.','◀ ▶ scenes · OK start the scene'],
+    ['ambient','Ambient','Ambient','A clock, today’s photo, and nothing else until you ask.','Aurora’s reveal-on-demand strip over today’s photo, with the clock in the middle.','any arrow show places · OK open · Back hide']
+  ];
+  var K = [
+    ['img/standard.jpg','Standard','Classic in the Standard look: calm dark cards and a dark dock.'],
+    ['img/glass.jpg','Glass','Classic in the Glass look: frosted cards, buttons and dock with a bright rim.'],
+    ['img/l/theater-arcticons.jpg','Arcticons icon pack','Theater with Arcticons: line icons for Netflix, YouTube and the browser.']
+  ];
+  var shot = document.getElementById('thShot'), thumbs = document.getElementById('thThumbs'), looks = document.getElementById('lkThumbs');
+  var all = [];
+  function pick(btn, src, alt, info) {
+    all.forEach(function (b) { b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); });
+    shot.style.opacity = '0';
+    setTimeout(function () { shot.src = src; shot.alt = alt; shot.style.opacity = '1'; }, 150);
+    document.getElementById('thCount').textContent = info[0];
+    document.getElementById('thName').textContent = info[1];
+    document.getElementById('thFam').textContent = info[2];
+    document.getElementById('thTag').textContent = info[3];
+    document.getElementById('thAbout').textContent = info[4];
+    document.getElementById('thKeys').textContent = info[5];
+  }
+  function thumb(box, src, label) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'thumb'; b.setAttribute('aria-pressed', 'false');
+    var i = document.createElement('img'); i.src = src; i.alt = ''; i.loading = 'lazy';
+    b.appendChild(i); b.appendChild(document.createTextNode(label)); box.appendChild(b); all.push(b); return b;
+  }
+  L.forEach(function (l, n) {
+    var src = 'img/l/' + l[0] + '.jpg';
+    var b = thumb(thumbs, src, l[1]);
+    if (l[0] === 'theater') b.setAttribute('aria-pressed', 'true');
+    b.addEventListener('click', function () { pick(b, src, 'The ' + l[1] + ' layout', [(n + 1) + ' of 15', l[1], l[2], l[3], l[4], l[5]]); });
+  });
+  K.forEach(function (k) {
+    var b = thumb(looks, k[0], k[1]);
+    b.addEventListener('click', function () { pick(b, k[0], k[2], ['Look', k[1], k[1] === 'Arcticons icon pack' ? 'Icon pack' : 'Look', k[1] === 'Glass' ? 'Frosted glass over the photo.' : k[1] === 'Standard' ? 'Calm and dark.' : 'Any Android icon pack.', k[2], 'Panel: tap the photo, then Look · Remote: Edit Home, then Look']); });
+  });
+
+  document.querySelectorAll('.copy').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var box = document.getElementById(b.getAttribute('data-copy'));
+      var text = Array.prototype.filter.call(box.childNodes, function (n) { return n.nodeType === 3; }).map(function (n) { return n.textContent; }).join('').trim();
+      var done = function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1600); };
+      var fallback = function () { var r = document.createRange(); r.selectNodeContents(box); var s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = 'Selected'; };
+      try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+    });
+  });
+})();
+</script>
+</body>
+</html>
