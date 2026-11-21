@@ -253,6 +253,29 @@ footer { padding-block: 40px 56px; border-top: 1px solid var(--line); color: var
   .phone.big { max-width: 280px; }
 }
 
+/* ---------- swipe between themes and phone features ---------- */
+.swipe { position: relative; }
+.swipe .screen, .swipe .pscreen { touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; }
+.snav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  font: 400 28px/1 var(--display); color: var(--fg); cursor: pointer; border: 1px solid var(--rim, var(--line)); background: var(--pane, var(--panel));
+  -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%); box-shadow: inset 0 1px 0 var(--rim-top, transparent); z-index: 2; padding: 0 0 3px; }
+.snav:hover { border-color: var(--accent); }
+.tv.swipe .snav { top: 46%; } .tv.swipe .snav.prev { left: -22px; } .tv.swipe .snav.next { right: -22px; }
+.pframe.swipe .snav { top: 44%; } .pframe.swipe .snav.prev { left: -6px; } .pframe.swipe .snav.next { right: -6px; }
+.pdots { display: flex; justify-content: center; gap: 6px; margin-top: 14px; }
+.pdots i { width: 6px; height: 6px; border-radius: 3px; background: var(--rim, var(--line)); transition: width .25s ease, background .25s ease; }
+.pdots i.on { width: 18px; background: var(--accent); }
+.pcap { display: none; margin-top: 14px; text-align: center; }
+.pcap b { display: block; font: 600 19px/1.3 var(--display); }
+.pcap span { display: block; margin-top: 6px; color: var(--muted); font-size: 15px; line-height: 1.5; }
+.swipehint { display: none; margin-top: 8px; text-align: center; font: 400 13px/1.4 var(--mono); color: var(--muted); }
+@media (hover: none) { .swipehint { display: block; } }
+@media (max-width: 900px) {
+  .pcap { display: block; }
+  .tv.swipe .snav.prev { left: 4px; } .tv.swipe .snav.next { right: 4px; }
+  .tv.swipe .snav, .pframe.swipe .snav { width: 38px; height: 38px; font-size: 24px; }
+}
+
 /* ---------- Glass UI: the app's Glass look, for the page itself ----------
    A soft light behind everything (warm amber, coral and teal, from the photo of the day), and every panel frosted
    glass over it: blurred, a light tint, a bright rim at the top where the light hits. */
@@ -516,9 +539,12 @@ body::before {
     <h2>Fifteen Homes. Pick the one that fits your evening.</h2>
     <p class="lede">Each layout arranges the same apps in a different way: a channel dial, an evening timeline, a gallery, a quiet clock. Choose one below to see it on the TV. Every picture is from the same real Chromecast.</p>
     <div class="gallery">
-      <figure class="tv" style="margin:0">
-        <div class="bezel"><div class="screen"><img id="thShot" src="img/l/theater.jpg" alt="The Theater layout"></div></div>
+      <figure class="tv swipe" style="margin:0" id="thSwipe">
+        <div class="bezel"><div class="screen"><img id="thShot" src="img/l/theater.jpg" alt="The Theater layout" draggable="false"></div></div>
         <div class="stand"></div>
+        <button type="button" class="snav prev" id="thPrev" aria-label="Previous theme">‹</button>
+        <button type="button" class="snav next" id="thNext" aria-label="Next theme">›</button>
+        <p class="swipehint">Swipe the TV to see the next theme</p>
       </figure>
       <div class="thinfo" aria-live="polite">
         <p class="thcount" id="thCount">12 of 15</p>
@@ -543,8 +569,13 @@ body::before {
     <h2>Everything on the TV, from your phone.</h2>
     <p class="lede">One web page controls both screens. Open it from the QR code on the TV, add it to your phone's Home screen, and it opens full-screen like an app. No app store, no account. Tap a feature to see it.</p>
     <div class="ptour">
-      <figure class="pframe" style="margin:0">
-        <div class="phone big"><div class="pscreen"><img id="ptShot" src="img/p/remote.jpg" alt="The phone remote for the TV: power, input, menu, arrows, OK, back, home and volume"></div></div>
+      <figure class="pframe swipe" style="margin:0" id="ptSwipe">
+        <div class="phone big"><div class="pscreen"><img id="ptShot" src="img/p/remote.jpg" alt="The phone remote for the TV: power, input, menu, arrows, OK, back, home and volume" draggable="false"></div></div>
+        <button type="button" class="snav prev" id="ptPrev" aria-label="Previous feature">‹</button>
+        <button type="button" class="snav next" id="ptNext" aria-label="Next feature">›</button>
+        <div class="pdots" id="ptDots" aria-hidden="true"></div>
+        <figcaption class="pcap" id="ptCap" aria-live="polite"><b>A remote for the TV</b><span>Power, input, menu, arrows, OK, Back, Home and volume.</span></figcaption>
+        <p class="swipehint">Swipe the phone to see the next feature</p>
       </figure>
       <div class="pfeatures" role="group" aria-label="Phone features">
         <button type="button" class="pf" aria-pressed="true" data-shot="img/p/remote.jpg" data-alt="The phone remote for the TV: power, input, menu, arrows, OK, back, home and volume" data-for="vidaa both other"><b>A remote for the TV</b><span>Power, input, menu, arrows, OK, Back, Home and volume. The dots at the top show whether the TV, the VPN and the Chromecast are on.</span></button>
@@ -685,14 +716,17 @@ python3 helper/cyt_helper.py<button class="copy" type="button" data-copy="cmdHel
   // moving back). The new picture is loaded first, so it never slides in empty. Calm motion, none if asked for none.
   var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   function slideTo(img, src, alt, dir) {
-    if (img.getAttribute('src') === src) return;
+    img.dataset.want = src;   // the latest choice wins: a picture still loading from an earlier tap is dropped
+    if (img.getAttribute('src') === src && !img.getAnimations().length) return;
     var pre = new Image();
     pre.onload = pre.onerror = function () {
+      if (img.dataset.want !== src) return;
       if (still || !img.animate) { img.src = src; img.alt = alt; return; }
       var d = dir < 0 ? -1 : 1;
       img.getAnimations().forEach(function (x) { x.cancel(); });   // a quick second tap starts from where it is
       img.animate([{ opacity: 1, transform: 'translateX(0)' }, { opacity: 0, transform: 'translateX(' + (-28 * d) + 'px)' }],
         { duration: 160, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).onfinish = function () {
+        if (img.dataset.want !== src) return;
         img.src = src; img.alt = alt;
         img.animate([{ opacity: 0, transform: 'translateX(' + (36 * d) + 'px)' }, { opacity: 1, transform: 'translateX(0)' }],
           { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }).onfinish = function () {
@@ -790,6 +824,48 @@ python3 helper/cyt_helper.py<button class="copy" type="button" data-copy="cmdHel
       slideTo(ptShot, b.getAttribute('data-shot'), b.getAttribute('data-alt'), list.indexOf(b) < list.indexOf(was) ? -1 : 1);
     });
   });
+  // Swipe (or drag with a mouse) a screen left for the next item, right for the previous; ‹ › and the keyboard's
+  // arrows do the same. A mostly-vertical move is left to the page, so scrolling still works.
+  function swipeable(area, step) {
+    var x0 = null, y0 = 0;
+    area.addEventListener('pointerdown', function (e) { x0 = e.clientX; y0 = e.clientY; });
+    area.addEventListener('pointerup', function (e) {
+      if (x0 === null) return;
+      var dx = e.clientX - x0, dy = e.clientY - y0; x0 = null;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.3) step(dx < 0 ? 1 : -1);
+    });
+    area.addEventListener('pointercancel', function () { x0 = null; });
+    area.setAttribute('tabindex', '0');
+    area.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight') { step(1); e.preventDefault(); } else if (e.key === 'ArrowLeft') { step(-1); e.preventDefault(); }
+    });
+  }
+  function stepIn(list, d) {   // the next or previous of the shown ones, round the end
+    var shown = list.filter(function (b) { return b.offsetParent !== null; });
+    if (!shown.length) return;
+    var i = shown.indexOf(shown.filter(function (b) { return b.getAttribute('aria-pressed') === 'true'; })[0]);
+    shown[(i + d + shown.length) % shown.length].click();
+  }
+  var thStep = function (d) { stepIn(all, d); };
+  swipeable(document.querySelector('#thSwipe .screen'), thStep);
+  document.getElementById('thPrev').onclick = function () { thStep(-1); };
+  document.getElementById('thNext').onclick = function () { thStep(1); };
+  var pfs = Array.prototype.slice.call(document.querySelectorAll('.pf'));
+  var ptStep = function (d) { stepIn(pfs, d); };
+  swipeable(document.querySelector('#ptSwipe .pscreen'), ptStep);
+  document.getElementById('ptPrev').onclick = function () { ptStep(-1); };
+  document.getElementById('ptNext').onclick = function () { ptStep(1); };
+  function paintPt() {   // the dots and, on a phone, the chosen feature's words under the picture
+    var shown = pfs.filter(function (b) { return b.offsetParent !== null; }), dots = document.getElementById('ptDots');
+    dots.innerHTML = '';
+    shown.forEach(function (b) { var i = document.createElement('i'); if (b.getAttribute('aria-pressed') === 'true') i.className = 'on'; dots.appendChild(i); });
+    var on = shown.filter(function (b) { return b.getAttribute('aria-pressed') === 'true'; })[0];
+    if (on) { var cap = document.getElementById('ptCap'); cap.innerHTML = ''; cap.appendChild(on.querySelector('b').cloneNode(true)); cap.appendChild(on.querySelector('span').cloneNode(true)); }
+  }
+  pfs.forEach(function (b) { b.addEventListener('click', function () { setTimeout(paintPt, 0); }); });
+  paintPt();
+  document.querySelectorAll('[data-pick]').forEach(function (b) { b.addEventListener('click', function () { setTimeout(paintPt, 50); }); });
+
   document.querySelectorAll('.copy').forEach(function (b) {
     b.addEventListener('click', function () {
       var box = document.getElementById(b.getAttribute('data-copy'));
