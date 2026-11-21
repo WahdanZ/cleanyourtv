@@ -23,6 +23,7 @@ RESERVED = _SPEC["reserved"]                 # the buttons and the photo credit
 CLOCK_STYLES = _SPEC["clock_styles"]         # one of these, or a different one each day from a chosen few ("rotate")
 WIDGET_BLOCKS = tuple(_SPEC["widget_blocks"])
 TILE_SIZES = _SPEC["tile_sizes"]             # tiles across the screen
+LOOKS = [k for k, _ in _SPEC["looks"]]        # how cards, buttons and the dock are drawn: "standard" or "glass"
 BLOCKS = _SPEC["blocks"]
 PRESETS = _SPEC["presets"]
 
@@ -89,4 +90,7 @@ def validate(v) -> dict:
         sizes[k] = v.get(k) or "big"
         if sizes[k] not in TILE_SIZES:
             raise ValueError(f"bad {k} size")
-    return {"blocks": out, "preset": str(v.get("preset", ""))[:30], **sizes, "dock_full": bool(v.get("dock_full"))}
+    look = v.get("look") or "standard"
+    if look not in LOOKS:
+        raise ValueError("bad look")
+    return {"blocks": out, "preset": str(v.get("preset", ""))[:30], **sizes, "dock_full": bool(v.get("dock_full")), "look": look}

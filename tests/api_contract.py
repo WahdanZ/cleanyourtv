@@ -86,6 +86,16 @@ bad = json.loads(json.dumps(st["layout_spec"]["presets"]["classic"]))
 bad["blocks"]["quote"] = dict(bad["blocks"]["clock"], on=True)   # on top of the clock
 code, r = call("/api/admin/save", {"changes": {"home_layout": bad}})
 check("save: overlapping blocks are refused (400)", code == 400 and isinstance(r, dict) and r.get("error"), f"HTTP {code} {r}")
+glass = json.loads(json.dumps(st["layout_spec"]["presets"]["classic"]))
+glass["look"] = "glass"
+code, r = call("/api/admin/save", {"changes": {"home_layout": glass}})
+_, st3 = call("/api/admin/state")
+check("save: the Glass look is kept", code == 200 and (st3["settings"]["home_layout"] or {}).get("look") == "glass", f"HTTP {code} {r}")
+glass["look"] = "neon"
+code, r = call("/api/admin/save", {"changes": {"home_layout": glass}})
+check("save: an unknown look is refused (400)", code == 400, f"HTTP {code}")
+if st["settings"]["home_layout"]:
+    call("/api/admin/save", {"changes": {"home_layout": st["settings"]["home_layout"]}})
 code, r = call("/api/admin/save", {"changes": {"no_such_setting": 1}})
 check("save: an unknown setting is refused (400)", code == 400, f"HTTP {code}")
 

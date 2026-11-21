@@ -20,7 +20,7 @@ can't read.
 
 ## Shared data
 
-- `shared/layout.json`: the Home layout rules (grid, blocks, sizes, presets, tile sizes, clock styles), read by
+- `shared/layout.json`: the Home layout rules (grid, blocks, sizes, presets, tile sizes, clock styles, looks: Standard or Glass), read by
   `helper/layout.py` and built into the app.
 - `addons/<id>/addon.json`: what each built-in add-on is and its settings. The helper runs its `addon.py`; the
   Chromecast runs a Kotlin copy of the seven built-in ones (`Content.kt`).

@@ -90,6 +90,7 @@ public class MainActivity extends Activity {
 
     /** Tile sizes from the layout; true if they changed (the tiles must be built again). */
     boolean dockFull = false;   // the dock runs the whole width; its apps widen to fill it
+    boolean glassLook = false;  // home_layout.look = "glass": cards, buttons and the dock are frosted glass (Glass.java)
 
     boolean applyTileSizes(JSONObject lay) {
         dockFull = lay != null && lay.optBoolean("dock_full");
@@ -324,6 +325,7 @@ public class MainActivity extends Activity {
 
     void buildStage() {
         stage = new FrameLayout(this);
+        Glass.stage = stage;
         stage.setClipChildren(false);   // focused buttons and tiles grow a little past their own area
         // A calm background: dark, a little lighter at the top left.
         GradientDrawable bg = new GradientDrawable();
@@ -397,11 +399,7 @@ public class MainActivity extends Activity {
         blocksLayer.addView(hero, at(GX + 12, GY + 4 * RH + 20, 7 * CW, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         band = new View(this);
-        GradientDrawable bd = new GradientDrawable();
-        bd.setCornerRadius(32 + BAND_PAD);
-        bd.setColor(Color.argb(217, 20, 20, 22));
-        bd.setStroke(2, white(.12));
-        band.setBackground(bd);
+        styleBand();
         rail.addView(band, at(0, 0, 0, 0));
 
         glass = new FrameLayout(this);
@@ -551,6 +549,8 @@ public class MainActivity extends Activity {
     void applyLayout() {
         JSONObject lay = cfg.optJSONObject("layout"), blocks = lay == null ? null : lay.optJSONObject("blocks");
         applyTileSizes(lay);   // the caller builds the tiles again
+        boolean glassNow = lay != null && "glass".equals(lay.optString("look"));
+        if (glassNow != glassLook) { glassLook = glassNow; applyLook(); }
         if (blocks == null) try { blocks = new JSONObject(CLASSIC); } catch (Exception e) { return; }
         // Clock: Small (one row) is time and date side by side; Big (three rows) is a large time.
         JSONObject c = block(blocks, "clock");
@@ -756,7 +756,7 @@ public class MainActivity extends Activity {
         GradientDrawable g;
         if (on) { g = new GradientDrawable(); g.setColor(white(.96)); g.setCornerRadius(36); }
         else { g = vertical(new int[]{white(.18), white(.08)}, 36); g.setStroke(2, white(.22)); }
-        p.setBackground(g);
+        p.setBackground(on || !glassLook ? g : new Glass.Panel(p, 36));
         int c = on ? 0xFF111111 : Color.WHITE;
         ((ImageView) p.getChildAt(0)).setColorFilter(c);
         ((TextView) p.getChildAt(1)).setTextColor(c);
@@ -1047,7 +1047,8 @@ public class MainActivity extends Activity {
         boolean inDock = !top && index < dockSize;
         Pos p = index < pos.size() ? pos.get(index) : null;
         int shift = top || inDock || p == null ? 0 : FOCUS_Y - p.y;
-        rail.animate().translationY(-RAIL_TOP + shift).setDuration(300).setInterpolator(decel).start();
+        rail.animate().translationY(-RAIL_TOP + shift).setDuration(300).setInterpolator(decel)
+                .setUpdateListener(glassLook ? a -> band.invalidate() : null).start();   // glass shows the photo under it: draw it again as it moves
         boolean browsing = shift != 0;
         topShade2.animate().alpha(browsing ? 1f : 0f).setDuration(400).start();
         blocksLayer.animate().alpha(browsing ? 0f : 1f).setDuration(browsing ? 200 : 400).start();
@@ -1359,12 +1360,36 @@ public class MainActivity extends Activity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(28, 16, 28, 18);
+        card.setBackground(cardBg(card));
+        return card;
+    }
+
+    /** A card's background: dark and calm, or frosted glass in the Glass look. */
+    Drawable cardBg(View card) {
+        if (glassLook) return new Glass.Panel(card, 28);
         GradientDrawable bg = new GradientDrawable();
         bg.setCornerRadius(28);
         bg.setColor(black(.45));
         bg.setStroke(2, white(.12));
-        card.setBackground(bg);
-        return card;
+        return bg;
+    }
+
+    void styleBand() {
+        if (glassLook) { band.setBackground(new Glass.Panel(band, 32 + BAND_PAD)); return; }
+        GradientDrawable bd = new GradientDrawable();
+        bd.setCornerRadius(32 + BAND_PAD);
+        bd.setColor(Color.argb(217, 20, 20, 22));
+        bd.setStroke(2, white(.12));
+        band.setBackground(bd);
+    }
+
+    /** The look changed (or the photo did): everything with a glass or a plain background drawn again. */
+    void applyLook() {
+        styleBand();
+        if (npBox != null) npBox.setBackground(cardBg(npBox));
+        for (int i = 0; i < pillViews.size(); i++) stylePill(pillViews.get(i), onTop() && i == pill);
+        if (hasWallpaper) wallShade.animate().alpha(glassLook ? .6f : 1f).setDuration(400).start();
+        renderWidgets();
     }
 
     /** The widgets a block shows, in the admin panel's order. */
@@ -2525,7 +2550,8 @@ public class MainActivity extends Activity {
             }
             if (!placed) items.add(new Item(w.optString("emoji") + "  " + w.optString("name"), "e-addwidget", w.optString("id")));
         }
-        if (items.isEmpty()) { toast("Everything is on Home already."); return; }
+        boolean glassNow = "glass".equals(editLay.optString("look"));   // the look of the whole Home: frosted glass or plain
+        items.add(new Item(glassNow ? "Look: back to Standard" : "Look: Glass (frosted, over the photo)", "e-look", glassNow ? "standard" : "glass"));
         items.add(new Item("Cancel", "cancel", null));
         menuKind = "edit";
         showMenu("Add to Home", items);
@@ -2604,6 +2630,7 @@ public class MainActivity extends Activity {
                     break;
                 }
                 case "e-show": if (editShow(it.arg)) editChange(); break;
+                case "e-look": try { editLay.put("look", it.arg); } catch (Exception ignored) { } editChange(); break;
                 case "e-addwidget": {
                     JSONArray wb = editSpec.optJSONArray("widget_blocks");
                     String target = null;
@@ -3540,12 +3567,14 @@ public class MainActivity extends Activity {
                 final Bitmap bm = BitmapFactory.decodeByteArray(b, 0, b.length, o);
                 final String cr = !w.optString("credit").isEmpty() ? w.optString("credit") : w.optString("title", "");
                 if (bm == null) return;
+                Glass.setWallpaper(bm, W, H);
                 ui.post(() -> {
                     wallShown = image;
                     wall.setImageBitmap(bm);
                     wall.animate().alpha(1f).setDuration(1200).start();
-                    wallShade.animate().alpha(1f).setDuration(600).start();
                     hasWallpaper = true;
+                    wallShade.animate().alpha(glassLook ? .6f : 1f).setDuration(600).start();
+                    if (glassLook) applyLook();
                     credit.setText(cr);
                     credit.setVisibility(cr.isEmpty() ? View.GONE : View.VISIBLE);
                     for (TextView t : new TextView[]{greeting, clock, ampm, date, quoteText, quoteBy, quoteSrc, wxTemp, wxInfo, credit, heroName, miniClock}) shadow(t, true);

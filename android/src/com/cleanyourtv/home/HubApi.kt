@@ -428,6 +428,8 @@ class HubApi(private val hub: Hub) {
         for (bid in blocks.keys()) if (!out.has(bid)) out.put(bid, JSONObject(classic.getJSONObject(bid).toString()).put("on", false))
         val res2 = JSONObject().put("blocks", out).put("preset", v.optString("preset").take(30)).put("dock_full", v.optBoolean("dock_full"))
         for (k in listOf("dock", "rows")) { val s = v.optString(k).ifEmpty { "big" }; require(spec.getJSONObject("tile_sizes").has(s)) { "bad $k size" }; res2.put(k, s) }
+        val looks = spec.getJSONArray("looks").let { a -> (0 until a.length()).map { a.getJSONArray(it).getString(0) } }
+        val look = v.optString("look").ifEmpty { "standard" }; require(look in looks) { "bad look" }; res2.put("look", look)
         return res2
     }
 
