@@ -1829,6 +1829,43 @@ def cc_hub_post(path: str, body: dict) -> dict:
         return {"ok": False, "error": "The Chromecast's app didn't answer (is it 1.6 or newer?)."}
 
 
+def cc_hub_get(path: str) -> dict | None:
+    """A GET from the Chromecast's own server, made from the Chromecast itself (adb)."""
+    adb, serial, why = _cc_serial()
+    if not serial:
+        return None
+    out = subprocess.run([adb, "-s", serial, "shell", f"printf 'GET {path} HTTP/1.0\\r\\n\\r\\n' | toybox nc 127.0.0.1 8765"],
+                         capture_output=True, text=True, timeout=10).stdout
+    try:
+        return json.loads(out.replace("\r\n", "\n").split("\n\n", 1)[1])
+    except (ValueError, IndexError):
+        return None
+
+
+def sync_cc_from_panel(changes: dict, cfg: dict, old_look: str):
+    """The Chromecast app may run its own server (no computer needed) and then reads its settings there, not here.
+    A Home layout or a Look chosen in this panel's Chromecast tab is passed on to it, so the choice reaches the screen.
+    Only those two: its dock, rows and blocks stay the Chromecast's own."""
+    if not CC_IPS:
+        return
+    try:
+        if "home_experience" in changes:
+            r = cc_hub_post("/api/admin/save", {"changes": {"home_experience": cfg.get("home_experience") or {}}})
+            log("chromecast: Home layout passed on to its own server: " + ("done" if r.get("ok") else str(r.get("error"))))
+        if "home_layout" in changes and isinstance(cfg.get("home_layout"), dict):
+            st = cc_hub_get("/api/admin/state") or {}
+            lay = (st.get("settings") or {}).get("home_layout")
+            want = cfg["home_layout"].get("look", "standard")
+            if want == old_look:
+                return   # the Look wasn't changed here: leave the Chromecast's own
+            if isinstance(lay, dict) and lay.get("look", "standard") != want:
+                lay["look"] = want
+                r = cc_hub_post("/api/admin/save", {"changes": {"home_layout": lay}})
+                log(f"chromecast: Look {want} passed on to its own server: " + ("done" if r.get("ok") else str(r.get("error"))))
+    except (OSError, subprocess.TimeoutExpired, ValueError) as e:
+        log(f"chromecast: couldn't pass the change on ({e})")
+
+
 def remote_status() -> dict:
     out = {"tv": {"on": HOME_WATCH.up}, "cc": {"linked": False, "awake": None, "why": ""}}
     out["tv"]["brightness"] = dict(TV_BRIGHT, keys=sorted(tv_brightness_keys()), pending=bool(TV_CMD))
@@ -3273,12 +3310,14 @@ class Handler(SimpleHTTPRequestHandler):
             ADMIN.logout(self.headers.get("Cookie"))
             self._json(200, {"ok": True})
         elif path == "/api/admin/save":
+            old_look = (CONFIG.get("home_layout") or {}).get("look", "standard")
             try:
                 cfg, notes = ADMIN.apply(data.get("changes") or {})
             except (ValueError, TypeError, KeyError) as e:
                 self._json(400, {"ok": False, "error": str(e)})
                 return
             ADMIN.save(cfg)
+            threading.Thread(target=sync_cc_from_panel, args=(dict(data.get("changes") or {}), cfg, old_look), daemon=True).start()
             if "takeover" in notes:
                 set_takeover(notes["takeover"])
             if notes.get("tv_dock_changed"):
